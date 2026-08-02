@@ -1,0 +1,8 @@
+# Default ET Open-like Rules for Signature Engine
+# Format: alert <protocol> <src_ip> <src_port> -> <dst_ip> <dst_port> (msg:"..."; <options>; classtype:<...>; sid:<...>; priority:<...>;)
+
+alert tcp any any -> any any (msg:"ET DOS Possible DDOS Attack"; flow:to_server; threshold:type threshold, track by_src, count 100, seconds 10; classtype:attempted-dos; sid:2000001; priority:1;)
+alert tcp any any -> any any (msg:"ET SCAN Port Scan Detected"; flow:to_server; threshold:type threshold, track by_src, count 30, seconds 5; classtype:attempted-recon; sid:2000002; priority:2;)
+alert tcp any any -> any any (msg:"ET BRUTE Brute Force Login Attempt"; flow:to_server; threshold:type threshold, track by_src, count 20, seconds 5; classtype:attempted-admin; sid:2000003; priority:1;)
+alert tcp any any -> any any (msg:"ET WEB SQL Injection Attempt"; flow:to_server; content:"SELECT"; nocase; classtype:web-application-attack; sid:2000004; priority:1;)
+alert tcp any any -> any any (msg:"ET MALWARE C2 Beacon Activity"; flow:to_server; threshold:type both, track by_src, count 5, seconds 60; classtype:trojan-activity; sid:2000005; priority:1;)

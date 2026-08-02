@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFU Defense System — Live Attack Dashboard</title>
+<style>
+/* ===== CSS Variables ===== */
+:root {
+  --bg-main: #0a0e17;
+  --bg-panel: #111827;
+  --bg-card: #1a2332;
+  --accent: #00e676;
+  --accent-dim: rgba(0, 230, 118, 0.15);
+  --warn: #ff5252;
+  --warn-dim: rgba(255, 82, 82, 0.15);
+  --analysis: #42a5f5;
+  --analysis-dim: rgba(66, 165, 245, 0.15);
+  --countermeasure: #ffc107;
+  --countermeasure-dim: rgba(255, 193, 7, 0.15);
+  --text-primary: #e0e6f0;
+  --text-secondary: #8892a6;
+  --text-dim: #4a5570;
+  --border: #1e2d4a;
+  --glow-green: 0 0 12px rgba(0, 230, 118, 0.4);
+  --radius: 8px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --transition-fast: 150ms ease;
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ===== Top Bar ===== */
+.topbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.dfu-icon {
+  width: 26px; height: 26px;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: var(--accent);
+  background: var(--accent-dim);
+}
+.dfu-title { font-size: 15px; font-weight: 600; letter-spacing: 0.5px; }
+.topbar-center { display: flex; align-items: center; gap: 10px; }
+.level-badge {
+  padding: 2px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border: 1px solid;
+}
+.level-L4 { color: #ff5252; border-color: #ff5252; background: rgba(255,82,82,0.12); }
+.level-L3 { color: #ff9800; border-color: #ff9800; background: rgba(255,152,0,0.12); }
+.level-L2 { color: #ffc107; border-color: #ffc107; background: rgba(255,193,7,0.12); }
+.level-L1 { color: #42a5f5; border-color: #42a5f5; background: rgba(66,165,245,0.12); }
+.level-L0 { color: #8892a6; border-color: #8892a6; background: rgba(136,146,166,0.12); }
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.live-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  animation: livePulse 1.2s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--warn); }
+  50% { opacity: 0.3; box-shadow: 0 0 16px var(--warn); }
+}
+.live-label {
+  font-size: 12px; font-weight: 700;
+  color: var(--warn); letter-spacing: 1px;
+  display: flex; align-items: center; gap: 6px;
+}
+.attack-count {
+  font-size: 18px; font-weight: 700;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+
+/* ===== Main Layout ===== */
+.main-layout {
+  display: flex;
+  height: calc(100% - 48px - 56px);
+  gap: 1px;
+  background: var(--border);
+}
+.panel {
+  background: var(--bg-main);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.panel-left   { flex: 0 0 35%; }
+.panel-center { flex: 0 0 40%; }
+.panel-right  { flex: 0 0 25%; }
+.panel-header {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ===== Map Canvas ===== */
+.map-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+#mapCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.attack-list {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  max-height: 90px;
+  overflow-y: auto;
+  font-size: 11px;
+}
+.attack-list::-webkit-scrollbar { width: 3px; }
+.attack-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.attack-item {
+  display: flex; justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(30,45,74,0.3);
+}
+.attack-item:last-child { border-bottom: none; }
+.attack-item .ip   { color: var(--text-secondary); font-family: monospace; }
+.attack-item .type { color: var(--accent); }
+.attack-item .time { color: var(--text-dim); }
+
+/* ===== Timeline ===== */
+.timeline-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+  position: relative;
+}
+.timeline-wrap::-webkit-scrollbar { width: 3px; }
+.timeline-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.timeline-line {
+  position: absolute;
+  left: 24px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--border);
+}
+.timeline-event {
+  position: relative;
+  margin-bottom: 12px;
+  padding-left: 44px;
+  animation: slideUp 0.3s ease-out;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.timeline-dot {
+  position: absolute;
+  left: 16px;
+  top: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  z-index: 1;
+}
+.timeline-dot.type-detection     { background: var(--warn-dim); color: var(--warn); border: 2px solid var(--warn); }
+.timeline-dot.type-analysis      { background: var(--analysis-dim); color: var(--analysis); border: 2px solid var(--analysis); }
+.timeline-dot.type-countermeasure{ background: var(--countermeasure-dim); color: var(--countermeasure); border: 2px solid var(--countermeasure); }
+.timeline-dot.type-blocked       { background: var(--accent-dim); color: var(--accent); border: 2px solid var(--accent); }
+.timeline-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+}
+.timeline-card .t-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: monospace;
+}
+.timeline-card .t-desc {
+  font-size: 12px;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+.timeline-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+  padding-top: 40px;
+}
+
+/* ===== Stats Panel ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px;
+}
+.stat-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 12px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+.stat-card .stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  line-height: 1.2;
+}
+.stat-card .stat-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stat-card .stat-value.stat-warn { color: var(--warn); }
+.stat-card .stat-value.stat-analysis { color: var(--analysis); }
+.stat-card .stat-value.stat-cm { color: var(--countermeasure); }
+
+/* ===== Comparison Bar ===== */
+.comparison-wrap {
+  padding: 10px 14px;
+  flex: 1;
+  display: flex; flex-direction: column;
+  justify-content: flex-end;
+}
+.comparison-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.comp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.comp-label {
+  width: 44px;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-align: right;
+}
+.comp-label.dfu  { color: var(--accent); }
+.comp-label.none { color: var(--warn); }
+.comp-bar-track {
+  flex: 1;
+  height: 18px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.comp-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  position: relative;
+}
+.comp-bar-fill.dfu  { background: var(--accent); }
+.comp-bar-fill.none { background: var(--warn); }
+.comp-bar-text {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: #0a0e17;
+}
+.comp-bar-text.light { color: var(--text-primary); }
+
+/* ===== Bottom Buttons ===== */
+.bottombar {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 20px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.scenario-btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  letter-spacing: 0.5px;
+}
+.scenario-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(0,230,118,0.25), 0 0 4px rgba(0,230,118,0.4);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.scenario-btn:active {
+  transform: scale(0.95);
+}
+.scenario-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+  box-shadow: 0 0 12px rgba(0,230,118,0.3);
+}
+.scenario-btn.auto {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.scenario-btn.auto:hover {
+  box-shadow: 0 0 16px rgba(255,82,82,0.25);
+  border-color: var(--warn);
+  background: var(--warn-dim);
+  color: var(--warn);
+}
+.scenario-btn.auto.active {
+  background: var(--warn-dim);
+  border-color: var(--warn);
+  color: var(--warn);
+  box-shadow: 0 0 12px rgba(255,82,82,0.3);
+}
+
+/* ===== Scroll Corner ===== */
+.scroll-log {
+  position: fixed;
+  bottom: 56px;
+  right: 0;
+  width: 30%;
+  max-height: 120px;
+  background: rgba(10,14,23,0.85);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-dim);
+  overflow-y: auto;
+  padding: 6px 10px;
+  display: none;
+  z-index: 10;
+}
+.scroll-log::-webkit-scrollbar { width: 2px; }
+.scroll-log::-webkit-scrollbar-thumb { background: var(--border); }
+.scroll-log .log-entry { padding: 1px 0; }
+</style>
+</head>
+<body>
+
+<!-- ===== Top Bar ===== -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="dfu-icon">D</div>
+    <span class="dfu-title">DFU Defense System</span>
+  </div>
+  <div class="topbar-center">
+    <span class="level-badge level-L4" id="levelBadge">L4 隔离</span>
+  </div>
+  <div class="topbar-right">
+    <span class="live-label"><span class="live-dot"></span> LIVE</span>
+    <span class="attack-count" id="attackCount">0</span>
+  </div>
+</div>
+
+<!-- ===== Main ===== -->
+<div class="main-layout">
+  <!-- Left: Map -->
+  <div class="panel panel-left">
+    <div class="panel-header">&#127758; 全球攻击源</div>
+    <div class="map-wrap">
+      <canvas id="mapCanvas"></canvas>
+    </div>
+    <div class="attack-list" id="attackList"></div>
+  </div>
+
+  <!-- Center: Timeline -->
+  <div class="panel panel-center">
+    <div class="panel-header">&#128200; 防护时间线</div>
+    <div class="timeline-wrap" id="timelineWrap">
+      <div class="timeline-line"></div>
+      <div class="timeline-empty" id="timelineEmpty">等待攻击事件接入...</div>
+    </div>
+  </div>
+
+  <!-- Right: Stats -->
+  <div class="panel panel-right">
+    <div class="panel-header">&#128202; 实时统计</div>
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-value" id="statDetections">0</div>
+        <div class="stat-label">攻击检测</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value stat-analysis" id="statAnalysis">0</div>
+        <div class="stat-label">威胁分析</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value stat-cm" id="statCountermeasures">0</div>
+        <div class="stat-label">防御升级</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value stat-warn" id="statIsolated">0</div>
+        <div class="stat-label">L4 隔离 IP</div>
+      </div>
+    </div>
+    <div class="comparison-wrap">
+      <div class="comparison-title">&#9878; 防护效果对比</div>
+      <div class="comp-row">
+        <span class="comp-label dfu">DFU</span>
+        <div class="comp-bar-track">
+          <div class="comp-bar-fill dfu" id="compDfu" style="width:98%">
+            <span class="comp-bar-text">98% &#10004;</span>
+          </div>
+        </div>
+      </div>
+      <div class="comp-row">
+        <span class="comp-label none">无防护</span>
+        <div class="comp-bar-track">
+          <div class="comp-bar-fill none" id="compNone" style="width:2%">
+            <span class="comp-bar-text light">2% &#10008;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Bottom Bar ===== -->
+<div class="bottombar">
+  <button class="scenario-btn" data-scenario="c2_beacon">&#128279; C2 信标</button>
+  <button class="scenario-btn" data-scenario="data_exfil">&#128683; 数据外泄</button>
+  <button class="scenario-btn" data-scenario="port_scan">&#128269; 端口扫描</button>
+  <button class="scenario-btn" data-scenario="mixed_attack">&#9889; 混合攻击</button>
+  <button class="scenario-btn auto" data-scenario="auto_demo">&#9654; 自动演示</button>
+</div>
+
+<!-- ===== Scroll Log (hidden by default) ===== -->
+<div class="scroll-log" id="scrollLog"></div>
+
+<script>
+/* ===================================================
+   DFU Defense System — Live Dashboard Controller
+   =================================================== */
+
+// ---- State ----
+const state = {
+  events: [],
+  stats: { detections: 0, analysis: 0, countermeasures: 0, isolated: 3 },
+  attackPoints: [],  // {x, y, country, type, ip, startTime}
+  autoRunning: false,
+  since: 0,
+};
+
+// ---- Helpers ----
+function pad(n) { return String(n).padStart(2, '0'); }
+function ts() {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function rnd(min, max) { return Math.random() * (max - min) + min; }
+function rndInt(min, max) { return Math.floor(rnd(min, max + 1)); }
+
+// ---- Mock IPs & Countries ----
+const countries = [
+  { name: '美国', code: 'US' }, { name: '俄罗斯', code: 'RU' },
+  { name: '中国', code: 'CN' }, { name: '德国', code: 'DE' },
+  { name: '巴西', code: 'BR' }, { name: '印度', code: 'IN' },
+  { name: '伊朗', code: 'IR' }, { name: '韩国', code: 'KR' },
+  { name: '乌克兰', code: 'UA' }, { name: '荷兰', code: 'NL' },
+];
+function rndCountry() { return countries[rndInt(0, countries.length - 1)]; }
+function rndIP() {
+  return `${rndInt(1,255)}.${rndInt(0,255)}.${rndInt(0,255)}.${rndInt(1,255)}`;
+}
+
+// ---- Attack Scenarios ----
+const scenarios = {
+  c2_beacon: {
+    label: 'C2 信标',
+    events: [
+      { type: 'detection', desc: '检测到异常出站连接 -> 45.33.xx.xx:8443' },
+      { type: 'analysis', desc: 'LLM 分析：信标流量模式匹配 Cobalt Strike' },
+      { type: 'countermeasure', desc: 'L2 硬防御：阻断目标 IP 出站流量' },
+      { type: 'analysis', desc: '关联分析：溯源关联 3 个失陷节点' },
+      { type: 'blocked', desc: 'L4 隔离：失陷节点已完全隔离' },
+    ],
+  },
+  data_exfil: {
+    label: '数据外泄',
+    events: [
+      { type: 'detection', desc: '检测到大量出站数据包 (2.3GB/5min)' },
+      { type: 'analysis', desc: 'LLM 分析：数据打包 + Base64 编码，疑似数据外泄' },
+      { type: 'countermeasure', desc: 'L3 策略升级：启动 DLP 规则集' },
+      { type: 'blocked', desc: '阻断外泄通道，拦截 1,247 条敏感记录' },
+    ],
+  },
+  port_scan: {
+    label: '端口扫描',
+    events: [
+      { type: 'detection', desc: '检测到来自 89.45.xx.xx 的端口扫描 (1-65535)' },
+      { type: 'analysis', desc: 'LLM 分析：Nmap SYN 扫描 + 服务指纹探测' },
+      { type: 'countermeasure', desc: 'L2 硬防御：临时黑名单 + 端口敲门验证' },
+      { type: 'blocked', desc: '扫描源 IP 已自动加入黑名单 (24h)' },
+    ],
+  },
+  mixed_attack: {
+    label: '混合攻击',
+    events: [
+      { type: 'detection', desc: '多向量攻击：DDoS + SQL 注入 + 钓鱼邮件同步爆发' },
+      { type: 'analysis', desc: 'LLM 关联分析：3 类攻击共享同一 C2 基础设施' },
+      { type: 'countermeasure', desc: 'L3 策略升级：启动自适应防御矩阵' },
+      { type: 'analysis', desc: '溯源归因：APT 组织 TA-2024-037' },
+      { type: 'countermeasure', desc: 'L4 隔离：切断 C2 通信链路' },
+      { type: 'blocked', desc: '全部攻击向量已阻断，持续监控中' },
+    ],
+  },
+};
+
+// ---- Event Types ----
+const eventTypeInfo = {
+  detection:     { icon: '&#128308;', label: '攻击检测' },
+  analysis:      { icon: '&#128309;', label: '威胁分析' },
+  countermeasure:{ icon: '&#128993;', label: '防御升级' },
+  blocked:       { icon: '&#128994;', label: '攻击阻断' },
+};
+
+// ---- DOM refs ----
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+const timelineWrap = document.getElementById('timelineWrap');
+const timelineEmpty = document.getElementById('timelineEmpty');
+const attackListEl = document.getElementById('attackList');
+const scrollLog = document.getElementById('scrollLog');
+
+const statEls = {
+  detections: document.getElementById('statDetections'),
+  analysis: document.getElementById('statAnalysis'),
+  countermeasures: document.getElementById('statCountermeasures'),
+  isolated: document.getElementById('statIsolated'),
+};
+const attackCountEl = document.getElementById('attackCount');
+const levelBadge = document.getElementById('levelBadge');
+const compDfu = document.getElementById('compDfu');
+const compNone = document.getElementById('compNone');
+
+// ---- Canvas: Draw map ----
+function drawMap() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Simplified continent outlines
+  const continents = [
+    // North America
+    [[0.05,0.25],[0.12,0.18],[0.20,0.15],[0.28,0.16],[0.32,0.20],[0.30,0.28],[0.27,0.32],[0.22,0.38],[0.18,0.40],[0.12,0.38],[0.08,0.34],[0.05,0.30]],
+    // South America
+    [[0.20,0.40],[0.24,0.38],[0.28,0.40],[0.30,0.46],[0.30,0.54],[0.28,0.60],[0.24,0.62],[0.20,0.60],[0.18,0.54],[0.18,0.46]],
+    // Europe
+    [[0.40,0.16],[0.45,0.12],[0.50,0.12],[0.54,0.14],[0.56,0.18],[0.55,0.22],[0.52,0.26],[0.48,0.28],[0.44,0.26],[0.40,0.22]],
+    // Africa
+    [[0.42,0.28],[0.46,0.26],[0.50,0.26],[0.54,0.28],[0.56,0.34],[0.56,0.42],[0.54,0.48],[0.50,0.52],[0.46,0.52],[0.42,0.48],[0.40,0.42],[0.40,0.34]],
+    // Asia
+    [[0.50,0.12],[0.58,0.08],[0.66,0.06],[0.74,0.08],[0.80,0.12],[0.82,0.18],[0.80,0.22],[0.76,0.26],[0.72,0.28],[0.68,0.26],[0.64,0.24],[0.60,0.24],[0.56,0.22],[0.52,0.20],[0.50,0.16]],
+    // Australia
+    [[0.76,0.46],[0.80,0.44],[0.84,0.44],[0.86,0.48],[0.86,0.52],[0.82,0.54],[0.78,0.54],[0.76,0.50]],
+  ];
+
+  ctx.strokeStyle = 'rgba(30,45,74,0.4)';
+  ctx.lineWidth = 1.2;
+  ctx.fillStyle = 'rgba(17,24,39,0.6)';
+
+  for (const pts of continents) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0] * W, pts[0][1] * H);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i][0] * W, pts[i][1] * H);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(30,45,74,0.15)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 10; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * W / 10, 0);
+    ctx.lineTo(i * W / 10, H);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * H / 10);
+    ctx.lineTo(W, i * H / 10);
+    ctx.stroke();
+  }
+}
+
+// ---- Canvas: Draw attack points ----
+function drawAttackPoints() {
+  const W = canvas.width, H = canvas.height;
+  const now = performance.now();
+
+  for (let i = state.attackPoints.length - 1; i >= 0; i--) {
+    const pt = state.attackPoints[i];
+    const age = (now - pt.startTime) / 1000;  // seconds
+    if (age > 2.2) {
+      state.attackPoints.splice(i, 1);
+      continue;
+    }
+
+    const x = pt.x * W;
+    const y = pt.y * H;
+    const progress = Math.min(age / 2, 1);  // 0→1 over 2s
+
+    // Pulse ring
+    const ringRadius = 4 + progress * 30;
+    const alpha = 1 - progress;
+    ctx.beginPath();
+    ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0, 230, 118, ${alpha * 0.6})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Center dot
+    const dotSize = 3 + (1 - progress) * 2;
+    ctx.beginPath();
+    ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(0, 230, 118, ${0.3 + 0.7 * (1 - progress)})`;
+    ctx.fill();
+
+    // Glow
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, 8);
+    grad.addColorStop(0, `rgba(0, 230, 118, ${0.3 * (1 - progress)})`);
+    grad.addColorStop(1, `rgba(0, 230, 118, 0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+}
+
+// ---- Canvas animation loop ----
+function animateCanvas(time) {
+  drawMap();
+  drawAttackPoints();
+  requestAnimationFrame(animateCanvas);
+}
+
+// ---- Resize canvas ----
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.scale(dpr, dpr);
+  drawMap();
+}
+
+// ---- Add attack point to map ----
+function addAttackPoint(country) {
+  const cmap = {
+    '美国': [0.15, 0.25], '俄罗斯': [0.60, 0.15],
+    '中国': [0.70, 0.20], '德国': [0.45, 0.18],
+    '巴西': [0.22, 0.50], '印度': [0.65, 0.22],
+    '伊朗': [0.55, 0.25], '韩国': [0.73, 0.16],
+    '乌克兰': [0.52, 0.18], '荷兰': [0.43, 0.17],
+    '未知': [0.50, 0.40],
+  };
+  const pos = cmap[country] || [0.5, 0.4];
+  const ip = rndIP();
+  state.attackPoints.push({
+    x: pos[0] + rnd(-0.03, 0.03),
+    y: pos[1] + rnd(-0.02, 0.02),
+    country,
+    type: '攻击',
+    ip,
+    startTime: performance.now(),
+  });
+  return ip;
+}
+
+// ---- Add timeline event ----
+function addTimelineEvent(event) {
+  const info = eventTypeInfo[event.type] || { icon: '&#9899;', label: event.type };
+  timelineEmpty.style.display = 'none';
+
+  const div = document.createElement('div');
+  div.className = 'timeline-event';
+  div.innerHTML = `
+    <div class="timeline-dot type-${event.type}">${info.icon}</div>
+    <div class="timeline-card">
+      <div class="t-time">${event.time || ts()} &middot; ${info.label}</div>
+      <div class="t-desc">${event.desc}</div>
+    </div>
+  `;
+  timelineWrap.appendChild(div);
+
+  // Auto-scroll to bottom
+  timelineWrap.scrollTop = timelineWrap.scrollHeight;
+
+  // Keep max ~50 events
+  while (timelineWrap.children.length > 52) {
+    const first = timelineWrap.children[1];
+    if (first && first.classList.contains('timeline-event')) first.remove();
+    else break;
+  }
+}
+
+// ---- Update stats with countUp animation ----
+function updateStatValue(el, newVal) {
+  const oldVal = parseInt(el.textContent) || 0;
+  if (oldVal === newVal) return;
+  const duration = 300;
+  const startTime = performance.now();
+  const diff = newVal - oldVal;
+
+  function tick(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);  // easeOutCubic
+    el.textContent = Math.round(oldVal + diff * eased);
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ---- Update UI for new event ----
+function processEvent(event) {
+  // Stats
+  if (event.type === 'detection') {
+    state.stats.detections++;
+    updateStatValue(statEls.detections, state.stats.detections);
+  } else if (event.type === 'analysis') {
+    state.stats.analysis++;
+    updateStatValue(statEls.analysis, state.stats.analysis);
+  } else if (event.type === 'countermeasure') {
+    state.stats.countermeasures++;
+    updateStatValue(statEls.countermeasures, state.stats.countermeasures);
+  } else if (event.type === 'blocked') {
+    state.stats.isolated += rndInt(1, 3);
+    updateStatValue(statEls.isolated, state.stats.isolated);
+  }
+
+  // Attack count
+  updateStatValue(attackCountEl, state.stats.detections);
+
+  // Attack point
+  const country = event.country || rndCountry().name;
+  const ip = addAttackPoint(country);
+
+  // Timeline
+  addTimelineEvent({ ...event, time: ts(), country });
+
+  // Attack list
+  const item = document.createElement('div');
+  item.className = 'attack-item';
+  item.innerHTML = `
+    <span class="ip">${ip} (${country})</span>
+    <span class="type">${scenarios[event.scenario]?.label || '攻击'}</span>
+    <span class="time">${ts()}</span>
+  `;
+  attackListEl.prepend(item);
+  while (attackListEl.children.length > 8) {
+    attackListEl.removeChild(attackListEl.lastChild);
+  }
+
+  // Level badge update
+  const d = state.stats.detections;
+  let level = 'L0', levelClass = 'level-L0';
+  if (d > 50) { level = 'L4'; levelClass = 'level-L4'; }
+  else if (d > 30) { level = 'L3'; levelClass = 'level-L3'; }
+  else if (d > 15) { level = 'L2'; levelClass = 'level-L2'; }
+  else if (d > 5) { level = 'L1'; levelClass = 'level-L1'; }
+  levelBadge.textContent = level === 'L0' ? 'L0 待命' : `${level} 防御`;
+  levelBadge.className = `level-badge ${levelClass}`;
+
+  // Comparison bars — DFU stays high, unprotected grows
+  const total = state.stats.detections || 1;
+  const dfuPct = Math.min(95 + rnd(0, 4), 99);
+  const nonePct = Math.min(100 - dfuPct + rnd(0, 3), 100 - dfuPct + 8);
+  compDfu.style.width = dfuPct + '%';
+  compDfu.innerHTML = `<span class="comp-bar-text">${dfuPct.toFixed(0)}% &#10004;</span>`;
+  compNone.style.width = nonePct + '%';
+  compNone.innerHTML = `<span class="comp-bar-text light">${nonePct.toFixed(0)}% &#10008;</span>`;
+
+  // Level-Dependant color
+  if (level === 'L4') {
+    compDfu.style.background = 'var(--accent)';
+  }
+
+  // Scroll log
+  if (scrollLog.style.display !== 'none') {
+    const logEntry = document.createElement('div');
+    logEntry.className = 'log-entry';
+    logEntry.textContent = `[${ts()}] ${event.type}: ${event.desc}`;
+    scrollLog.appendChild(logEntry);
+    scrollLog.scrollTop = scrollLog.scrollHeight;
+    while (scrollLog.children.length > 20) scrollLog.removeChild(scrollLog.firstChild);
+  }
+}
+
+// ---- Trigger scenario ----
+function triggerScenario(scenarioName) {
+  const scenario = scenarios[scenarioName];
+  if (!scenario) return;
+
+  const country = rndCountry().name;
+  let delay = 0;
+  for (const evt of scenario.events) {
+    setTimeout(() => {
+      processEvent({ ...evt, scenario: scenarioName, country });
+    }, delay);
+    delay += 600 + rnd(0, 400);
+  }
+}
+
+// ---- Auto Demo ----
+const autoScenarios = ['c2_beacon', 'data_exfil', 'port_scan', 'mixed_attack'];
+let autoIndex = 0;
+
+function autoDemo() {
+  if (!state.autoRunning) return;
+  triggerScenario(autoScenarios[autoIndex % autoScenarios.length]);
+  autoIndex++;
+  setTimeout(autoDemo, 5000 + Math.random() * 3000);
+}
+
+// ---- Button handlers ----
+document.querySelectorAll('.scenario-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const scenario = btn.dataset.scenario;
+
+    if (scenario === 'auto_demo') {
+      state.autoRunning = !state.autoRunning;
+      btn.classList.toggle('active');
+      btn.innerHTML = state.autoRunning ? '&#9632; 停止演示' : '&#9654; 自动演示';
+      if (state.autoRunning) autoDemo();
+      return;
+    }
+
+    triggerScenario(scenario);
+  });
+});
+
+// ---- Startup / Polling (mocked) ----
+function init() {
+  resizeCanvas();
+  requestAnimationFrame(animateCanvas);
+  window.addEventListener('resize', resizeCanvas);
+
+  // Mock: trigger C2 beacon on load after 1s
+  setTimeout(() => triggerScenario('c2_beacon'), 800);
+
+  // Polling simulation (would be /api/events?since=0 in production)
+  // Since no backend, we just rely on button triggers
+  console.log('DFU Live Dashboard initialized');
+  console.log('API endpoints (for backend integration):');
+  console.log('  GET  /api/events?since={id}');
+  console.log('  SSE  /api/events/stream');
+  console.log('  POST /api/demo/trigger {scenario:"c2_beacon"}');
+}
+
+// ---- Toggle scroll log on double-click topbar ----
+document.querySelector('.topbar').addEventListener('dblclick', () => {
+  scrollLog.style.display = scrollLog.style.display === 'none' ? 'block' : 'none';
+});
+
+// ---- Go ----
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>

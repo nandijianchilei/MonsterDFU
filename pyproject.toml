@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dfu-defense"
+version = "0.2.0"
+description = "DFU (Dual-Brain Distributed AI Defense Fighting Unit) - AI-powered autonomous defense system"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "DFU Team" }]
+keywords = ["security", "ai", "defense", "threat-detection", "autonomous"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+dependencies = [
+    "aiohttp>=3.9",
+    "aiosqlite>=0.20",
+    "fastapi>=0.100",
+    "uvicorn>=0.20",
+    "sse-starlette>=1.8",
+    "pyyaml>=6.0",
+    "scapy>=2.5",
+]
+dynamic = ["readme"]
+
+[project.scripts]
+dfu = "cli:main"
+
+[project.urls]
+Homepage = "https://github.com/example/dfu-defense"
+Documentation = "https://github.com/example/dfu-defense#readme"
+Repository = "https://github.com/example/dfu-defense"
+
+[tool.setuptools.packages.find]
+include = ["*"]

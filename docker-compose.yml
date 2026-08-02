@@ -1,0 +1,121 @@
+version: "3.8"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: dfu-rabbitmq
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dfu-net
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  dfu-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dfu-core
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - DFU_RABBITMQ_HOST=rabbitmq
+      - DFU_SERVER_HOST=0.0.0.0
+      - DFU_SERVER_PORT=8000
+      - DFU_AUTH_API_TOKEN=${DFU_AUTH_API_TOKEN:-dfu-default-token-change-me}
+      - DFU_LLM_API_KEY=${DFU_LLM_API_KEY:-}
+      - DFU_LLM_MOCK_MODE=${DFU_LLM_MOCK_MODE:-true}
+      - DFU_LOGGING_LEVEL=${DFU_LOGGING_LEVEL:-INFO}
+      - DFU_DETECTION_OUTBOUND_MONITOR_EXFILTRATION_THRESHOLD_BYTES=${DFU_EXFIL_THRESHOLD:-10485760}
+      - DFU_CONFIG_PATH=/app/config/custom.yaml
+    volumes:
+      - dfu_data:/app/data
+      - dfu_logs:/app/logs
+      - ./config/custom.yaml:/app/config/custom.yaml:ro
+    networks:
+      - dfu-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "2G"
+        reservations:
+          cpus: "0.5"
+          memory: "512M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── 实时抓包服务 ──
+  dfu-capturer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dfu-capturer
+    restart: unless-stopped
+    # host 网络模式：scapy 需要原生 AF_PACKET / AF_INET 套接字访问宿主网络接口
+    network_mode: "host"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - DFU_RABBITMQ_HOST=localhost
+      - DFU_RABBITMQ_PORT=5672
+      - DFU_LOGGING_LEVEL=${DFU_LOGGING_LEVEL:-INFO}
+      - DFU_LLM_MOCK_MODE=true
+      - DFU_AUTH_API_TOKEN=${DFU_AUTH_API_TOKEN:-dfu-default-token-change-me}
+    volumes:
+      - dfu_data:/app/data
+      - dfu_logs:/app/logs
+    # 覆盖默认 CMD，启动独立抓包入口
+    command: ["python", "capturer_entry.py"]
+    cap_add:
+      # scapy 原始套接字所需
+      - NET_RAW
+      - NET_ADMIN
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1G"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  dfu-net:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+    driver: local
+  dfu_data:
+    driver: local
+  dfu_logs:
+    driver: local

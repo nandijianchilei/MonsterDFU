@@ -1,0 +1,42 @@
+# ============================================================
+# DFU Defense System - .gitignore
+# ============================================================
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+
+# ---- 环境变量与密钥（.env.example 为模板，保留）----
+.env
+.env.*
+!.env.example
+podman-machine/
+
+# ---- 运行时数据与日志 ----
+logs/
+*.log
+data/
+temp/
+output/
+*.db
+*.db-shm
+*.db-wal
+knowledge/*.db*
+
+# ---- 测试残留 ----
+.pytest_cache/
+.coverage
+htmlcov/
+tools/stress_results/
+tools/blind_test_results/
+
+# ---- 配置覆盖 ----
+config/custom.yaml
+
+# ---- 系统文件 ----
+.DS_Store
+Thumbs.db

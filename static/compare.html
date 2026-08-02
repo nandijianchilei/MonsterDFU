@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFU 对比演示 - 无防护 vs 有防护</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Consolas', 'Courier New', monospace;
+  background: #0a0a0f;
+  color: #c0c0c8;
+  overflow: hidden;
+  height: 100vh;
+}
+.container {
+  display: flex;
+  height: 100vh;
+  gap: 1px;
+  background: #1a1a2e;
+}
+
+/* 左右面板 */
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.panel-left { background: #0d0d14; border-right: 2px solid #ff4444; }
+.panel-right { background: #0d1117; border-left: 2px solid #00ff88; }
+
+/* 标题栏 */
+.panel-header {
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+  letter-spacing: 2px;
+  position: relative;
+  z-index: 2;
+}
+.panel-left .panel-header {
+  background: linear-gradient(180deg, #1a0010, #0d0d14);
+  color: #ff4444;
+  border-bottom: 1px solid #ff444440;
+}
+.panel-right .panel-header {
+  background: linear-gradient(180deg, #001a10, #0d1117);
+  color: #00ff88;
+  border-bottom: 1px solid #00ff8840;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.badge-vuln { background: #ff444422; color: #ff6666; border: 1px solid #ff4444; }
+.badge-protected { background: #00ff8822; color: #00ff88; border: 1px solid #00ff88; }
+
+/* 场景指示器 */
+.scenario-bar {
+  display: flex;
+  gap: 0;
+  padding: 0;
+}
+.scenario-btn {
+  flex: 1;
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border: none;
+  background: #151520;
+  color: #555;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+}
+.scenario-btn.active {
+  color: #fff;
+  border-bottom-color: #ffcc00;
+  background: #1a1a2e;
+}
+
+/* 终端区域 */
+.terminal {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-y: auto;
+  font-family: 'Consolas', 'Courier New', monospace;
+  position: relative;
+}
+.panel-left .terminal { background: #0a0a10; }
+.panel-right .terminal { background: #0a0f14; }
+
+.terminal::-webkit-scrollbar { width: 4px; }
+.terminal::-webkit-scrollbar-track { background: transparent; }
+.terminal::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+/* 日志行 */
+.log-line {
+  padding: 1px 0;
+  white-space: nowrap;
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.log-time { color: #666; margin-right: 8px; }
+.log-tag { display: inline-block; padding: 0 4px; border-radius: 2px; font-size: 10px; margin-right: 6px; }
+.tag-attack { background: #ff444430; color: #ff6666; }
+.tag-breach { background: #ff444460; color: #ff3333; font-weight: bold; }
+.tag-alert { background: #ffcc0030; color: #ffcc00; }
+.tag-block { background: #00ff8830; color: #00ff88; }
+.tag-isolate { background: #00ffff30; color: #00ffff; }
+.tag-detect { background: #3399ff30; color: #3399ff; }
+.tag-info { background: #66666630; color: #999; }
+.tag-ok { background: #00ff8830; color: #00ff88; }
+
+/* DFU 右侧特有元素 */
+.alert-popup {
+  background: #1a1a00;
+  border: 1px solid #ffcc00;
+  border-left: 4px solid #ffcc00;
+  padding: 6px 10px;
+  margin: 4px 0;
+  font-size: 11px;
+  animation: alertPop 0.4s ease;
+  color: #ffcc00;
+}
+@keyframes alertPop {
+  0% { transform: scale(0.9); opacity: 0; }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.isolation-box {
+  background: #001a1a;
+  border: 1px solid #00ffff;
+  border-left: 4px solid #00ffff;
+  padding: 6px 10px;
+  margin: 4px 0;
+  font-size: 11px;
+  animation: alertPop 0.4s ease;
+  color: #00ffff;
+}
+
+/* 攻击包动画 */
+.packet-stream {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+.packet-dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  animation: packetFly 2s linear forwards;
+}
+@keyframes packetFly {
+  0% { opacity: 0; transform: translateX(0) translateY(0); }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(var(--tx)) translateY(var(--ty)); }
+}
+
+/* 底栏统计 */
+.stats-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px;
+  font-size: 10px;
+  border-top: 1px solid #222;
+  background: #0a0a0f;
+  letter-spacing: 1px;
+}
+.stat-item { text-align: center; }
+.stat-value { font-size: 18px; font-weight: bold; }
+.stat-value.red { color: #ff4444; }
+.stat-value.green { color: #00ff88; }
+.stat-value.yellow { color: #ffcc00; }
+.stat-label { color: #666; margin-top: 2px; }
+
+/* 分界线 */
+.divider {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 10;
+  pointer-events: none;
+}
+.divider-line {
+  position: absolute;
+  left: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(180deg, #ff4444 0%, #ff4444 20%, #00ff88 80%, #00ff88 100%);
+  opacity: 0.5;
+}
+.divider-label {
+  position: absolute;
+  left: -50px;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #444;
+  white-space: nowrap;
+}
+.divider-vs {
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1a1a2e;
+  padding: 8px 4px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #666;
+  border-radius: 4px;
+  border: 1px solid #333;
+}
+
+/* 连接箭头动画 */
+.arrow {
+  position: absolute;
+  left: -1px;
+  animation: arrowFlow 3s linear infinite;
+  color: #ffcc00;
+  font-size: 10px;
+  pointer-events: none;
+  z-index: 11;
+}
+@keyframes arrowFlow {
+  0% { top: -10px; opacity: 0; }
+  30% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 左侧：无 DFU 防护 -->
+  <div class="panel panel-left">
+    <div class="panel-header">
+      无 DFU 防护 <span class="status-badge badge-vuln">VULNERABLE</span>
+    </div>
+    <div class="scenario-bar" id="scenarioBar">
+      <button class="scenario-btn active" data-scenario="0">C2 回连</button>
+      <button class="scenario-btn" data-scenario="1">数据外泄</button>
+      <button class="scenario-btn" data-scenario="2">端口扫描</button>
+      <button class="scenario-btn" data-scenario="3">暴力破解</button>
+    </div>
+    <div class="terminal" id="leftTerminal">
+      <div class="log-line"><span class="log-time">T+00:00</span><span class="log-tag tag-info">SYS</span>系统启动，防火墙已关闭</div>
+    </div>
+    <div class="packet-stream" id="leftPackets"></div>
+    <div class="stats-bar">
+      <div class="stat-item"><div class="stat-value red" id="leftBreaches">0</div><div class="stat-label">已攻破</div></div>
+      <div class="stat-item"><div class="stat-value red" id="leftAttacks">0</div><div class="stat-label">攻击次数</div></div>
+      <div class="stat-item"><div class="stat-value" id="leftStatus" style="color:#ff4444;">未防护</div><div class="stat-label">状态</div></div>
+    </div>
+  </div>
+
+  <!-- 右侧：有 DFU 防护 -->
+  <div class="panel panel-right">
+    <div class="panel-header">
+      有 DFU 防护 <span class="status-badge badge-protected">PROTECTED</span>
+    </div>
+    <div class="scenario-bar">
+      <button class="scenario-btn active" data-scenario="0">C2 回连</button>
+      <button class="scenario-btn" data-scenario="1">数据外泄</button>
+      <button class="scenario-btn" data-scenario="2">端口扫描</button>
+      <button class="scenario-btn" data-scenario="3">暴力破解</button>
+    </div>
+    <div class="terminal" id="rightTerminal">
+      <div class="log-line"><span class="log-time">T+00:00</span><span class="log-tag tag-info">SYS</span>DFU 防御系统已激活，Npcap 抓包运行中</div>
+    </div>
+    <div class="packet-stream" id="rightPackets"></div>
+    <div class="stats-bar">
+      <div class="stat-item"><div class="stat-value green" id="rightBlocked">0</div><div class="stat-label">已拦截</div></div>
+      <div class="stat-item"><div class="stat-value yellow" id="rightAlerts">0</div><div class="stat-label">告警</div></div>
+      <div class="stat-item"><div class="stat-value green" id="rightStatus" style="color:#00ff88;">受保护</div><div class="stat-label">状态</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 分界线 -->
+<div class="divider">
+  <div class="divider-line"></div>
+  <div class="divider-vs">VS</div>
+  <div class="arrow">▼</div>
+</div>
+
+<script>
+// ========== 攻击场景定义 ==========
+const SCENARIOS = [
+  {
+    name: 'C2 回连',
+    steps: [
+      { t: 2, type: 'attack', msg: '恶意软件建立 C2 信标连接 → 192.168.1.100:4444', leftExtra:'[连接成功] 远程控制通道已建立', rightExtra:'info', rightExtraMsg:'检测到可疑出站连接 192.168.1.100:4444 → 匹配 C2 IOC 规则'},
+      { t: 5, type: 'breach', msg: 'C2 服务器下发指令: 收集系统信息 / 窃取凭据', right: 'alert', rightMsg:'告警: C2 指令下发检测 (置信度 97%) | 来源 IP 已标记为恶意', rightL4: false },
+      { t: 8, type: 'breach', msg: '攻击者上传后门模块，获得持久化访问', right: 'block', rightMsg:'L4 网络隔离: 192.168.1.100 出站流量已阻断 | 隔离级别: Level 4', rightL4: true },
+      { t: 11, type: 'breach', msg: '横向移动: 探测内网其他主机 10.0.0.0/24', right: 'alert', rightMsg:'告警: 横向移动检测 (置信度 93%) | 内网扫描特征匹配', rightL4: false },
+      { t: 14, type: 'breach', msg: 'C2 持久化成功: 系统已被完全控制', right: 'ok', rightMsg:'防御成功: C2 链路已封锁，攻击者无法回调 | 主机状态: 安全'},
+    ]
+  },
+  {
+    name: '数据外泄',
+    steps: [
+      { t: 2, type: 'attack', msg: '恶意进程读取敏感文件: C:\\Users\\*.docx → 打包压缩', rightExtra:'detect', rightExtraMsg:'检测到异常文件读取模式: 批量扫描文档目录'},
+      { t: 5, type: 'breach', msg: '数据通过 DNS 隧道外泄: 编码后发送至 evil.example.com', right: 'alert', rightMsg:'告警: DNS 隧道检测 (置信度 95%) | 域名 evil.example.com 加入黑名单', rightL4: false },
+      { t: 8, type: 'breach', msg: '数据外泄完成: 245MB 敏感数据已流出', right: 'block', rightMsg:'数据外泄阻断: 出站流量超阈值 10MB | 已强制切断连接', rightL4: true },
+      { t: 11, type: 'breach', msg: '攻击者尝试 FTP 外泄: ftp.exfil-server.net:21', right: 'block', rightMsg:'FTP 外泄尝试已拦截 | 端口 21 外发已被 DFU 策略禁止', rightL4: false },
+      { t: 14, type: 'breach', msg: '数据外泄成功: 全部敏感数据已被窃取', right: 'ok', rightMsg:'防御成功: 所有外泄通道已封锁 | 实际泄露: 0 字节', rightL4: true },
+    ]
+  },
+  {
+    name: '端口扫描',
+    steps: [
+      { t: 2, type: 'attack', msg: '攻击者发起 SYN 扫描: 10.0.0.5 → 端口 1-65535', rightExtra:'detect', rightExtraMsg:'检测到快速端口扫描: 10.0.0.5 → 扫描速率 500pps'},
+      { t: 5, type: 'breach', msg: '发现开放端口: 22(SSH) 80(HTTP) 443(HTTPS) 3389(RDP)', right: 'alert', rightMsg:'告警: 端口扫描指纹已采集 | 来源: 10.0.0.5 扫描类型: SYN Stealth'},
+      { t: 8, type: 'breach', msg: '攻击者针对 SSH 端口发起漏洞探测', right: 'block', rightMsg:'L4 网络隔离: 10.0.0.5 所有流量已阻断 | FSM 状态: L4_ACTIVE', rightL4: true },
+      { t: 11, type: 'breach', msg: 'RDP 端口被定位，暴力破解尝试开始', right: 'alert', rightMsg:'告警: RDP 暴力破解检测 (置信度 91%) | 阻断中...'},
+      { t: 14, type: 'breach', msg: '端口扫描完成: 攻击者已掌握完整拓扑', right: 'ok', rightMsg:'防御成功: 攻击来源 10.0.0.5 已隔离 | 端口扫描对目标无影响'},
+    ]
+  },
+  {
+    name: '暴力破解',
+    steps: [
+      { t: 2, type: 'attack', msg: '暴力破解开始: admin 账户 → 字典攻击 10000+ 密码', rightExtra:'detect', rightExtraMsg:'检测到高频登录失败: admin 账户 速率 50次/秒'},
+      { t: 5, type: 'breach', msg: '弱密码命中: admin / P@ssw0rd123 → 登录成功', right: 'alert', rightMsg:'告警: 暴力破解检测 (置信度 98%) | 密码强度: 弱 | 目标: admin'},
+      { t: 8, type: 'breach', msg: '攻击者提权: 获取 SYSTEM 权限', right: 'block', rightMsg:'L4 隔离+凭证保护: 来源 IP 已隔离 | admin 账户已临时锁定 600s', rightL4: true },
+      { t: 11, type: 'breach', msg: '创建后门账户: dfu_backdoor → Administrators 组', right: 'alert', rightMsg:'告警: 异常账户创建 (置信度 96%) | 后门账户特征匹配'},
+      { t: 14, type: 'breach', msg: '暴力破解成功: 攻击者已完全控制系统', right: 'ok', rightMsg:'防御成功: 攻击来源已隔离 3600s | 锁定账户 2 个 | 系统安全', rightL4: true },
+    ]
+  }
+];
+
+// ========== 全局状态 ==========
+let currentScenario = 0;
+let scenarioTimer = null;
+let stepIndex = 0;
+let globalTime = 0;
+let autoCycle = true;
+const CYCLE_INTERVAL = 14000; // 每 14 秒切换场景
+
+let leftBreaches = 0, leftAttacks = 0;
+let rightBlocked = 0, rightAlerts = 0;
+
+const leftTerminal = document.getElementById('leftTerminal');
+const rightTerminal = document.getElementById('rightTerminal');
+
+// ========== 工具函数 ==========
+function formatTime(t) {
+  const m = Math.floor(t / 60);
+  const s = t % 60;
+  return `T+${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function addLog(panel, time, tag, msg, cls) {
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  div.innerHTML = `<span class="log-time">${formatTime(time)}</span><span class="log-tag ${cls}">${tag}</span>${msg}`;
+  panel.appendChild(div);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function addAlertPopup(msg, type) {
+  const div = document.createElement('div');
+  div.className = type === 'isolation' ? 'isolation-box' : 'alert-popup';
+  div.innerHTML = msg;
+  rightTerminal.appendChild(div);
+  rightTerminal.scrollTop = rightTerminal.scrollHeight;
+}
+
+function updateStats() {
+  document.getElementById('leftBreaches').textContent = leftBreaches;
+  document.getElementById('leftAttacks').textContent = leftAttacks;
+  document.getElementById('rightBlocked').textContent = rightBlocked;
+  document.getElementById('rightAlerts').textContent = rightAlerts;
+
+  if (leftBreaches >= 3) {
+    document.getElementById('leftStatus').textContent = '已沦陷';
+    document.getElementById('leftStatus').style.color = '#ff0000';
+  }
+}
+
+// ========== 包动画 ==========
+function spawnPacket(panelId) {
+  const container = document.getElementById(panelId);
+  const rect = container.getBoundingClientRect();
+  const colors = ['#ff4444', '#ff6666', '#ff8888', '#ffcc00'];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'packet-dot';
+    dot.style.backgroundColor = color;
+    dot.style.left = (Math.random() * rect.width * 0.8) + 'px';
+    dot.style.top = (Math.random() * 60 + 40) + 'px';
+    dot.style.setProperty('--tx', (Math.random() * 200 - 100) + 'px');
+    dot.style.setProperty('--ty', (rect.height - 80) + 'px');
+    container.appendChild(dot);
+    setTimeout(() => dot.remove(), 2200);
+  }
+}
+
+// ========== 执行场景步骤 ==========
+function executeStep() {
+  if (stepIndex >= SCENARIOS[currentScenario].steps.length) return;
+  const step = SCENARIOS[currentScenario].steps[stepIndex];
+  globalTime = step.t;
+
+  // 左侧：无防护
+  spawnPacket('leftPackets');
+  const leftTag = step.type === 'breach' ? 'BREACH' : 'ATTACK';
+  const leftCls = step.type === 'breach' ? 'tag-breach' : 'tag-attack';
+  addLog(leftTerminal, step.t, leftTag, step.msg, leftCls);
+  if (step.leftExtra) {
+    addLog(leftTerminal, step.t + 1, 'INFO', step.leftExtra, 'tag-info');
+  }
+
+  leftAttacks++;
+  if (step.type === 'breach') {
+    leftBreaches++;
+  }
+
+  // 右侧：有防护
+  if (step.rightExtra) {
+    addLog(rightTerminal, step.t, 'DETECT', step.rightExtraMsg || step.msg, 'tag-' + step.rightExtra);
+    rightAlerts++;
+  }
+  if (step.right) {
+    const rAction = step.right;
+    if (rAction === 'alert') {
+      addLog(rightTerminal, step.t + 1, 'ALERT', '威胁告警触发', 'tag-alert');
+      addAlertPopup(step.rightMsg, 'alert');
+      rightAlerts++;
+    } else if (rAction === 'block') {
+      addLog(rightTerminal, step.t + 1, 'BLOCK', '执行阻断动作', 'tag-block');
+      addAlertPopup(step.rightMsg, step.rightL4 ? 'isolation' : 'alert');
+      rightBlocked++;
+    } else if (rAction === 'ok') {
+      addLog(rightTerminal, step.t + 1, 'OK', '防御闭环完成', 'tag-ok');
+      addAlertPopup(step.rightMsg, 'isolation');
+      rightBlocked++;
+    }
+  }
+
+  updateStats();
+  stepIndex++;
+}
+
+function resetScenario() {
+  leftTerminal.innerHTML = '<div class="log-line"><span class="log-time">T+00:00</span><span class="log-tag tag-info">SYS</span>系统启动，防火墙已关闭</div>';
+  rightTerminal.innerHTML = '<div class="log-line"><span class="log-time">T+00:00</span><span class="log-tag tag-info">SYS</span>DFU 防御系统已激活，Npcap 抓包运行中</div>';
+  stepIndex = 0;
+  globalTime = 0;
+}
+
+function runScenario(index) {
+  currentScenario = index;
+  resetScenario();
+  leftBreaches = 0; leftAttacks = 0;
+  rightBlocked = 0; rightAlerts = 0;
+  updateStats();
+  document.getElementById('leftStatus').textContent = '未防护';
+  document.getElementById('leftStatus').style.color = '#ff4444';
+
+  // 更新按钮状态
+  document.querySelectorAll('.scenario-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === index);
+  });
+
+  let localStep = 0;
+  const total = SCENARIOS[index].steps.length;
+  const interval = Math.floor(12000 / total); // each step within 12 seconds
+
+  if (scenarioTimer) clearInterval(scenarioTimer);
+  scenarioTimer = setInterval(() => {
+    if (localStep >= total) {
+      clearInterval(scenarioTimer);
+      return;
+    }
+    executeStep();
+    localStep++;
+  }, interval);
+}
+
+// ========== 自动循环 ==========
+function startAutoCycle() {
+  runScenario(0);
+  let idx = 0;
+  setInterval(() => {
+    idx = (idx + 1) % SCENARIOS.length;
+    runScenario(idx);
+  }, CYCLE_INTERVAL);
+}
+
+// 场景按钮点击
+document.querySelectorAll('.scenario-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const idx = parseInt(btn.dataset.scenario);
+    runScenario(idx);
+  });
+});
+
+// 启动自动循环
+startAutoCycle();
+
+// 持续包动画
+setInterval(() => {
+  spawnPacket('leftPackets');
+  spawnPacket('rightPackets');
+}, 800);
+</script>
+</body>
+</html>
