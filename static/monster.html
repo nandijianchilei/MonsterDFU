@@ -227,6 +227,8 @@ tr:hover td{background:var(--surface-2)}
 /* 设置表单 */
 .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .form-row label{font-size:12px;color:var(--text-2);font-weight:600}
+.form-row input{transition:border-color .3s ease, box-shadow .3s ease}
+.form-row input.save-flash{border-color:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,.25)}
 .form-inline{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
 .form-inline .form-row{flex:1;min-width:180px}
 /* tab */
@@ -495,10 +497,10 @@ tr:hover td{background:var(--surface-2)}
               <option value="custom" data-i18n="vendor.custom">自定义</option>
             </select>
           </div>
-          <div class="form-row"><label data-i18n="settings.baseUrl">API Base URL</label><input id="set-base-url" placeholder="https://api.openai.com/v1" spellcheck="false"></div>
-          <div class="form-row"><label data-i18n="settings.model">模型名称</label><input id="set-model" placeholder="gpt-4o-mini" list="global-model-list" spellcheck="false"><datalist id="global-model-list"></datalist></div>
-          <div class="form-row"><label data-i18n="settings.globalKey">全局 API Key</label><input id="set-global-key" type="password" placeholder="sk-..." spellcheck="false"></div>
-          <div class="form-row"><label>DFU API Token</label><input id="set-dfu-token" type="password" placeholder="dfu-default-token-change-me" spellcheck="false"><span class="hint-text" data-i18n="settings.dfuTokenHint">留空则使用演示数据</span></div>
+          <div class="form-row"><label data-i18n="settings.baseUrl">API Base URL</label><input id="set-base-url" placeholder="https://你的API地址/v1（如火山引擎/OpenAI）" spellcheck="false"></div>
+          <div class="form-row"><label data-i18n="settings.model">模型名称</label><input id="set-model" placeholder="必填，如 deepseek-v3-241226 或 gpt-4o-mini" list="global-model-list" spellcheck="false"><datalist id="global-model-list"></datalist></div>
+          <div class="form-row"><label data-i18n="settings.globalKey">全局 API Key</label><input id="set-global-key" type="password" placeholder="必填，粘贴你的 API Key" spellcheck="false"></div>
+          <div class="form-row"><label>DFU API Token</label><input id="set-dfu-token" type="password" placeholder="留空使用演示模式" spellcheck="false"><span class="hint-text" data-i18n="settings.dfuTokenHint">留空则使用演示数据</span></div>
           <button class="btn btn-primary" style="margin-top:8px" onclick="saveSettings()" data-i18n="btn.save">保存配置</button>
         </div>
       </div>
@@ -921,7 +923,7 @@ function getOrganConfig(organId){
 }
 function setOrganConfig(organId, cfg){ /* used by saveSettings */ }
 
-function saveSettings(){
+async function saveSettings(){
   const s = loadSettings();
   s.baseUrl = document.getElementById("set-base-url").value.trim();
   s.model = document.getElementById("set-model").value.trim();
@@ -947,6 +949,23 @@ function saveSettings(){
   localStorage.setItem(LS_KEY, JSON.stringify(s));
   applySettings(s);
   toast(t("settings.saved"));
+
+  // 保存成功：绿色边框短暂闪烁（0.5s）
+  const flashInputs = Array.from(document.querySelectorAll(".form-row input"));
+  flashInputs.forEach(i => { i.classList.remove("save-flash"); void i.offsetWidth; i.classList.add("save-flash"); });
+  setTimeout(() => flashInputs.forEach(i => i.classList.remove("save-flash")), 500);
+
+  // 保存后立即验证后端 LLM 模式，反馈配置是否真正生效
+  try{
+    const st = await apiGet("/api/status", 8000);
+    if(st && st.llm_mode === "real"){
+      toast("配置生效，LLM 已连接", "ok");
+    }else{
+      toast("⚠ 当前为模拟模式，请检查 API Key 和 Base URL 是否正确", "err");
+    }
+  }catch(e){
+    /* 后端不可达时不额外提示，保留"保存成功"提示 */
+  }
 }
 function applySettings(s){
   document.body.dataset.theme = s.theme;

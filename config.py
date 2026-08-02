@@ -20,6 +20,12 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
+# ── dotenv 加载（可选依赖，未安装时降级为仅读系统环境变量）──
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
 
 # ── 项目根目录探测 ──
 
@@ -118,8 +124,13 @@ def _get_cfg(data: Dict[str, Any], section: str, key: str, default: Any) -> Any:
 
 
 def build_config() -> "Config":
-    """构建完整 Config 实例：YAML → 环境变量覆盖 → dataclass 默认值。"""
-    yaml_path = os.path.join(_PROJECT_ROOT, "config.yaml")
+    """构建完整 Config 实例：.env → YAML → 环境变量覆盖 → dataclass 默认值。"""
+    # 加载项目根目录 .env（未安装 python-dotenv 时跳过）
+    if load_dotenv is not None:
+        load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
+    yaml_path = os.path.join(_PROJECT_ROOT, "config", "default_config.yaml")
+    if not os.path.exists(yaml_path):
+        print(f"[config] 警告：配置文件 {yaml_path} 不存在，将使用 dataclass 默认值")
     yaml_data = _load_yaml(yaml_path)
     yaml_data = _env_override(yaml_data)
 
@@ -154,6 +165,9 @@ def build_config() -> "Config":
         max_retries=int(_get_cfg(yaml_data, "llm", "max_retries", LLMConfig.max_retries)),
         mock_mode=bool(_get_cfg(yaml_data, "llm", "mock_mode", LLMConfig.mock_mode)),
     )
+    # 启动时输出 LLM 配置状态（与 core/llm_client 的 mock 判定保持一致）
+    llm_mode = "mock" if (llm.mock_mode or not llm.api_key) else "real"
+    print(f"LLM 配置状态: {llm_mode}，模型: {llm.model or '(未设置)'}")
 
     # Stage4：相对路径需拼接 project_root
     stage4 = Stage4Config(
