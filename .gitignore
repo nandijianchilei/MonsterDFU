@@ -12,3 +12,9 @@ build/
 .pytest_cache/
 *.db
 .DS_Store
+
+# build/runtime artifacts & secrets
+podman-machine/
+*.db-shm
+*.db-wal
+*.zip
