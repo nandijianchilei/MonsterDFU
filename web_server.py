@@ -36,7 +36,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from communication.message_bus import Message, MessageBus, get_message_bus
-from config import Config, get_config
+from config import get_config
 from core.brain_left import LeftBrain
 from core.brain_right import RightBrain
 from core.countermeasure_fsm import CountermeasureFSM, FSMLevel
@@ -66,7 +66,6 @@ try:
     from fastapi import FastAPI, Request, HTTPException, Depends
     from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
     from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, Response
-    from fastapi.staticfiles import StaticFiles
     import uvicorn
 except ImportError:
     print("缺少依赖：pip install fastapi uvicorn sse-starlette")
@@ -1262,7 +1261,6 @@ async def api_status():
     status = manager.get_status()
     # 补充 Token 消耗统计
     try:
-        from core.llm_client import LLMClient
         status["token_usage"] = manager.llm_client.get_token_usage()
     except Exception:
         status["token_usage"] = None
@@ -1547,7 +1545,6 @@ async def readyz():
 @app.get("/health")
 async def health_check():
     """健康检查端点——各组件存活状态"""
-    from utils.logging_config import get_logger as _get_logger
     health = {
         "status": "ok",
         "version": "0.1.0",
@@ -1898,7 +1895,7 @@ async def api_metrics():
 @app.get("/metrics")
 async def prometheus_metrics():
     """Prometheus 标准 /metrics 端点。"""
-    from prometheus_client import generate_latest, CollectorRegistry, Gauge, Counter, Histogram
+    from prometheus_client import generate_latest, CollectorRegistry, Gauge
 
     if not manager:
         return JSONResponse({"error": "系统未初始化"}, status_code=503)
@@ -1968,7 +1965,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": "Internal Server Error",
-            "message": str(exc) if config.get("logging", "level") == "DEBUG" else "An unexpected error occurred"
+            "message": str(exc) if (__import__('dfuconfig').config.get("logging", "level") == "DEBUG") else "An unexpected error occurred"
         }
     )
 
@@ -1992,9 +1989,9 @@ def main():
         import threading
         threading.Thread(target=_open_browser, daemon=True).start()
 
-    print(f"\n  DFU Web 管理界面")
+    print("\n  DFU Web 管理界面")
     print(f"  地址: {url}")
-    print(f"  按 Ctrl+C 停止\n")
+    print("  按 Ctrl+C 停止\n")
 
     uvicorn.run(
         app,

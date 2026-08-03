@@ -13,10 +13,7 @@
 - 80% 常规告警 <1ms 处理，LLM 调用量降 80%
 """
 
-import asyncio
 import ipaddress
-import json
-import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -314,7 +311,7 @@ class RuleEngineFrontend:
                 "compute_cost": 0.05,
                 # 溯源格式
                 "trace_data": {
-                    "summary": f"[RULE-FRONTEND] 签名规则快速命中",
+                    "summary": "[RULE-FRONTEND] 签名规则快速命中",
                     "method": f"SignatureEngine sid={sig_result['rule_id']}",
                 },
             },

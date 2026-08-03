@@ -16,7 +16,6 @@ from core.false_positive_filter import (
     AlertThreshold,
     FPFilterConfig,
     FalsePositiveFilter,
-    INJECTION_CONTROL_PATTERNS,
     InputSanitizer,
     LLMConfirmLayer,
     OBSERVATION_FIELD_WHITELIST,

@@ -210,7 +210,7 @@ def cmd_status(args):
                     "r = subprocess.run(['tasklist', '/NH', '/FO', 'CSV'], "
                     "capture_output=True, text=True); "
                     "cnt = r.stdout.count('python.exe'); "
-                    f"print(f'Python 进程数: {cnt}')"
+                    "print(f'Python 进程数: {{cnt}}')"
                 ),
             ],
             capture_output=True,

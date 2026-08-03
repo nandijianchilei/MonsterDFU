@@ -21,7 +21,6 @@
   - 演示数据集检测率 100%
 """
 
-import os
 from dataclasses import dataclass, field
 from ipaddress import ip_address, ip_network
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -137,30 +136,30 @@ def extract_observation_fields(raw: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(raw_data, dict):
         raw_data = {}
 
-    for field in OBSERVATION_FIELD_WHITELIST:
+    for fname in OBSERVATION_FIELD_WHITELIST:
         value = None
-        if field == "src_ip":
+        if fname == "src_ip":
             value = raw.get("source_ip") or raw.get("src_ip")
-        elif field == "dst_port":
+        elif fname == "dst_port":
             value = raw.get("target_port") or raw.get("dst_port")
-        elif field == "packet_count":
+        elif fname == "packet_count":
             value = raw_data.get("packets")
-        elif field == "signature_hits":
+        elif fname == "signature_hits":
             value = raw_data.get("signature_hits")
-        elif field == "request_count":
+        elif fname == "request_count":
             value = raw_data.get("request_count")
-        elif field == "scanned_port_count":
+        elif fname == "scanned_port_count":
             value = raw_data.get("scanned_port_count", raw_data.get("unique_ports"))
-        elif field == "attempts":
+        elif fname == "attempts":
             value = raw_data.get("attempts")
-        elif field in raw:
-            value = raw.get(field)
+        elif fname in raw:
+            value = raw.get(fname)
 
         if value is None:
             continue
         if isinstance(value, str):
             value = sanitize_text(value)
-        result[field] = value
+        result[fname] = value
 
     return result
 

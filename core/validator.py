@@ -4,7 +4,6 @@
 对高风险操作必须确认无冲突后才下发，低冲突直接放行。
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Dict, Optional, Set
@@ -14,7 +13,6 @@ from communication.skill_middleware import (
     AlertSeverity,
     AttackAnalysis,
     DefensePlan,
-    IsolationAction,
     MergedPlan,
     SkillMiddleware,
 )

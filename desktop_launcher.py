@@ -149,10 +149,10 @@ def main():
         sys.exit(1)
     logger.info("DFU 服务已就绪: http://%s:%s", HOST, port)
 
-    print(f"\n  DFU 防御系统 桌面版")
+    print("\n  DFU 防御系统 桌面版")
     print(f"  管理面板: {url}")
-    print(f"  服务仅绑定 127.0.0.1（本机回环）")
-    print(f"  关闭窗口即退出进程\n")
+    print("  服务仅绑定 127.0.0.1（本机回环）")
+    print("  关闭窗口即退出进程\n")
 
     # 3. 仅服务模式（调试）
     if args.no_window:

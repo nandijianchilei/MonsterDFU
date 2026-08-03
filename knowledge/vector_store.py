@@ -12,7 +12,7 @@
 
 import os
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from chromadb import PersistentClient
 from chromadb.config import Settings
 

@@ -13,7 +13,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from communication.rabbitmq_bus import RabbitMQBus, Message
-from config import Config, AlertLevelConfig, get_config
+from config import AlertLevelConfig, get_config
 from utils.logger import get_logger
 
 logger = get_logger("TrafficMonitorWorker")

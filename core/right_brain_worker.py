@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from communication.rabbitmq_bus import RabbitMQBus, Message
-from config import Config, get_config
+from config import get_config
 from core.llm_client import LLMClient
 from utils.logger import get_logger
 
@@ -71,7 +71,7 @@ class RightBrainWorker:
     async def _analyze(self, alert_type, severity, src_ip, indicator):
         prompt = (
             f"告警类型: {alert_type}, 严重程度: {severity}, 源IP: {src_ip}。"
-            f"请做溯源分析，返回JSON: {attack_chain, threat_actor, confidence}"
+            f"请做溯源分析，返回JSON: {{attack_chain, threat_actor, confidence}}"
         )
         try:
             result = await asyncio.wait_for(
@@ -84,7 +84,7 @@ class RightBrainWorker:
             result["source"] = "LLM"
             return result
         except asyncio.TimeoutError:
-            raise RuntimeError(f"LLM 调用超时 (>20s)")
+            raise RuntimeError("LLM 调用超时 (>20s)")
         except Exception:
             raise
 

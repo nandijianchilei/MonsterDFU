@@ -19,13 +19,11 @@ from pathlib import Path
 from typing import Optional
 
 from communication.message_bus import Message, MessageBus, get_message_bus
-from communication.skill_middleware import IsolationAction
 from config import Config
 from utils.logger import get_logger
 from organs.firewall_executor import (
     FirewallExecutor,
     FirewallResult,
-    Action,
 )
 
 

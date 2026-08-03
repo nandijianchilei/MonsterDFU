@@ -6,8 +6,6 @@ DFU 全局错误处理
 
 import asyncio
 import functools
-import traceback
-import logging
 
 from utils.logging_config import get_logger
 

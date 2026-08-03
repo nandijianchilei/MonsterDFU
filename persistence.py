@@ -5,7 +5,6 @@ DFU 持久化存储模块
 """
 
 import json
-import os
 import time
 from pathlib import Path
 

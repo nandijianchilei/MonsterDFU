@@ -44,3 +44,19 @@ Repository = "https://github.com/nandijianchilei/MonsterDFU"
 
 [tool.setuptools.packages.find]
 include = ["*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F"]
+ignore = ["F841", "F403", "F405"]
+
+[tool.ruff.lint.per-file-ignores]
+"tools/*" = ["F"]
+"benchmarks/*" = ["F"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

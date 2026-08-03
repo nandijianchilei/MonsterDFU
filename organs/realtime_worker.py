@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from organs.observer_realtime import RealtimeTrafficAgent
-from config import Config, get_config
+from config import get_config
 from utils.logger import get_logger
 
 logger = get_logger("RealtimeWorker")

@@ -17,7 +17,6 @@ Phase 1.5 - 出站流量监测 Agent (OutboundMonitor)
 import asyncio
 import hashlib
 import logging
-import os
 import uuid
 from collections import defaultdict, deque
 from datetime import datetime

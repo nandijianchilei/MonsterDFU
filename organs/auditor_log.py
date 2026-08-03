@@ -12,7 +12,6 @@ v2 做实：
 
 import asyncio
 import logging
-import os
 import random
 import re
 import uuid

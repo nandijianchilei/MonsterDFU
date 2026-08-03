@@ -11,10 +11,9 @@ Phase 1.5 - 网络抓包层 (PacketCapture)
 import asyncio
 import logging
 import time as time_module
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
-from communication.message_bus import Message, MessageBus, get_message_bus
+from communication.message_bus import Message, MessageBus
 from config import Config
 from utils.logger import get_logger
 

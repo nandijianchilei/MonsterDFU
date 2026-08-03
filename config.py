@@ -18,7 +18,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 # ── dotenv 加载（可选依赖，未安装时降级为仅读系统环境变量）──
 try:
@@ -84,12 +84,12 @@ def _env_override(yaml_data: Dict[str, Any]) -> Dict[str, Any]:
         "ETCD_URL": ("etcd", "url"),
         "PROMETHEUS_URL": ("prometheus", "url"),
     }
-    for env_key, (section, field) in legacy_map.items():
+    for env_key, (section, field_name) in legacy_map.items():
         val = os.environ.get(env_key, "")
         if val:
             if section not in data:
                 data[section] = {}
-            data[section][field] = val
+            data[section][field_name] = val
 
     # DFU_ 前缀环境变量覆盖
     for key, value in os.environ.items():

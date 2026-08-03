@@ -10,11 +10,9 @@ import asyncio
 import copy
 import json
 import logging
-import random
 import threading
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from config import LLMConfig
 from utils.logger import get_logger
@@ -147,7 +145,7 @@ class LLMClient:
             502: "火山引擎网关错误",
             503: "火山引擎服务暂时不可用（模型可能正在加载或过载）",
         }
-        base_msg = volc_errors.get(status_code, f"未知 HTTP 错误")
+        base_msg = volc_errors.get(status_code, "未知 HTTP 错误")
         return f"火山引擎 API 错误 [{status_code}] {base_msg}: {error_text[:300]}"
 
     async def _try_with_backup(

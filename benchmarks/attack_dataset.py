@@ -9,7 +9,7 @@
 
 import random
 import time as time_module
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class AttackDataset:

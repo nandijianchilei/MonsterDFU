@@ -8,10 +8,8 @@ v2.0: LLM 驱动的智能推理中枢
 - 决策来源标注: [LLM] / [LLM-MOCK] / [RULE-FALLBACK]
 """
 
-import asyncio
 import json
 import logging
-import random
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from communication.message_bus import Message, MessageBus, get_message_bus

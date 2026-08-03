@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from communication.rabbitmq_bus import RabbitMQBus, Message
-from config import Config, get_config
+from config import get_config
 from core.llm_client import LLMClient
 from utils.logger import get_logger
 
@@ -96,7 +96,7 @@ class LeftBrainWorker:
             result["source"] = "LLM"
             return result
         except asyncio.TimeoutError:
-            raise RuntimeError(f"LLM 调用超时 (>15s)")
+            raise RuntimeError("LLM 调用超时 (>15s)")
         except Exception:
             raise
 

@@ -17,7 +17,6 @@ import json
 import os
 import random
 import sys
-import time
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -48,7 +47,7 @@ from tests.simulate_attack import AttackSimulator
 from utils.logger import init_global_logger, get_logger
 
 # 阶段3：集群化与冷热知识库
-from cluster.registry import ClusterRegistry, UnitInfo
+from cluster.registry import ClusterRegistry
 from cluster.dispatcher import LoadDispatcher, DispatchStrategy
 from cluster.dfu_unit import DFUUnit
 
@@ -161,7 +160,7 @@ class EventChainRecorder:
             lines.append(f"源IP: {indicator.get('source_ip') or payload.get('source_ip')}")
             lines.append(f"类别: {indicator.get('category') or payload.get('category')}")
             lines.append(f"级别: {indicator.get('severity') or payload.get('severity')}")
-            lines.append(f"规则: 未命中 → 交聚合器")
+            lines.append("规则: 未命中 → 交聚合器")
 
         elif msg_type == "rule_handled":
             lines.append(f"告警ID: {payload.get('alert_id')}")
@@ -483,7 +482,7 @@ class DFUPrototypeRunner:
                 stress_tester=self.stress_tester,
                 dry_run=sc.dry_run,
             )
-            self.logger.info(f"阶段4组件初始化: 灰度升级引擎 + 生产就绪组件")
+            self.logger.info("阶段4组件初始化: 灰度升级引擎 + 生产就绪组件")
             self.logger.info(f"  输出目录: {output_dir}")
 
         # 真实流量接入模块
@@ -780,7 +779,7 @@ class DFUPrototypeRunner:
         resource_state = self.resource_scheduler.get_resource_state()
         forensic_reports = self.forensic_tracker.get_reports()
 
-        print(f"\n  多感知模块协同测试完成:")
+        print("\n  多感知模块协同测试完成:")
         print(f"    流量告警 → 黑名单: {len(blacklist)} IP | 处置: {len(action_log)} 次")
         print(f"    漏洞扫描 → 处理 {self.config.simulator.vuln_report_count} 条CVE报告")
         print(f"    日志审计 → 处理 {len(log_anomalies)} 类异常事件")
@@ -861,7 +860,7 @@ class DFUPrototypeRunner:
         cb_status_after = self.medic_agent.get_circuit_breaker_status()
         if not cb_status_after["is_open"]:
             self.recorder.add_manual_event("medic", "[熔断] 熔断器已解除")
-            print(f"  [5] 熔断器已解除")
+            print("  [5] 熔断器已解除")
 
         # 打印医疗事件日志
         medic_log = self.medic_agent.get_medic_log()
@@ -1030,7 +1029,7 @@ class DFUPrototypeRunner:
         print(f"    同步条目: {sync_result2['synced_entries']} | 延迟: {sync_result2['latency_ms']:.1f}ms")
 
         # 验证：单元B/C 查询同一特征应直接热库命中
-        print(f"\n  [步骤4] 验证跨单元知识共享")
+        print("\n  [步骤4] 验证跨单元知识共享")
         for unit in [unit_b, unit_c]:
             result = await unit.handle_attack(new_attack_traffic)
             source = result["knowledge_source"]
@@ -1047,7 +1046,7 @@ class DFUPrototypeRunner:
             ))
 
         # 打印同步事件日志
-        print(f"\n  >>> 同步事件日志:")
+        print("\n  >>> 同步事件日志:")
         for unit in self.units:
             log = await unit.sync_manager.get_sync_log()
             for entry in log:
@@ -1064,7 +1063,7 @@ class DFUPrototypeRunner:
             },
         ))
 
-        print(f"\n  >>> 各单元知识库状态:")
+        print("\n  >>> 各单元知识库状态:")
         for unit in self.units:
             s = await unit.status()
             print(f"    {s['unit_id']}: 热库={s['knowledge_stats']['hot_size']}条 "
@@ -1083,7 +1082,7 @@ class DFUPrototypeRunner:
         print("=" * 80)
 
         if len(self.units) < 3 or not self.dispatcher:
-            print(f"  单元不足或分发器未初始化，跳过")
+            print("  单元不足或分发器未初始化，跳过")
             return
 
         # 生成12条混合攻击流量
@@ -1129,7 +1128,7 @@ class DFUPrototypeRunner:
 
         # 打印负载分布
         load_dist = await self.dispatcher.get_load_distribution()
-        print(f"\n  >>> 最终负载分布:")
+        print("\n  >>> 最终负载分布:")
         for uid, count in load_dist.items():
             unit = next((u for u in self.units if u.unit_id == uid), None)
             attacks = unit.attacks_handled if unit else 0
@@ -1170,7 +1169,7 @@ class DFUPrototypeRunner:
         # 步骤1：双引擎协商生成升级包
         # ================================================================
         print(f"\n  {'─' * 60}")
-        print(f"  [步骤1/7] 双引擎协商生成升级包")
+        print("  [步骤1/7] 双引擎协商生成升级包")
         print(f"  {'─' * 60}")
 
         # 模拟双引擎协商：分析引擎提议新增规则，响应引擎评审
@@ -1284,7 +1283,7 @@ class DFUPrototypeRunner:
         # 步骤2：灰度推送
         # ================================================================
         print(f"\n  {'─' * 60}")
-        print(f"  [步骤2/7] 灰度推送")
+        print("  [步骤2/7] 灰度推送")
         print(f"  {'─' * 60}")
 
         cluster_units = self.units if self.units else []
@@ -1314,7 +1313,7 @@ class DFUPrototypeRunner:
         # 步骤3：压力测试
         # ================================================================
         print(f"\n  {'─' * 60}")
-        print(f"  [步骤3/7] 压力测试")
+        print("  [步骤3/7] 压力测试")
         print(f"  {'─' * 60}")
 
         target_qps = qps_list if qps_list else list(sc.stress_test_qps_levels)
@@ -1341,12 +1340,12 @@ class DFUPrototypeRunner:
         # 步骤4：性能监控
         # ================================================================
         print(f"\n  {'─' * 60}")
-        print(f"  [步骤4/7] 性能监控")
+        print("  [步骤4/7] 性能监控")
         print(f"  {'─' * 60}")
 
         # 采集基线指标
         baseline_metrics = self.perf_monitor.collect_metrics()
-        print(f"    基线指标:")
+        print("    基线指标:")
         print(f"      CPU: {baseline_metrics.cpu_usage_pct:.1f}% | "
               f"内存: {baseline_metrics.memory_usage_pct:.1f}% | "
               f"延迟: {baseline_metrics.avg_response_latency_ms:.2f}ms")
@@ -1367,7 +1366,7 @@ class DFUPrototypeRunner:
         # 步骤4.5：注入测试攻击流量
         # ================================================================
         print(f"\n  {'─' * 60}")
-        print(f"  [步骤4.5/7] 注入测试攻击流量")
+        print("  [步骤4.5/7] 注入测试攻击流量")
         print(f"  {'─' * 60}")
 
         # 注入暴力破解攻击流量，确保合规检查中"处置日志至少包含一条记录"通过
@@ -1377,7 +1376,7 @@ class DFUPrototypeRunner:
         # 步骤5：安全审计
         # ================================================================
         print(f"\n  {'─' * 60}")
-        print(f"  [步骤5/7] 安全审计")
+        print("  [步骤5/7] 安全审计")
         print(f"  {'─' * 60}")
 
         # 从IP隔离日志中提取处置动作进行审计
@@ -1417,7 +1416,7 @@ class DFUPrototypeRunner:
         # 步骤6：合规检查
         # ================================================================
         print(f"\n  {'─' * 60}")
-        print(f"  [步骤6/7] 合规检查")
+        print("  [步骤6/7] 合规检查")
         print(f"  {'─' * 60}")
 
         compliance_report = self.compliance_checker.run_all_checks()
@@ -1433,7 +1432,7 @@ class DFUPrototypeRunner:
         # 步骤7：生成完整生产就绪报告
         # ================================================================
         print(f"\n  {'─' * 60}")
-        print(f"  [步骤7/7] 生成生产就绪报告")
+        print("  [步骤7/7] 生成生产就绪报告")
         print(f"  {'─' * 60}")
 
         # 计算压力测试聚合指标
@@ -1502,7 +1501,7 @@ class DFUPrototypeRunner:
             },
         ))
 
-        print(f"\n  >>> 阶段4全部流程完成 <<<\n")
+        print("\n  >>> 阶段4全部流程完成 <<<\n")
 
     # ==================== 真实流量接入 ====================
 
@@ -1602,26 +1601,26 @@ class DFUPrototypeRunner:
         llm_model = self.llm_client.config.model if self.llm_client else "N/A"
         print(f"    模式: {llm_mode} | 模型: {llm_model}")
 
-        print(f"\n  [分析引擎 - 后勤防御中枢]")
+        print("\n  [分析引擎 - 后勤防御中枢]")
         print(f"    处理告警: {left_stats['total_alerts']}")
         print(f"    级别分布: {left_stats['alerts_by_severity']}")
         print(f"    总算力: {left_stats['total_compute_units']:.1f}")
         if 'llm_count' in left_stats:
             print(f"    决策来源: LLM({left_stats.get('llm_count', 0)}) | Fallback({left_stats.get('fallback_count', 0)})")
 
-        print(f"\n  [响应引擎 - 修复反击中枢]")
+        print("\n  [响应引擎 - 修复反击中枢]")
         print(f"    分析告警: {right_stats['total_alerts']}")
         print(f"    平均置信度: {right_stats['avg_confidence']:.2f}")
         print(f"    分类: {right_stats['analyses_by_category']}")
         if 'llm_count' in right_stats:
             print(f"    决策来源: LLM({right_stats.get('llm_count', 0)}) | Fallback({right_stats.get('fallback_count', 0)})")
 
-        print(f"\n  [校验Agent]")
+        print("\n  [校验Agent]")
         print(f"    收到方案: {validator_stats['total_received']}")
         print(f"    通过: {validator_stats['total_passed']}")
         print(f"    驳回: {validator_stats['total_rejected']}")
 
-        print(f"\n  [处置Agent - IP隔离]")
+        print("\n  [处置Agent - IP隔离]")
         print(f"    黑名单IP数: {len(blacklist)}")
         if blacklist:
             for ip in blacklist:
@@ -1630,7 +1629,7 @@ class DFUPrototypeRunner:
 
         # 阶段2额外摘要
         if not self._is_realtime and self.stage >= 2:
-            print(f"\n  [阶段2扩展感知模块]")
+            print("\n  [阶段2扩展感知模块]")
             if self.resource_scheduler:
                 rs = self.resource_scheduler.get_resource_state()
                 print(f"    算力调度 - 调度记录: {len(self.resource_scheduler.get_schedule_history())} 次")
@@ -1643,7 +1642,7 @@ class DFUPrototypeRunner:
 
             if self.medic_agent:
                 health = self.medic_agent.get_health_status()
-                print(f"\n  [医疗Agent - 自愈系统]")
+                print("\n  [医疗Agent - 自愈系统]")
                 print(f"    监管Agent数: {len(health)}")
                 for name, record in health.items():
                     status_icon = "✓" if record.status.value == "healthy" else "✗"
@@ -1652,7 +1651,7 @@ class DFUPrototypeRunner:
                 print(f"    熔断器: {'开启' if cb['is_open'] else '关闭'}")
 
         # Phase 1.5 出站监测 + L4 网络隔离摘要
-        print(f"\n  [Phase 1.5 - 出站监测 + L4网络隔离]")
+        print("\n  [Phase 1.5 - 出站监测 + L4网络隔离]")
         om = self.outbound_monitor
         stats = om.stats if hasattr(om, 'stats') else {}
         print(f"    出站流量监测: "
@@ -1669,7 +1668,7 @@ class DFUPrototypeRunner:
 
         # 阶段3集群摘要
         if not self._is_realtime and self.stage >= 3 and self.units:
-            print(f"\n  [阶段3 - 集群状态摘要]")
+            print("\n  [阶段3 - 集群状态摘要]")
             print(f"   集群规模: {len(self.units)} 个数据防御单元")
             for unit in self.units:
                 s = await unit.status()
@@ -1697,7 +1696,7 @@ class DFUPrototypeRunner:
 
         # 阶段4灰度升级与生产就绪摘要
         if not self._is_realtime and self.stage >= 4:
-            print(f"\n  [阶段4 - 灰度升级与生产就绪]")
+            print("\n  [阶段4 - 灰度升级与生产就绪]")
             if self.model_store:
                 versions = {}
                 for comp in ["left_brain", "right_brain", "observer_traffic"]:
@@ -1705,16 +1704,16 @@ class DFUPrototypeRunner:
                     versions[comp] = len(vers)
                 print(f"    模型存储: 跟踪组件 {len(versions)} 个 | 各组件版本数: {versions}")
             if self.package_builder:
-                print(f"    升级包构建器: 就绪")
+                print("    升级包构建器: 就绪")
             if self.rollout_controller:
-                print(f"    灰度推送器: 就绪 (金丝雀→增量→全量)")
+                print("    灰度推送器: 就绪 (金丝雀→增量→全量)")
             if self.perf_monitor:
                 s = self.perf_monitor.get_summary()
                 print(f"    性能监控: 采集 {s['collection_count']} 快照 | 超阈值 {s['violation_count']} 次")
             if self.security_auditor:
-                print(f"    安全审计器: 就绪")
+                print("    安全审计器: 就绪")
             if self.compliance_checker:
-                print(f"    合规检查器: 就绪")
+                print("    合规检查器: 就绪")
             print(f"    输出目录: {self.config.stage4.production_output_dir}")
 
         print("\n" + "=" * 80)

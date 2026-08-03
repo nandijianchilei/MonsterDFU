@@ -9,7 +9,6 @@ v2 做实：
 - export_json(filepath) 导出 JSON 格式时间线报告
 """
 
-import asyncio
 import json
 import logging
 import os

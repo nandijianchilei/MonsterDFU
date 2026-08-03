@@ -15,7 +15,7 @@ import random
 import socket
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from communication.message_bus import Message, MessageBus, get_message_bus
 from communication.skill_middleware import (

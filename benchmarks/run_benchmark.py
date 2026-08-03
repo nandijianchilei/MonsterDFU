@@ -13,7 +13,6 @@ DFU 基准评测脚本
 """
 
 import asyncio
-import json
 import os
 import sys
 import time as time_module
@@ -26,8 +25,8 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from benchmarks.attack_dataset import AttackDataset
-from communication.message_bus import Message, MessageBus, get_message_bus
-from core.countermeasure_fsm import CountermeasureFSM, FSMLevel
+from communication.message_bus import MessageBus, get_message_bus
+from core.countermeasure_fsm import CountermeasureFSM
 from core.false_positive_filter import FalsePositiveFilter
 
 
@@ -323,8 +322,8 @@ class BenchmarkRunner:
                 f"{fp.get('llm_suppressed', 0):4d} |"
             )
         lines.append("")
-        lines.append(f"- clean_traffic 的 10 条正常 HTTPS/API 事件全部被白名单（可信域名 / 可信 CDN IP）命中，误报从 10 降到 0。")
-        lines.append(f"- 攻击场景中，阈值层仅压制各类别的首次低频触发（如 c2_beacon 首个包），不影响检测率；high/severe 高危信号（如超大包外泄）直接放行。")
+        lines.append("- clean_traffic 的 10 条正常 HTTPS/API 事件全部被白名单（可信域名 / 可信 CDN IP）命中，误报从 10 降到 0。")
+        lines.append("- 攻击场景中，阈值层仅压制各类别的首次低频触发（如 c2_beacon 首个包），不影响检测率；high/severe 高危信号（如超大包外泄）直接放行。")
         lines.append("")
         lines.append("---")
         lines.append(f"*报告由 DFU Benchmark Runner 自动生成于 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")

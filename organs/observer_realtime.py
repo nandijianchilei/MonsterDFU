@@ -18,7 +18,6 @@ import json
 import logging
 import os
 import time
-import uuid
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from communication.message_bus import Message, MessageBus, get_message_bus
@@ -32,8 +31,7 @@ from utils.logger import get_logger
 _SCAPY_AVAILABLE = False
 try:
     import scapy.all  # noqa: F401
-    from scapy.all import IP, TCP, UDP, PcapReader, rdpcap
-    from scapy.layers.inet import IP, TCP, UDP
+    from scapy.all import IP, TCP, UDP, PcapReader
     _SCAPY_AVAILABLE = True
 except ImportError:
     pass
@@ -257,8 +255,8 @@ class RealtimeTrafficAgent:
 
         self.logger.info(f"在线监听已启动: {host}:{port}")
         print(f"\n  在线监听模式: {host}:{port}")
-        print(f"  接收 JSON 行格式的流量日志")
-        print(f"  按 Ctrl+C 停止")
+        print("  接收 JSON 行格式的流量日志")
+        print("  按 Ctrl+C 停止")
 
         return self._server
 

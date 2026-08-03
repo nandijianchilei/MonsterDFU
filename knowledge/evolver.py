@@ -6,10 +6,10 @@
 - 写入冷热知识库（与现有 KnowledgeRouter 接口对齐）
 """
 
-import asyncio, json, time, hashlib, logging
-from typing import Any, Dict, List, Optional, Set, Tuple
+import asyncio, time, hashlib, logging
+from typing import Dict, List, Optional, Set
 from dataclasses import dataclass, field
-from collections import defaultdict, Counter
+from collections import defaultdict
 from datetime import datetime
 
 from communication.message_bus import Message, get_message_bus

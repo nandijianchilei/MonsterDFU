@@ -4,7 +4,6 @@
 
 import os
 import sys
-import tempfile
 import unittest
 
 # 添加项目根目录到 sys.path

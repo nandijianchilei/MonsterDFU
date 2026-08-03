@@ -209,7 +209,7 @@ class RolloutController:
                     if hasattr(unit, 'apply_upgrade'):
                         await unit.apply_upgrade(package)
                     canary_result.units_succeeded.append(uid)
-                except Exception as e:
+                except Exception:
                     canary_result.units_failed.append(uid)
                     canary_ok = False
 
@@ -256,7 +256,7 @@ class RolloutController:
                     if hasattr(unit, 'apply_upgrade'):
                         await unit.apply_upgrade(package)
                     incremental_result.units_succeeded.append(uid)
-                except Exception as e:
+                except Exception:
                     incremental_result.units_failed.append(uid)
                     incremental_ok = False
 
@@ -311,7 +311,7 @@ class RolloutController:
                     if hasattr(unit, 'apply_upgrade'):
                         await unit.apply_upgrade(package)
                     full_result.units_succeeded.append(uid)
-                except Exception as e:
+                except Exception:
                     full_result.units_failed.append(uid)
                     full_ok = False
 

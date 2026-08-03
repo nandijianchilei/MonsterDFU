@@ -240,7 +240,6 @@ class RabbitMQBus:
 
     async def _on_message(self, message) -> None:
         """RabbitMQ 消息到达回调。支持 DLX + N 次重试。"""
-        import aio_pika
 
         async with message.process():
             try:

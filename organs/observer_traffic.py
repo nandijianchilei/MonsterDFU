@@ -4,10 +4,7 @@
 输出标准格式的威胁告警。
 """
 
-import asyncio
 import logging
-import random
-import uuid
 from typing import Dict, List, Optional, Set
 
 from communication.message_bus import Message, MessageBus, get_message_bus
