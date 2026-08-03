@@ -1,13 +1,4 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: ba90da03c253ef015477c36300ac39da_39140d688edf11f19b5a525400f8a581
-    ReservedCode1: UMIvGRS9FGkh/6BiZ/4jXQZabVLXKZu2FxAUpS5cFeeGPyBiwCZoJG75IzvKKarZ2RGAFuwNyDKydbn6Y9h6oEKyI82CsymkIGxHqtIuswlaw3EpkOy5XjOjfXTRDa///seWBju2D61O04YtaXdmTI57ARxlZ5w2VifbcKg6rXpy8IawDFAoU/70OQo=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: ba90da03c253ef015477c36300ac39da_39140d688edf11f19b5a525400f8a581
-    ReservedCode2: UMIvGRS9FGkh/6BiZ/4jXQZabVLXKZu2FxAUpS5cFeeGPyBiwCZoJG75IzvKKarZ2RGAFuwNyDKydbn6Y9h6oEKyI82CsymkIGxHqtIuswlaw3EpkOy5XjOjfXTRDa///seWBju2D61O04YtaXdmTI57ARxlZ5w2VifbcKg6rXpy8IawDFAoU/70OQo=
----
+
 
 ██████╗ ███████╗██╗   ██╗
 ██╔══██╗██╔════╝██║   ██║
