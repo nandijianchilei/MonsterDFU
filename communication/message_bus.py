@@ -178,7 +178,7 @@ class MessageBus:
         Returns:
             响应消息，超时返回 None
         """
-        future = asyncio.get_event_loop().create_future()
+        future = asyncio.get_running_loop().create_future()
         self._pending_requests[msg.msg_id] = future
 
         # 发布请求消息

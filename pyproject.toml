@@ -38,9 +38,9 @@ dynamic = ["readme"]
 dfu = "cli:main"
 
 [project.urls]
-Homepage = "https://github.com/example/dfu-defense"
-Documentation = "https://github.com/example/dfu-defense#readme"
-Repository = "https://github.com/example/dfu-defense"
+Homepage = "https://github.com/nandijianchilei/MonsterDFU"
+Documentation = "https://github.com/nandijianchilei/MonsterDFU#readme"
+Repository = "https://github.com/nandijianchilei/MonsterDFU"
 
 [tool.setuptools.packages.find]
 include = ["*"]
