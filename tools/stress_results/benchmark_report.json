@@ -1,0 +1,15 @@
+[
+  {
+    "qps": 1000,
+    "actual_qps": 1003.3,
+    "duration_sec": 30,
+    "total_sent": 30100,
+    "total_errors": 0,
+    "avg_latency_ms": 20.63,
+    "p50_latency_ms": 19.31,
+    "p95_latency_ms": 34.01,
+    "p99_latency_ms": 46.65,
+    "start_time": "2026-06-30T14:19:49.299385",
+    "end_time": "2026-06-30T14:20:24.660432"
+  }
+]
