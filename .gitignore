@@ -18,3 +18,8 @@ podman-machine/
 *.db-shm
 *.db-wal
 *.zip
+
+# large/binary artifacts
+*.pcap
+*.pcapng
+stress_test_*.py
