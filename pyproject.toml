@@ -28,6 +28,9 @@ dependencies = [
     "sse-starlette>=1.8",
     "pyyaml>=6.0",
     "scapy>=2.5",
+    "chromadb>=1.5",
+    "sentence-transformers>=2.2",
+    "aiohappyeyeballs>=2.3",
 ]
 dynamic = ["readme"]
 

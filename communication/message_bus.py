@@ -7,10 +7,13 @@
 
 import asyncio
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
+
+logger = logging.getLogger("MessageBus")
 
 
 @dataclass
@@ -158,7 +161,7 @@ class MessageBus:
             if result is not None and isinstance(result, Message):
                 await self.publish(result)
         except Exception as e:
-            print(f"[MessageBus] 处理器异常: {e}")
+            logger.exception("[MessageBus] 处理器异常: %s", e)
 
     async def request(
         self,

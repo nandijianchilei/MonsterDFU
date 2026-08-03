@@ -157,8 +157,7 @@ class IPState:
         self.last_alert = now
 
         # 更新峰值 severity
-        sev_order = {"low": 0, "medium": 1, "high": 2, "severe": 3}
-        if sev_order.get(severity, 0) > sev_order.get(self.peak_severity, 0):
+        if SEVERITY_ORDER.get(severity, 0) > SEVERITY_ORDER.get(self.peak_severity, 0):
             self.peak_severity = severity
 
         return self._evaluate(now)
