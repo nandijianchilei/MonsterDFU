@@ -36,8 +36,8 @@ AIGC:
 | 🛡️ **Autonomous Detection** | Packet capture + real-time traffic analysis via OutboundMonitor. Detects C2 beacons, data exfiltration, port scans, brute force attacks. |
 | 🧠 **LLM-Powered Analysis** | Multi-model threat analysis with fallback. Distinguishes real attacks from false positives. |
 | ⚡ **Dynamic Countermeasures** | 5-level FSM escalation (L0→L4): Monitor → Soft block → Hard block → Offensive → Network isolation. |
-| 🔄 **Self-Evolving** | Attack pattern clustering → automatic defense rule generation. Gets smarter over time. |
-| 🔌 **Plugin Architecture** | Open interfaces for custom detection sensors and countermeasure actors. |
+| 🔄 **自适应进化** | 攻击模式聚类 → 自动生成防御规则。随着时间的推移，系统会变得更加智能。 |
+| 🔌 **插件架构** | 开放的接口支持自定义检测传感器和应对措施执行器。 |
 | 🖥️ **Real-Time Dashboard** | Live attack map, defense timeline, stats panel. SSE-powered. |
 | 🫁 **Alarm Nose (L4 Alert Loop)** | 4-level automatic alert escalation (L1 log → L2 confirm → L3 block → L4 isolate) with countdown timers, human acknowledgement/cancel, and optional enforced isolation. |
 | 🍯 **Honeypot Integration** | Ingest attack events reported by external honeypots and feed them into the DFU detect → decide → respond pipeline. |
@@ -85,14 +85,14 @@ open http://127.0.0.1:8000/monster
 
 ---
 
-## Architecture
+##架构
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      Web Dashboard                       │
-│              FastAPI + SSE + Live HTML                    │
+│ 网络仪表板 │
+│ FastAPI + SSE + Live HTML │
 └──────────────────────┬──────────────────────────────────┘
-                       │
+│
 ┌──────────────────────▼──────────────────────────────────┐
 │                    Event Bus (RabbitMQ)                   │
 └──┬─────────┬─────────┬──────────┬──────────┬───────────┘
@@ -152,7 +152,7 @@ All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth**
 
 ### Web UI (HTML)
 
-| Endpoint | Method | Auth | Description |
+|Endpoint|Method|Auth|Description|
 |----------|--------|------|-------------|
 | `/` | GET | — | Landing page |
 | `/monster` | GET | — | MonsterDFU single-file SPA management panel |
@@ -176,20 +176,20 @@ All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth**
 | `/api/dfu/stop` | POST | — | Stop the DFU core (idempotent) |
 | `/api/dfu/organs/data` | GET | — | One-shot live data for all 12 defense organs; `running=false` when the system is not started |
 | `/api/status` | GET | — | System status incl. token usage |
-| `/api/stats` | GET | — | Current defense statistics |
-| `/api/attack` | POST | ✅ | Run an attack scenario; body `{"scenario": "c2_beacon"|"data_exfil"|"port_scan"|"brute_force"|"mixed_apt"|"all"}` |
-| `/api/token-usage` | GET | — | LLM token consumption statistics |
-| `/api/reset-token-usage` | POST | — | Reset LLM token statistics |
+| `/api/stats` | GET | — | 当前防御统计数据 |
+| `/api/attack` | POST | ✅ |运行攻击场景；请求体 `{"scenario": "c2_beacon"|"data_exfil"|"port_scan"|"brute_force"|"mixed_apt"|"all"}` |
+| `/api/token-usage` | GET | — |LLM令牌消耗统计 |
+| `/api/reset-token-usage` | POST | — |重置LLM令牌统计 |
 
-### Chat
+###Chat
 
-| Endpoint | Method | Auth | Description |
+|Endpoint|Method|Auth|Description|
 |----------|--------|------|-------------|
 | `/api/chat` | POST | — | Chat proxy: forwards MonsterDFU frontend chat requests to an OpenAI-compatible endpoint; body `{"messages":[...], "api_key": str, "model": str, "base_url": str, "stream": bool?}` |
 
 ### Events & Monitoring
 
-| Endpoint | Method | Auth | Description |
+|Endpoint|Method|Auth|Description|
 |----------|--------|------|-------------|
 | `/api/events/stream` | GET | — | SSE real-time event stream (heartbeat every 15s) |
 | `/api/events` | GET | — | Poll event history; `?since=<unix_ts>` returns events after that timestamp |
@@ -203,11 +203,11 @@ All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth**
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/api/forensic/timeline` | GET | — | Attack-chain forensic timeline (time / source IP / attack type / response action) |
-| `/api/vuln/ports` | GET | — | Local open ports from port scanning |
-| `/api/outbound/connections` | GET | — | Local outbound active connections |
-| `/api/audit/events` | GET | — | Recent security audit events |
+| `/api/vuln/ports` | GET | — | 通过端口扫描获取本地开放端口 |
+| `/api/outbound/connections` | GET | — | 本地活跃出站连接 |
+| `/api/audit/events` | GET | — | 近期安全审计事件 |
 
-### L4 Isolation & Meltdown
+###L4隔离与熔毁
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
@@ -239,9 +239,9 @@ All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth**
 | `/api/demo/scenarios` | GET | — | List available demo scenarios (`c2_beacon`, `data_exfil`, `mixed_attack`) |
 | `/api/demo/trigger` | POST | ✅ | Trigger a demo attack sequence; body `{"scenario": "c2_beacon"|"data_exfil"|"mixed_attack"}` (default `c2_beacon`) |
 
-### Auth
+###认证
 
-| Endpoint | Method | Auth | Description |
+|Endpoint|Method|Auth|Description|
 |----------|--------|------|-------------|
 | `/api/token` | GET | — | Return the current web token; the frontend fetches it here and carries it on subsequent `/api/*` requests |
 
@@ -254,26 +254,24 @@ dfu-defense/
 ├── main.py                    # Entry point
 ├── cli.py                     # CLI tool (dfu start/demo/bench/status)
 ├── config/
-│   ├── default_config.yaml    # Default configuration
+│ ├── default_config.yaml # 默认配置
 ├── utils/
-│   ├── logging_config.py      # Standardized logging
-│   └── error_handler.py       # Error handling utilities
+│ ├── logging_config.py # 标准化日志记录
+│ └── error_handler.py # 错误处理工具函数
 ├── organs/
-│   ├── capturer.py            # Packet capture (libpcap/scapy)
-│   ├── observer_outbound.py   # Outbound traffic monitor
-│   ├── alarm_nose.py          # 4-level automatic alert organ (L1→L4)
-│   ├── auditor_log.py         # Security audit log
-│   ├── fsm.py                 # Countermeasure FSM
-│   └── evolver.py             # Self-evolving defense
+│ ├── capturer.py # 数据包捕获 (libpcap/scapy)
+│ ├── observer_outbound.py # 出站流量监控器
+│ ├── alarm_nose.py # 四级自动报警机制 (L1→L4)
+│ ├── auditor_log.py # 安全审计日志
+│ ├── fsm.py # 对策状态机
+│ └── evolver.py # 自适应防御进化器
 ├── benchmarks/
-│   ├── attack_dataset.py      # Attack scenario dataset
-│   ├── run_benchmark.py       # Benchmark runner
-│   └── benchmark_report.md    # Latest benchmark results
+│ ├── attack_dataset.py # 攻击场景数据集
+│ ├── run_benchmark.py # 基准测试运行器
+│ └── benchmark_report.md # 最新基准测试报告
 ├── static/
-│   ├── index.html             # Management dashboard
-│   └── live.html              # Live demo dashboard
-├── docker-compose.yml         # Production deployment
-├── Dockerfile                 # Multi-stage build
-└── README.md                  # This file
-```
-*（内容由AI生成，仅供参考）*
+│ ├── index.html # 管理控制台
+│ └── live.html # 实时演示仪表板
+├── docker-compose.yml # 生产环境部署
+├── Dockerfile # 多阶段构建
+└── README.md # 此文件```
