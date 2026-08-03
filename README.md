@@ -2,7 +2,7 @@
 ██╔══██╗██╔════╝██║   ██║
 ██║  ██║█████╗  ██║   ██║
 ██║  ██║██╔══╝  ██║   ██║
-██████╔╝██║     ╚██████╔╝
+██████╔╝██║     ╚██████║
 ╚═════╝ ╚═╝      ╚═════╝
 
 ██╗  ██╗██████╗ ███████╗███████╗███╗   ██╗███████╗███████╗
@@ -14,7 +14,7 @@
 
 # DFU — Distributed AI Defense
 
-> 教学原型 / Demo Prototype — 单进程内模拟分布式防御行为，非生产就绪系统
+> Teaching prototype / Demo prototype — simulates distributed defense behavior inside a single process. Not a production-ready system.
 
 ---
 
@@ -28,44 +28,47 @@
 | 🔄 **Self-Evolving** | Attack pattern clustering → automatic defense rule generation. Gets smarter over time. |
 | 🔌 **Plugin Architecture** | Open interfaces for custom detection sensors and countermeasure actors. |
 | 🖥️ **Real-Time Dashboard** | Live attack map, defense timeline, stats panel. SSE-powered. |
+| 🫁 **Alarm Nose (L4 Alert Loop)** | 4-level automatic alert escalation (L1 log → L2 confirm → L3 block → L4 isolate) with countdown timers, human acknowledgement/cancel, and optional enforced isolation. |
+| 🍯 **Honeypot Integration** | Ingest attack events reported by external honeypots and feed them into the DFU detect → decide → respond pipeline. |
+| 🎬 **Demo Mode** | Pre-built attack scenarios (C2 beacon, data exfiltration, mixed APT) replayable over SSE to showcase the full defense chain. |
+| 🧬 **Organ Telemetry** | Real-time metrics for 12 defense organs (prefrontal, left/right brain, left/right hand, repair hand, self-heal, report mouth, alarm nose, memory, whitelist, skill box). |
 
 ---
 
 ## Quick Start
 
-### 🖥️ 桌面版（推荐）
+### 🖥️ Desktop App (Recommended)
 
-独立 Windows 桌面软件形态：内部启动 FastAPI 服务（仅绑定 `127.0.0.1` 本机回环），
-用原生桌面窗口（pywebview / WebView2）加载管理面板，不再调用系统浏览器，关闭窗口即优雅退出。
+Runs as a standalone Windows desktop app: starts a FastAPI service bound to `127.0.0.1` only, loads the management panel in a native desktop window (pywebview / WebView2), and exits gracefully when the window closes.
 
 ```bash
-# 方式一：双击 exe（无需安装 Python）
-# 解压 dist/dfu_prototype_desktop.zip 后，双击其中的 dfu_prototype_desktop.exe
-# 桌面窗口会直接弹出并加载管理面板 http://127.0.0.1:8000/monster
+# Option 1: run the packaged exe (no Python needed)
+# Unzip dist/dfu_prototype_desktop.zip, then double-click dfu_prototype_desktop.exe
+# The desktop window opens and loads the management panel at http://127.0.0.1:8000/monster
 
-# 方式二：源码运行
+# Option 2: run from source
 pip install -r requirements.txt pywebview
-python desktop_launcher.py                # 默认端口 8000，被占用时自动顺延
-python desktop_launcher.py --port 9000    # 指定端口
+python desktop_launcher.py                # default port 8000, auto-increments if busy
+python desktop_launcher.py --port 9000    # specify port
 ```
 
-- 服务仅绑定 `127.0.0.1`，不暴露局域网；关闭桌面窗口即停止服务并退出进程。
-- 依赖 WebView2 运行时（Windows 10/11 一般已内置；缺失时请安装
-  [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)）。
-- 打包方法：`python -m PyInstaller temp/dfu_prototype_desktop.spec --noconfirm --distpath dist --workpath temp/pyinstaller_build_desktop`
+- The service binds to `127.0.0.1` only and is not exposed to the LAN; closing the desktop window stops the service and exits.
+- Requires the WebView2 runtime (preinstalled on Windows 10/11; install
+  [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) if missing).
+- Packaging: `python -m PyInstaller temp/dfu_prototype_desktop.spec --noconfirm --distpath dist --workpath temp/pyinstaller_build_desktop`
 
-### 🌐 浏览器模式（开发/调试）
+### 🌐 Browser Mode (Development / Debug)
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
-# Start the web server（默认仅监听 127.0.0.1，并自动打开浏览器）
+# Start the web server (binds to 127.0.0.1 and auto-opens the browser)
 python web_server.py
 
-# 不自动打开浏览器时
+# To disable auto-open
 python web_server.py --no-browser
-# 然后手动打开
+# Then open manually
 open http://127.0.0.1:8000/monster
 ```
 
@@ -89,9 +92,16 @@ open http://127.0.0.1:8000/monster
 └──────┘  └─────┘  └─────┘   └───────┘  └──────┘
 ```
 
+### Key Modules
+
+- **Alarm Nose (报警鼻, `organs/alarm_nose.py`)** — a 4-level automatic alert organ that grades threat alerts / FSM states / organ health signals into L1 (log, natural decay) → L2 (notify + human confirm + countdown) → L3 (close ports + urgent notify + countdown) → L4 (firewall full-block, soft-isolation signal + countdown, enforced on timeout). L4 reuses the FSM soft-isolation mechanism (no physical NIC changes); AlarmNose only publishes trigger signals and never modifies FSM state directly.
+- **Honeypot (`/api/honeypot/event`)** — accepts attack events reported by external honeypots (web scan, SSH/FTP brute force, port scans, etc.), maps honeypot categories to DFU threat categories, and publishes them into the DFU pipeline as `threat_alert` messages for detection → decision → response.
+- **Demo Mode (`/api/demo/*`)** — `c2_beacon`, `data_exfil` and `mixed_attack` presets inject pre-built attack event sequences through the EventChainRecorder; the full attack → defense process is streamed in real time over SSE.
+- **Organ Data (`/api/dfu/organs/data`)** — returns live metrics for 12 defense organs: prefrontal (situational awareness), left-hand (traffic monitor), left-brain (detection), right-brain (analysis), right-hand (action), repair-hand, self-heal (MedicAgent), report-mouth (reporting), alarm-nose (alerts), memory (knowledge router + hot/cold store), whitelist (IP whitelist), skill-box (defense skills).
+
 ---
 
-## Benchmark Results（演示数据集 / Demo Dataset）
+## Benchmark Results (Demo Dataset)
 
 | Scenario | Events | Detection Rate | FSM Action | Latency |
 |----------|--------|---------------|------------|---------|
@@ -127,15 +137,102 @@ python web_server.py
 
 ## API Reference
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/events/stream` | SSE | Real-time event stream |
-| `/api/events?since=ts` | GET | Poll events |
-| `/api/stats` | GET | Current defense stats |
-| `/api/demo/scenarios` | GET | Available demo scenarios |
-| `/api/demo/trigger` | POST | Trigger attack scenario |
-| `/live` | GET | Live demo dashboard |
+All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth** require an API token — obtain it from `GET /api/token` and send it as the `X-API-Token` header (or use `GET /api/token` once to read the current token).
+
+### Web UI (HTML)
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/` | GET | — | Landing page |
+| `/monster` | GET | — | MonsterDFU single-file SPA management panel |
+| `/live` | GET | — | Live demo attack big-screen (SSE-powered) |
+| `/compare` | GET | — | Comparison demo page (no DFU vs with DFU) |
+
+### Health & Probes
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/health` | GET | — | Health check — component liveness status |
+| `/healthz` | GET | — | Liveness probe: is the process running |
+| `/readyz` | GET | — | Readiness probe: is the system initialized and ready |
+
+### DFU Core
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/dfu/status` | GET | — | DFU runtime status: `running` / `uptime` / `start_time` / `components` |
+| `/api/dfu/start` | POST | — | Start the DFU core (idempotent) |
+| `/api/dfu/stop` | POST | — | Stop the DFU core (idempotent) |
+| `/api/dfu/organs/data` | GET | — | One-shot live data for all 12 defense organs; `running=false` when the system is not started |
+| `/api/status` | GET | — | System status incl. token usage |
+| `/api/stats` | GET | — | Current defense statistics |
+| `/api/attack` | POST | ✅ | Run an attack scenario; body `{"scenario": "c2_beacon"|"data_exfil"|"port_scan"|"brute_force"|"mixed_apt"|"all"}` |
+| `/api/token-usage` | GET | — | LLM token consumption statistics |
+| `/api/reset-token-usage` | POST | — | Reset LLM token statistics |
+
+### Chat
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/chat` | POST | — | Chat proxy: forwards MonsterDFU frontend chat requests to an OpenAI-compatible endpoint; body `{"messages":[...], "api_key": str, "model": str, "base_url": str, "stream": bool?}` |
+
+### Events & Monitoring
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/events/stream` | GET | — | SSE real-time event stream (heartbeat every 15s) |
+| `/api/events` | GET | — | Poll event history; `?since=<unix_ts>` returns events after that timestamp |
+| `/api/metrics` | GET | — | JSON snapshot of all monitoring metrics |
+| `/api/metrics/stream` | GET | — | SSE stream pushing metrics every 2 seconds |
+| `/metrics` | GET | — | Prometheus-format `/metrics` endpoint |
+| `/api/resources` | GET | — | CPU / memory usage sampling |
+
+### Forensics & Security
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/forensic/timeline` | GET | — | Attack-chain forensic timeline (time / source IP / attack type / response action) |
+| `/api/vuln/ports` | GET | — | Local open ports from port scanning |
+| `/api/outbound/connections` | GET | — | Local outbound active connections |
+| `/api/audit/events` | GET | — | Recent security audit events |
+
+### L4 Isolation & Meltdown
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/l4/status` | GET | ✅ | L4 status overview: active L4 IPs + three-gate state |
+| `/api/l4/confirm` | POST | ✅ | Confirm L4 network isolation for `{"source_ip": str}`; closes gate 3 and auto-degrades L4 back to L3 |
+| `/api/l4/reject` | POST | ✅ | Reject L4 isolation (cancel confirmation, keep L4 state) |
+| `/api/meltdown/on` | POST | ✅ | Enable system meltdown (system-wide defensive freeze) |
+| `/api/meltdown/off` | POST | ✅ | Disable system meltdown |
+
+### Alarm Nose (L4 Alerts)
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/alarm-nose/status` | GET | ✅ | Alarm Nose real-time status: current level / countdown / 4-level alert history |
+| `/api/alarm-nose/ack` | POST | ✅ | Acknowledge the current alert (stop countdown, clear alert, back to L1 log state) |
+| `/api/alarm-nose/cancel` | POST | ✅ | Cancel the current alert (stop countdown, cancel auto-escalation, back to L1 log state) |
+| `/api/alarm-nose/confirm-l4` | POST | ✅ | Manually confirm L4: immediately trigger the soft-isolation signal (reuses the FSM mechanism, no physical NIC cut) |
+
+### Honeypot
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/honeypot/event` | POST | ✅ | Accept an attack event reported by a honeypot and inject it into the DFU pipeline; body `{"category", "severity", "src_ip", "src_port", "dst_port", "payload_preview"}` |
+
+### Demo Mode
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/demo/scenarios` | GET | — | List available demo scenarios (`c2_beacon`, `data_exfil`, `mixed_attack`) |
+| `/api/demo/trigger` | POST | ✅ | Trigger a demo attack sequence; body `{"scenario": "c2_beacon"|"data_exfil"|"mixed_attack"}` (default `c2_beacon`) |
+
+### Auth
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/token` | GET | — | Return the current web token; the frontend fetches it here and carries it on subsequent `/api/*` requests |
 
 ---
 
@@ -143,40 +240,27 @@ python web_server.py
 
 ```
 dfu-defense/
-├── web_server.py              # FastAPI web server (browser mode)
-├── desktop_launcher.py        # Desktop launcher (recommended, pywebview)
-├── main.py                    # Entry point / system bootstrap
+├── main.py                    # Entry point
 ├── cli.py                     # CLI tool (dfu start/demo/bench/status)
-├── config.py                  # Environment-driven configuration
-├── persistence.py             # Persistence helpers
-├── capturer_entry.py          # Packet capture entry helper
-├── core/                      # Dual-brain core engine
-│   ├── brain_left.py          # Left brain: rule/signature reasoning
-│   ├── brain_right.py         # Right brain: LLM/pattern reasoning
-│   ├── countermeasure_fsm.py  # 5-level FSM (L0→L4)
-│   ├── event_aggregator.py    # Event correlation
-│   ├── llm_client.py          # Multi-model LLM client with fallback
-│   └── ...                    # validator / signature_engine / medic etc.
-├── organs/                    # Detection & action organs
+├── config/
+│   ├── default_config.yaml    # Default configuration
+├── utils/
+│   ├── logging_config.py      # Standardized logging
+│   └── error_handler.py       # Error handling utilities
+├── organs/
 │   ├── capturer.py            # Packet capture (libpcap/scapy)
 │   ├── observer_outbound.py   # Outbound traffic monitor
-│   ├── observer_realtime.py   # Realtime monitor
-│   ├── firewall_executor.py   # Countermeasure actor
-│   └── ...                    # alarm / auditor / notifier / tracker etc.
-├── communication/             # Message bus & middleware
-├── knowledge/                 # Hot/cold stores, evolver, vector store
-├── cluster/                   # Distributed unit registry & dispatcher
-├── production/                # Compliance / perf / security audit tools
-├── upgrade/                   # Model store & rollout controller
-├── config/
-│   └── default_config.yaml    # Default configuration
-├── utils/                     # Logging & error handling utilities
-├── benchmarks/                # Attack dataset & benchmark runner
-├── rules/                     # Signature rules (default.rules + ET Open)
-├── static/                    # Web dashboard (HTML/JS)
-├── tests/                     # Test suite
-├── deploy/                    # systemd unit & env template
-├── tools/                     # Attack simulation & stress test scripts
+│   ├── alarm_nose.py          # 4-level automatic alert organ (L1→L4)
+│   ├── auditor_log.py         # Security audit log
+│   ├── fsm.py                 # Countermeasure FSM
+│   └── evolver.py             # Self-evolving defense
+├── benchmarks/
+│   ├── attack_dataset.py      # Attack scenario dataset
+│   ├── run_benchmark.py       # Benchmark runner
+│   └── benchmark_report.md    # Latest benchmark results
+├── static/
+│   ├── index.html             # Management dashboard
+│   └── live.html              # Live demo dashboard
 ├── docker-compose.yml         # Production deployment
 ├── Dockerfile                 # Multi-stage build
 └── README.md                  # This file
