@@ -34,6 +34,8 @@ from core.event_aggregator import EventAggregator
 from core.rule_frontend import RuleEngineFrontend
 from core.llm_client import LLMClient
 from core.medic_agent import MedicAgent
+from core.agent_registry import AgentRegistry, AgentSpec
+from core.countermeasure_fsm import CountermeasureFSM
 from core.validator import ValidatorAgent
 from organs.actor_ip_isolation import IPIsolationAgent
 from organs.auditor_log import LogAuditorAgent, LogAnomalySimulator
@@ -382,7 +384,8 @@ class DFUPrototypeRunner:
         # ===== Phase 1.5 新增模块 =====
         self.outbound_monitor = OutboundMonitor(config)
         self.logger.info("出站流量监测模块已初始化 (OutboundMonitor)")
-        self.fsm = self.ip_isolation.fsm  # Phase 1.5: 复用 FSM 引用用于 L4 三闸门检查
+        # Phase 1.5 修复：FSM 由 Runner 直接持有（此前引用 ip_isolation.fsm 不存在，属历史遗留 bug）
+        self.fsm = CountermeasureFSM()
         self.logger.info("Phase 1.5 FSM L4 网络隔离就绪 (三闸门锁)")
 
         # ===== 实时抓包模块 (PacketCapture) =====
@@ -501,64 +504,93 @@ class DFUPrototypeRunner:
             brute_target_port=config.simulator.brute_force_target_port,
         )
 
-    async def start_all_agents(self) -> None:
-        """启动所有 Agent（严格按数据流顺序注册）。"""
+        # ===== 融合增强 v1.1：Agent 注册表装配工厂 =====
+        # 所有 Agent 的启动顺序/阶段条件/医疗监控声明集中在 _build_agent_registry；
+        # 新增器官只需在注册表中 add 一行声明，start_all_agents / stop_all_agents
+        # 自动按数据流顺序装配与回收，无需再改启动函数。
+        self.registry = AgentRegistry()
+        self._build_agent_registry()
+
+    def _build_agent_registry(self) -> None:
+        """声明全部 Agent 的装配注册表（顺序即数据流启动顺序）。"""
+        reg = self.registry
+
         # 处置Agent先注册
-        await self.ip_isolation.start()
-        await self.validator.start()
+        reg.add(AgentSpec(name="IPIsolation", instance=self.ip_isolation))
+        reg.add(AgentSpec(name="Validator", instance=self.validator))
 
         # 规则引擎前置分流：在聚合器和双脑之前启动，拦截原始告警
-        await self.rule_frontend.start()
-        self.logger.info("规则引擎前置分流已启动")
+        reg.add(AgentSpec(name="RuleEngineFrontend", instance=self.rule_frontend))
 
         # 事件聚合器：在双脑之前启动，订阅 unhandled_threat
-        await self.event_aggregator.start()
+        reg.add(AgentSpec(name="EventAggregator", instance=self.event_aggregator))
 
-        # 阶段2器官Agent
-        if not self._is_realtime and self.stage >= 2:
-            await self.resource_scheduler.start()
-            await self.forensic_tracker.start()
-            await self.vuln_scanner.start()
-            await self.log_auditor.start()
+        # 阶段2器官Agent（仅非实时 + stage>=2）
+        reg.add(AgentSpec(
+            name="ResourceScheduler", instance=self.resource_scheduler,
+            stage_required=2, non_realtime_only=True, medic_monitored=True,
+        ))
+        reg.add(AgentSpec(
+            name="ForensicTracker", instance=self.forensic_tracker,
+            stage_required=2, non_realtime_only=True, medic_monitored=True,
+        ))
+        reg.add(AgentSpec(
+            name="VulnScanner", instance=self.vuln_scanner,
+            stage_required=2, non_realtime_only=True, medic_monitored=True,
+        ))
+        reg.add(AgentSpec(
+            name="LogAuditor", instance=self.log_auditor,
+            stage_required=2, non_realtime_only=True, medic_monitored=True,
+        ))
 
         # 双引擎注册
-        await self.left_brain.start()
-        await self.right_brain.start()
+        reg.add(AgentSpec(
+            name="LeftBrain", instance=self.left_brain, medic_monitored=True,
+        ))
+        reg.add(AgentSpec(
+            name="RightBrain", instance=self.right_brain, medic_monitored=True,
+        ))
 
-        # 观测Agent最后注册：realtime 模式用 RealtimeTrafficAgent，其他用 TrafficMonitorAgent
-        if self.stage == "realtime" and self.realtime_traffic:
-            await self.realtime_traffic.start()
-        else:
-            await self.traffic_monitor.start()
+        # 观测Agent：realtime 用 RealtimeTraffic，其他用 TrafficMonitor（二选一）
+        reg.add(AgentSpec(
+            name="RealtimeTraffic", instance=self.realtime_traffic,
+            realtime_only=True,
+        ))
+        reg.add(AgentSpec(
+            name="TrafficMonitor", instance=self.traffic_monitor,
+            non_realtime_only=True, medic_monitored=True,
+        ))
 
-        # Phase 1.5: 出站流量监测（在所有观测Agent之后）
-        await self.outbound_monitor.start()
-        self.logger.info("出站流量监测Agent已启动")
+        # 出站流量监测（观测Agent之后）
+        reg.add(AgentSpec(
+            name="OutboundMonitor", instance=self.outbound_monitor,
+            medic_monitored=True,
+        ))
 
-        # 实时抓包模块（在观测Agent之后，全局记录器之前）
-        self.capturer.start()
-        self.logger.info("实时抓包模块已启动 (PacketCapture)")
+        # 实时抓包模块（观测Agent之后、全局记录器之前）
+        reg.add(AgentSpec(
+            name="PacketCapture", instance=self.capturer, medic_monitored=True,
+        ))
 
         # 全局事件记录器
-        await self.recorder.start()
+        reg.add(AgentSpec(name="EventRecorder", instance=self.recorder))
 
-        # 医疗Agent（独立协程）
-        if not self._is_realtime and self.stage >= 2 and self.medic_agent:
+        # 医疗Agent（独立协程，启动前先注册全部被监控 Agent 回调）
+        async def _start_medic():
             self._register_all_to_medic()
             await self.medic_agent.start()
 
-        agent_names = [
-            "TrafficMonitor" if self.stage != "realtime" else "RealtimeTraffic",
-            "RuleEngineFrontend", "EventAggregator",
-            "LeftBrain", "RightBrain", "Validator", "IPIsolation",
-            "OutboundMonitor", "PacketCapture",
-        ]
-        if not self._is_realtime and self.stage >= 2:
-            agent_names.extend([
-                "VulnScanner", "LogAuditor", "ResourceScheduler",
-                "ForensicTracker", "MedicAgent"
-            ])
-        self.logger.info(f"所有 Agent 已启动 ({len(agent_names)}个): {', '.join(agent_names)}")
+        reg.add(AgentSpec(
+            name="MedicAgent", instance=self.medic_agent,
+            start=_start_medic, stage_required=2, non_realtime_only=True,
+        ))
+
+    async def start_all_agents(self) -> None:
+        """启动所有 Agent（按注册表声明顺序装配）。"""
+        started = await self.registry.start_all(
+            stage=self.stage, is_realtime=self._is_realtime,
+        )
+        self.logger.info(f"所有 Agent 已启动 ({len(started)}个): {', '.join(started)}")
 
         # 阶段3：部署所有单元
         if not self._is_realtime and self.stage >= 3:
@@ -567,25 +599,16 @@ class DFUPrototypeRunner:
             self.logger.info(f"{len(self.units)} 个 DFUUnit 已注册到集群")
 
     def _register_all_to_medic(self) -> None:
-        """将所有 Agent 注册到医疗自愈系统。"""
+        """将所有声明 medic_monitored 的 Agent 注册到医疗自愈系统。"""
         medic = self.medic_agent
         if not medic:
             return
 
-        # 基于心跳检查：对每个注册的 Agent 使用简单存活检测
-        # 实际场景中应对接真实 Agent 的心跳接口
+        # 基于注册表声明：遍历 medic_monitored=True 的 Agent（含阶段/模式过滤）
         self._medic_alive_flags: Dict[str, bool] = {
-            "TrafficMonitor": True,
-            "LeftBrain": True,
-            "RightBrain": True,
-            "Validator": True,
-            "IPIsolation": True,
-            "OutboundMonitor": True,
-            "PacketCapture": True,
-            "VulnScanner": True,
-            "LogAuditor": True,
-            "ResourceScheduler": True,
-            "ForensicTracker": True,
+            spec.name: True for spec in self.registry.specs(
+                stage=self.stage, is_realtime=self._is_realtime,
+            ) if spec.medic_monitored
         }
 
         for agent_name in self._medic_alive_flags:
@@ -615,27 +638,10 @@ class DFUPrototypeRunner:
             )
 
     async def stop_all_agents(self) -> None:
-        """停止所有 Agent。"""
-        if not self._is_realtime and self.stage >= 2 and self.medic_agent:
-            await self.medic_agent.stop()
-        await self.recorder.stop()
-        if self._is_realtime and self.realtime_traffic:
-            await self.realtime_traffic.stop()
-        else:
-            await self.traffic_monitor.stop()
-        await self.left_brain.stop()
-        await self.right_brain.stop()
-        await self.rule_frontend.stop()
-        await self.event_aggregator.stop()
-        await self.validator.stop()
-        await self.ip_isolation.stop()
-        await self.outbound_monitor.stop()
-        await self.capturer.stop()
-        if not self._is_realtime and self.stage >= 2:
-            await self.vuln_scanner.stop()
-            await self.log_auditor.stop()
-            await self.resource_scheduler.stop()
-            await self.forensic_tracker.stop()
+        """停止所有 Agent（按注册表声明的倒序回收，先停医疗再停处置）。"""
+        await self.registry.stop_all(
+            stage=self.stage, is_realtime=self._is_realtime,
+        )
         # 阶段3：关闭所有单元
         if not self._is_realtime and self.stage >= 3:
             for unit in self.units:

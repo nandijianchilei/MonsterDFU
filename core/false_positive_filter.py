@@ -485,6 +485,85 @@ class LLMConfirmLayer:
 
 # ── 门面：误报过滤层 ──
 
+# ==================== 第四层：输出护栏（处置动作白名单） ====================
+
+ALLOWED_ACTION_WHITELIST = {
+    "none", "alert",
+    "block_ip", "isolate_ip", "rate_limit",
+    "shutdown_port", "drop_packet",
+    "challenge", "sandbox", "redirect_honeypot",
+    "notify_admin", "remediate",
+}
+
+# 高危动作：默认不允许自动放行，需 HITL 人工确认或显式 allow_high_risk
+HIGH_RISK_ACTIONS = {"isolate_ip", "shutdown_port", "sandbox", "redirect_honeypot"}
+
+
+class OutputGuardLayer:
+    """第四层输出护栏：对 LLM 生成的处置动作做白名单校验。
+
+    输入护栏决定"哪些告警值得响应"，输出护栏决定"响应动作是否合法"。
+    作用：
+    - 拦截 LLM 幻觉出的未注册动作（delete / format / reboot / drop_database 等）；
+    - 高危动作默认降级为 alert（可配置 allow_high_risk=True 放行），防止自愈系统
+      在误判时对生产环境造成二次破坏；
+    - 与 HITL/kill-switch 协同：被降级的高危动作交由人工确认通道处理。
+    """
+
+    def __init__(self, enabled: bool = True, allow_high_risk: bool = False) -> None:
+        self.enabled = enabled
+        self.allow_high_risk = allow_high_risk
+        self.stats: Dict[str, int] = {
+            "actions_checked": 0,
+            "actions_passed": 0,
+            "actions_rejected": 0,
+            "high_risk_flagged": 0,
+        }
+
+    def validate_action(self, action: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+        """校验单个处置动作。
+
+        Returns:
+            (safe_action, reason)：
+            - reason="ok"：动作合法，原样返回（浅拷贝）；
+            - reason="unknown_action"：动作不在白名单，降级为 alert 并记录 original_action；
+            - reason="blocked_high_risk"：高危动作未获 HITL 授权，降级为 alert；
+            - reason="guard_disabled"：护栏被关闭，原样返回。
+        """
+        self.stats["actions_checked"] += 1
+
+        if not self.enabled:
+            self.stats["actions_passed"] += 1
+            return dict(action), "guard_disabled"
+
+        act = str(action.get("action", "") or "").strip().lower()
+        if act not in ALLOWED_ACTION_WHITELIST:
+            self.stats["actions_rejected"] += 1
+            return {
+                **action,
+                "action": "alert",
+                "original_action": act,
+                "guard_reason": "unknown_action",
+            }, "unknown_action"
+
+        if act in HIGH_RISK_ACTIONS and not self.allow_high_risk:
+            self.stats["actions_rejected"] += 1
+            self.stats["high_risk_flagged"] += 1
+            return {
+                **action,
+                "action": "alert",
+                "original_action": act,
+                "guard_reason": "high_risk_requires_hitl",
+            }, "blocked_high_risk"
+
+        self.stats["actions_passed"] += 1
+        return dict(action), "ok"
+
+    def validate_actions(self, actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """批量校验处置动作列表，返回净化后的动作列表。"""
+        return [self.validate_action(a)[0] for a in actions]
+
+
 class FalsePositiveFilter:
     """
     误报过滤层门面。
@@ -505,6 +584,8 @@ class FalsePositiveFilter:
         self._whitelist = WhitelistFilter(cfg.ip_networks, cfg.ports, cfg.domains)
         self._threshold = AlertThreshold(cfg.min_triggers, cfg.window_seconds)
         self._llm = LLMConfirmLayer(cfg.llm_enabled, cfg.llm_mock, cfg.llm_benign_threshold, cfg.confirm_fn)
+        # 第四层：输出护栏（处置动作白名单，默认开启；高危动作默认降级）
+        self._output_guard = OutputGuardLayer()
         self.stats: Dict[str, int] = {
             "total_evaluated": 0,
             "whitelist_suppressed": 0,
@@ -512,6 +593,9 @@ class FalsePositiveFilter:
             "llm_suppressed": 0,
             "alerts_passed": 0,
             "high_risk_bypassed_threshold": 0,
+            "output_actions_checked": 0,
+            "output_actions_rejected": 0,
+            "output_high_risk_flagged": 0,
         }
 
     @classmethod
@@ -577,6 +661,27 @@ class FalsePositiveFilter:
         self.stats["alerts_passed"] += 1
         return True, "alert"
 
+    def validate_action(self, action: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+        """第四层输出护栏：校验 LLM 生成的单个处置动作。
+
+        非法动作降级为 alert 并保留 original_action 供审计；
+        高危动作（隔离/断端口/沙箱/蜜罐重定向）默认降级，需 HITL 确认。
+
+        Returns:
+            (safe_action, reason)
+        """
+        safe, reason = self._output_guard.validate_action(action)
+        self.stats["output_actions_checked"] += 1
+        if reason == "unknown_action" or reason == "blocked_high_risk":
+            self.stats["output_actions_rejected"] += 1
+            if reason == "blocked_high_risk":
+                self.stats["output_high_risk_flagged"] += 1
+        return safe, reason
+
+    def validate_actions(self, actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """批量校验处置动作列表，返回净化后的动作列表。"""
+        return [self.validate_action(a)[0] for a in actions]
+
     def get_stats_report(self) -> str:
         """生成过滤层统计摘要（用于 benchmark 报告）。"""
         s = self.stats
@@ -585,7 +690,9 @@ class FalsePositiveFilter:
             f"评估 {s['total_evaluated']} 条 | 放行 {s['alerts_passed']} | "
             f"抑制 {suppressed}（白名单 {s['whitelist_suppressed']} / "
             f"阈值 {s['threshold_suppressed']} / LLM {s['llm_suppressed']}）| "
-            f"高危直通 {s['high_risk_bypassed_threshold']}"
+            f"高危直通 {s['high_risk_bypassed_threshold']} | "
+            f"输出护栏 {s['output_actions_checked']} 次动作（拒绝 {s['output_actions_rejected']} / "
+            f"高危待HITL {s['output_high_risk_flagged']}）"
         )
 
     def reset(self) -> None:

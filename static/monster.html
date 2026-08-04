@@ -734,7 +734,7 @@ async function ensureApiToken(){
 }
 function apiHeaders(extra){
   const h = Object.assign({}, extra || {});
-  if(_dfuApiToken) h["X-DFU-Token"] = _dfuApiToken;
+  if(_dfuApiToken) h["Authorization"] = "Bearer " + _dfuApiToken;
   return h;
 }
 async function apiGet(url, timeout=5000){
@@ -742,7 +742,13 @@ async function apiGet(url, timeout=5000){
   const timer = setTimeout(()=>ctrl.abort(), timeout);
   try{
     await ensureApiToken();
-    const r = await fetch(url, {signal:ctrl.signal, headers:apiHeaders({"Accept":"application/json"})});
+    let r = await fetch(url, {signal:ctrl.signal, headers:apiHeaders({"Accept":"application/json"})});
+    if(r.status === 401){
+      // Token 过期：清空本地缓存并重新获取后重试一次（服务端 /api/token 会自动轮换刷新）
+      _dfuApiToken = null;
+      await ensureApiToken();
+      r = await fetch(url, {signal:ctrl.signal, headers:apiHeaders({"Accept":"application/json"})});
+    }
     clearTimeout(timer);
     if(!r.ok) throw new Error("HTTP " + r.status);
     return await r.json();

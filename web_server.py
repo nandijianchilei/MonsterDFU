@@ -81,22 +81,69 @@ except ImportError:
 _server_start_time = time.time()
 
 # ==================== Token 认证 ====================
+# 统一 Bearer 单轨认证（Authorization: Bearer <token>）：
+# - Token 来源：环境变量 DFU_WEB_TOKEN，未设置则随机生成并打印到控制台/日志
+# - 生命周期：默认 24 小时（可用 DFU_WEB_TOKEN_TTL 秒数覆盖），到期后前端通过
+#   GET /api/token 自动刷新轮换，杜绝"一次泄漏永久有效"的静态凭据问题
+# - 无全局绕过开关：_AUTH_ENABLED 已移除，所有 /api/* 必须携带有效 Token
 
-# 从环境变量 DFU_WEB_TOKEN 读取；未设置则生成随机 token 并打印到控制台/日志
 _API_TOKEN = os.environ.get("DFU_WEB_TOKEN", "")
 if not _API_TOKEN:
     _API_TOKEN = secrets.token_hex(16)
     print(f"[Auth] 未设置 DFU_WEB_TOKEN，已生成随机 Token: {_API_TOKEN}")
 else:
     print("[Auth] 已从环境变量 DFU_WEB_TOKEN 加载 Token")
-_AUTH_ENABLED = True
+
+# Token 有效期（秒），默认 24h；0 或负值表示永不过期（仅显式配置）
+_TOKEN_TTL_SECONDS = int(os.environ.get("DFU_WEB_TOKEN_TTL", "86400"))
+_token_issued_at = time.time()
+
 security = HTTPBearer(auto_error=False)
 
+
+def _is_token_expired() -> bool:
+    """Token 是否已过期（TTL<=0 表示永不过期）。"""
+    if _TOKEN_TTL_SECONDS <= 0:
+        return False
+    return (time.time() - _token_issued_at) > _TOKEN_TTL_SECONDS
+
+
+def _refresh_api_token() -> str:
+    """轮换 API Token（供 /api/token 在过期时刷新使用）。"""
+    global _API_TOKEN, _token_issued_at
+    _API_TOKEN = secrets.token_hex(16)
+    _token_issued_at = time.time()
+    return _API_TOKEN
+
+
+def _token_remaining_seconds() -> int:
+    """当前 Token 剩余有效期（秒）。"""
+    if _TOKEN_TTL_SECONDS <= 0:
+        return -1
+    remain = _TOKEN_TTL_SECONDS - int(time.time() - _token_issued_at)
+    return max(remain, 0)
+
+
+def _validate_token(token: str) -> bool:
+    """统一 Token 校验：单轨 Bearer + 过期检查（常量时间比较）。"""
+    if not token:
+        return False
+    if _is_token_expired():
+        return False
+    return secrets.compare_digest(token, _API_TOKEN)
+
+
 async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Bearer Token 认证中间件。Token 来自 DFU_WEB_TOKEN（未设置则随机生成）。"""
+    """Bearer Token 认证依赖（FastAPI Depends 用）。
+
+    Token 来自 DFU_WEB_TOKEN（未设置则随机生成），统一单轨校验，
+    过期后返回 401 提示前端刷新。
+    """
     if credentials is None:
         raise HTTPException(status_code=401, detail="缺少 Authorization: Bearer <token>")
-    if credentials.credentials != _API_TOKEN:
+    if not _validate_token(credentials.credentials):
+        if _is_token_expired():
+            raise HTTPException(status_code=401, detail="Token 已过期，请通过 GET /api/token 刷新")
         raise HTTPException(status_code=403, detail="Token 无效")
     return True
 
@@ -1068,7 +1115,7 @@ _AUTH_WHITELIST = [
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """API Token 认证中间件"""
+    """API Token 认证中间件（统一 Bearer 单轨 + 过期校验）"""
     path = request.url.path
 
     if any(path.startswith(w) for w in _AUTH_WHITELIST):
@@ -1076,12 +1123,15 @@ async def auth_middleware(request: Request, call_next):
 
     if path.startswith("/api/"):
         token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
-        if not token:
-            token = request.headers.get("X-DFU-Token", "").strip()
-        if not token or not secrets.compare_digest(token, _get_api_token()):
+        if not _validate_token(token):
+            if _is_token_expired():
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "Unauthorized", "message": "Token 已过期，请通过 GET /api/token 刷新"}
+                )
             return JSONResponse(
                 status_code=401,
-                content={"error": "Unauthorized", "message": "请在请求头中提供有效的 API Token"}
+                content={"error": "Unauthorized", "message": "请在请求头中提供有效的 API Token（Authorization: Bearer <token>）"}
             )
 
     return await call_next(request)
@@ -1359,6 +1409,88 @@ async def api_meltdown_off(_auth=Depends(verify_token)):
     return await manager.meltdown_off()
 
 
+# ── 融合增强 v1.1：HITL / kill-switch（人工在环 + 紧急熔断）──
+# kill-switch 是独立于 FSM 的全局硬开关：开启后熔断所有自动处置，仅保留告警
+# 与 HITL 人工通道，比 meltdown（走 FSM 降级链路）更彻底。
+# HITL 待确认队列接收被第四层输出护栏降级的高危处置，由人工批准/拒绝放行。
+
+_KILL_SWITCH_ON = False
+_HITL_PENDING: Dict[str, Dict[str, Any]] = {}
+_HITL_COUNTER = 0
+
+
+def kill_switch_enabled() -> bool:
+    """全局熔断是否开启（供输出护栏 / L4 三闸门协同调用）。"""
+    return _KILL_SWITCH_ON
+
+
+def _submit_hitl(action: Dict[str, Any]) -> str:
+    """将护栏降级的高危处置提交到 HITL 待确认队列，返回请求 ID。"""
+    global _HITL_PENDING, _HITL_COUNTER
+    _HITL_COUNTER += 1
+    req_id = f"hitl_{_HITL_COUNTER}"
+    _HITL_PENDING[req_id] = {**action, "id": req_id, "status": "pending"}
+    return req_id
+
+
+@app.get("/api/kill-switch")
+async def api_kill_switch_get(_auth=Depends(verify_token)):
+    """查询 kill-switch 状态。"""
+    return {"kill_switch": _KILL_SWITCH_ON}
+
+
+@app.post("/api/kill-switch")
+async def api_kill_switch_set(request: Request, _auth=Depends(verify_token)):
+    """开关 kill-switch：开启后熔断所有自动处置，仅保留告警与 HITL 通道。"""
+    global _KILL_SWITCH_ON
+    body = await request.json()
+    on = bool(body.get("on", False))
+    _KILL_SWITCH_ON = on
+    state = "开启" if on else "关闭"
+    print(f"[KillSwitch] {state}全局熔断")
+    return {
+        "status": "ok",
+        "kill_switch": _KILL_SWITCH_ON,
+        "message": f"全局熔断已{state}，自动处置已{'熔断' if on else '恢复'}",
+    }
+
+
+@app.get("/api/hitl/pending")
+async def api_hitl_pending(_auth=Depends(verify_token)):
+    """列出待人工确认的高危处置动作。"""
+    return {"pending": list(_HITL_PENDING.values())}
+
+
+@app.post("/api/hitl/approve")
+async def api_hitl_approve(request: Request, _auth=Depends(verify_token)):
+    """人工批准某个被护栏降级的高危处置，恢复并放行执行。"""
+    global _HITL_PENDING
+    body = await request.json()
+    req_id = str(body.get("id", ""))
+    if not req_id or req_id not in _HITL_PENDING:
+        raise HTTPException(status_code=404, detail="待确认项不存在或已处理")
+    item = _HITL_PENDING.pop(req_id)
+    item["approved"] = True
+    # 放行动作：恢复降级前的 original_action（若存在）
+    item["executed_action"] = item.get("original_action", item.get("action"))
+    print(f"[HITL] 人工批准处置: {item.get('executed_action')} (id={req_id})")
+    return {"status": "ok", "approved": True, "item": item}
+
+
+@app.post("/api/hitl/deny")
+async def api_hitl_deny(request: Request, _auth=Depends(verify_token)):
+    """人工拒绝某个待确认处置，丢弃该动作。"""
+    global _HITL_PENDING
+    body = await request.json()
+    req_id = str(body.get("id", ""))
+    if not req_id or req_id not in _HITL_PENDING:
+        raise HTTPException(status_code=404, detail="待确认项不存在或已处理")
+    item = _HITL_PENDING.pop(req_id)
+    item["approved"] = False
+    print(f"[HITL] 人工拒绝处置: {item.get('original_action', item.get('action'))} (id={req_id})")
+    return {"status": "ok", "approved": False, "item": item}
+
+
 # ── L4 网络隔离确认 API（Phase 1.5）──
 
 @app.post("/api/l4/confirm")
@@ -1523,8 +1655,20 @@ async def alarm_nose_confirm_l4(request: Request):
 
 @app.get("/api/token")
 async def api_token():
-    """返回当前 Web Token。前端通过此端点获取 token 并在后续 /api/* 请求头携带。"""
-    return {"token": _get_api_token(), "header": "X-DFU-Token"}
+    """Token 分发端点：返回当前有效 Token，过期则自动轮换刷新。
+
+    前端在启动时调用本端点获取 token，后续所有 /api/* 请求统一
+    使用 `Authorization: Bearer <token>` 携带（已废弃 X-DFU-Token 双轨）。
+    """
+    if _is_token_expired():
+        _refresh_api_token()
+        print("[Auth] Token 已过期，自动轮换刷新")
+    return {
+        "token": _API_TOKEN,
+        "header": "Authorization",
+        "scheme": "Bearer",
+        "expires_in": _token_remaining_seconds(),
+    }
 
 
 # ── 健康检查端点 ──
@@ -1582,13 +1726,9 @@ def _get_manager() -> Optional[DFUWebManager]:
 
 
 async def _check_auth(request: Request) -> bool:
-    """检查请求是否携带有效的 API Token。支持 Authorization: Bearer 和 X-DFU-Token 两种方式。"""
-    if not _AUTH_ENABLED:
-        return True
+    """检查请求是否携带有效的 API Token（统一 Bearer 单轨 + 过期校验）。"""
     token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
-    if not token:
-        token = request.headers.get("X-DFU-Token", "").strip()
-    return bool(token) and secrets.compare_digest(token, _API_TOKEN)
+    return _validate_token(token)
 
 
 def _get_fsm():
