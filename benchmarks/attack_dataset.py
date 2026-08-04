@@ -101,6 +101,33 @@ class AttackDataset:
                 "note": "正常域名 + 标准端口 + 合理包大小 → 零告警",
             },
         },
+        "deception": {
+            "description": (
+                "欺骗层蜜罐触发 — 8 条侦察类攻击（端口扫描 3 条 / 暴力破解 3 条 /"
+                "漏洞探测 2 条），命中蜜罐触发规则，应触发 honeypot_trap 诱捕记录。"
+            ),
+            "expected_detection": {
+                "alerts": ["port_scan", "bruteforce"],
+                "min_alert_count": 1,
+                "severity": "high",
+                "expected_honeypot_traps": 8,
+                "note": "侦察类事件应全部触发蜜罐诱捕（honeypot_trap）",
+            },
+        },
+        "interference": {
+            "description": (
+                "攻击路径干扰触发 — 20 条高危攻击（exploit 10 条 / command_injection "
+                "10 条），授权环境下 FSM 升级至 L2 后触发 blindfold/puppeteer 干扰。"
+            ),
+            "expected_detection": {
+                "alerts": ["exploit", "command_injection"],
+                "min_alert_count": 1,
+                "severity": "severe",
+                "expected_interference_applied": 10,
+                "expected_methods": ["blindfold", "puppeteer"],
+                "note": "授权环境 + FSM>=L2 的高危攻击应触发攻击路径干扰",
+            },
+        },
     }
 
     RNG = random.Random(42)  # 固定种子保证可复现
@@ -112,7 +139,7 @@ class AttackDataset:
         Args:
             name: 场景名称，可选值：
                   c2_beacon, data_exfil, port_scan, bruteforce,
-                  mixed_attack, clean_traffic
+                  mixed_attack, clean_traffic, deception, interference
 
         Returns:
             {
@@ -374,5 +401,83 @@ class AttackDataset:
                 timestamp=base + i * 2.0,
                 category="normal",
                 domain=domains[i],
+            ))
+        return events
+
+    # ── deception（欺骗层蜜罐触发）──
+
+    def _build_deception(self) -> List[Dict[str, Any]]:
+        """
+        欺骗层蜜罐触发：8 条侦察类攻击（端口扫描 3 / 暴力破解 3 / 漏洞探测 2），
+        类别均命中蜜罐触发规则（TRAP_TRIGGER_CATEGORIES），模拟 honeypot_trap 诱捕。
+        """
+        base = time_module.time()
+        events = []
+
+        # 3 条端口扫描（10.0.1.100 → 192.168.1.1 常见端口）
+        scan_ports = [22, 80, 443]
+        for i, port in enumerate(scan_ports):
+            events.append(self._make_event(
+                event_type="outbound", severity="info",
+                source_ip="10.0.1.100", dst_ip="192.168.1.1",
+                dst_port=port, size=60,
+                timestamp=base + i * 0.5,
+                category="port_scan",
+            ))
+
+        # 3 条暴力破解（10.0.1.200 → 192.168.1.10:22）
+        for i in range(3):
+            events.append(self._make_event(
+                event_type="auth_failure", severity="medium",
+                source_ip="10.0.1.200", dst_ip="192.168.1.10",
+                dst_port=22, size=120,
+                timestamp=base + 2.0 + i * 0.8,
+                category="brute_force",
+            ))
+
+        # 2 条漏洞探测（10.0.1.130 → 192.168.1.20:8080）
+        for i in range(2):
+            events.append(self._make_event(
+                event_type="outbound", severity="high",
+                source_ip="10.0.1.130", dst_ip="192.168.1.20",
+                dst_port=8080, size=200,
+                timestamp=base + 5.0 + i * 1.0,
+                category="vuln",
+            ))
+        return events
+
+    # ── interference（攻击路径干扰触发）──
+
+    def _build_interference(self) -> List[Dict[str, Any]]:
+        """
+        攻击路径干扰触发：授权环境下两个高危攻击源各 10 条告警。
+        - 10.0.1.210：exploit（无 api_path → blindfold 终端输出污染）
+        - 10.0.1.220：command_injection（带 api_path → puppeteer API 诱饵）
+        事件携带 authorized=True，模拟授权环境（DFU_INTERFERENCE=on）。
+        """
+        base = time_module.time()
+        events = []
+
+        # 源1：exploit，无 api_path → blindfold
+        for i in range(10):
+            events.append(self._make_event(
+                event_type="outbound", severity="severe",
+                source_ip="10.0.1.210", dst_ip="192.168.1.30",
+                dst_port=8443, size=1024,
+                timestamp=base + i * 1.5,
+                category="exploit",
+                authorized=True,
+            ))
+
+        # 源2：command_injection，带 api_path → puppeteer
+        for i in range(10):
+            events.append(self._make_event(
+                event_type="outbound", severity="high",
+                source_ip="10.0.1.220", dst_ip="192.168.1.40",
+                dst_port=443, size=512,
+                timestamp=base + 16.0 + i * 1.5,
+                category="command_injection",
+                authorized=True,
+                api_path=f"/api/internal/users?page={i}",
             ))
         return events

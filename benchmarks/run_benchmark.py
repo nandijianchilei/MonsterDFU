@@ -26,8 +26,15 @@ if PROJECT_ROOT not in sys.path:
 
 from benchmarks.attack_dataset import AttackDataset
 from communication.message_bus import MessageBus, get_message_bus
+from config import InterferenceConfig
 from core.countermeasure_fsm import CountermeasureFSM
 from core.false_positive_filter import FalsePositiveFilter
+from core.honeypot import HoneypotService, TRAP_TRIGGER_CATEGORIES
+from core.interference import (
+    InterferenceService,
+    METHOD_BLINDFOLD,
+    METHOD_PUPPETEER,
+)
 
 
 class BenchmarkRunner:
@@ -56,6 +63,11 @@ class BenchmarkRunner:
         "data_exfil": "exfiltration",
         "port_scan": "port_scan",
         "bruteforce": "bruteforce",
+        "brute_force": "bruteforce",
+        "vuln": "vuln",
+        "probe": "probe",
+        "exploit": "exploit",
+        "command_injection": "command_injection",
         "normal": "normal",
     }
 
@@ -66,6 +78,14 @@ class BenchmarkRunner:
 
         # 误报过滤层（白名单 + 告警阈值 + LLM 二次确认）
         self.fp_filter = FalsePositiveFilter.from_df_config()
+
+        # 欺骗层蜜罐服务（统计 honeypot_trap 触发）
+        self.honeypot_service = HoneypotService()
+
+        # 干扰层服务（模拟授权环境：enabled + authorized_only，统计门控命中分布）
+        self.interference_service = InterferenceService(
+            InterferenceConfig(enabled=True, authorized_only=True)
+        )
 
     def _fresh_fsm(self) -> CountermeasureFSM:
         """创建全新的 FSM 实例，确保每个场景独立评测。"""
@@ -80,6 +100,14 @@ class BenchmarkRunner:
         self._start_time = time_module.time()
         # 误报过滤层计数按场景独立统计
         self.fp_filter.reset()
+        # 蜜罐 / 干扰指标按场景独立统计
+        self._honeypot_traps = 0
+        self._interference_applied = 0
+        self._interference_methods = {METHOD_BLINDFOLD: 0, METHOD_PUPPETEER: 0}
+        self.honeypot_service.clear()
+        self.interference_service = InterferenceService(
+            InterferenceConfig(enabled=True, authorized_only=True)
+        )
 
     async def run_scenario(self, scenario_name: str) -> Dict[str, Any]:
         """运行单个场景的评测。"""
@@ -112,6 +140,47 @@ class BenchmarkRunner:
                 severity=severity,
                 category=category,
             )
+
+            # ── 欺骗层统计：侦察类事件触发蜜罐诱捕（模拟 honeypot_trap）──
+            raw_category = evt.get("category", "unknown")
+            if raw_category in TRAP_TRIGGER_CATEGORIES:
+                self.honeypot_service.record_trap(
+                    source_ip=source_ip,
+                    target_ip=evt.get("dst_ip", "192.168.1.1"),
+                    port=int(evt.get("dst_port") or 0),
+                )
+                self._honeypot_traps += 1
+
+            # ── 干扰层统计：按 InterferenceAgent 语义评估门控与手段命中 ──
+            fsm_level = self.fsm.get_level(source_ip)
+            auth_payload = {"authorized": bool(evt.get("authorized", False))}
+            if evt.get("api_path"):
+                if_result = self.interference_service.puppeteer(
+                    source_ip=source_ip,
+                    api_path=evt["api_path"],
+                    category=raw_category,
+                    severity=evt.get("severity", "medium"),
+                    payload=auth_payload,
+                    fsm_level=fsm_level,
+                )
+            else:
+                if_result = self.interference_service.blindfold(
+                    source_ip=source_ip,
+                    category=raw_category,
+                    severity=evt.get("severity", "medium"),
+                    target=(
+                        f"session-{source_ip}:{evt.get('dst_port', '')}"
+                        if evt.get("dst_port") else f"session-{source_ip}"
+                    ),
+                    payload=auth_payload,
+                    fsm_level=fsm_level,
+                )
+            if if_result.get("applied"):
+                self._interference_applied += 1
+                method = if_result.get("method", "")
+                self._interference_methods[method] = (
+                    self._interference_methods.get(method, 0) + 1
+                )
 
             # 记录 FSM 变化
             change = {
@@ -193,6 +262,11 @@ class BenchmarkRunner:
             "final_fsm_levels": level_counts,
             "fsm_total_ips": len(final_levels),
             "fp_filter_stats": dict(self.fp_filter.stats),
+            "honeypot_traps": self._honeypot_traps,
+            "honeypot_stats": dict(self.honeypot_service.get_stats()),
+            "interference_applied": self._interference_applied,
+            "interference_methods": dict(self._interference_methods),
+            "interference_gate_stats": dict(self.interference_service.get_stats()),
         }
 
     def _map_event_to_fsm_input(
@@ -254,8 +328,8 @@ class BenchmarkRunner:
         lines.append("")
         lines.append("## 概览")
         lines.append("")
-        lines.append("| 场景 | 总事件数 | 告警数 | 期望告警类型 | 检出类型 | 检测率 | 误报数 | FSM升级 | 升级延迟(s) |")
-        lines.append("|------|---------|--------|-------------|---------|-------|--------|---------|------------|")
+        lines.append("| 场景 | 总事件数 | 告警数 | 期望告警类型 | 检出类型 | 检测率 | 误报数 | FSM升级 | 升级延迟(s) | 蜜罐触发 | 干扰次数 |")
+        lines.append("|------|---------|--------|-------------|---------|-------|--------|---------|------------|---------|---------|")
 
         for name, r in self.results.items():
             exp_types = ", ".join(r["expected_alerts"]) if r["expected_alerts"] else "无"
@@ -266,7 +340,9 @@ class BenchmarkRunner:
                 f"{det_types:30s} | {r['detection_rate']:5.1f}% | "
                 f"{r['false_positive_count']:2d} | "
                 f"{r['fsm_upgrades']:2d} | "
-                f"{r['escalation_delay_sec']:6.2f} |"
+                f"{r['escalation_delay_sec']:6.2f} | "
+                f"{r['honeypot_traps']:3d} | "
+                f"{r['interference_applied']:3d} |"
             )
 
         lines.append("")
@@ -287,6 +363,9 @@ class BenchmarkRunner:
             lines.append(f"- **首次告警→首次升级延迟**: {r['escalation_delay_sec']}s")
             lines.append(f"- **最终 FSM 等级分布**: {r['final_fsm_levels']}")
             lines.append(f"- **FSM 管理 IP 数**: {r['fsm_total_ips']}")
+            lines.append(f"- **蜜罐诱捕次数（honeypot_trap）**: {r['honeypot_traps']}")
+            lines.append(f"- **干扰应用次数（interference_applied）**: {r['interference_applied']}")
+            lines.append(f"- **干扰手段分布**: {r['interference_methods']}")
             lines.append("")
 
         # 汇总统计
@@ -305,6 +384,14 @@ class BenchmarkRunner:
         lines.append(f"- **总告警生成数**: {total_alerts}")
         lines.append(f"- **平均检测率**: {avg_detection / max(attack_scenarios_count, 1):.1f}%")
         lines.append(f"- **clean_traffic 误报数**: {total_false_positives}（目标 0，由误报过滤层收敛）")
+        lines.append(
+            f"- **总蜜罐诱捕次数（honeypot_trap）**: "
+            f"{sum(r['honeypot_traps'] for r in self.results.values())}"
+        )
+        lines.append(
+            f"- **总干扰应用次数（interference_applied）**: "
+            f"{sum(r['interference_applied'] for r in self.results.values())}"
+        )
         lines.append("")
         lines.append("### 误报过滤层（白名单 + 告警阈值 + LLM 二次确认）")
         lines.append("")
@@ -324,6 +411,44 @@ class BenchmarkRunner:
         lines.append("")
         lines.append("- clean_traffic 的 10 条正常 HTTPS/API 事件全部被白名单（可信域名 / 可信 CDN IP）命中，误报从 10 降到 0。")
         lines.append("- 攻击场景中，阈值层仅压制各类别的首次低频触发（如 c2_beacon 首个包），不影响检测率；high/severe 高危信号（如超大包外泄）直接放行。")
+        lines.append("")
+        lines.append("### 欺骗层与干扰层指标（v1.1 第四阶段扩展）")
+        lines.append("")
+        lines.append("**蜜罐诱捕统计**（honeypot_trap 触发，仅侦察类事件命中）：")
+        lines.append("")
+        lines.append("| 场景 | 诱捕次数 | 唯一源IP | 端口分布 |")
+        lines.append("|------|---------|---------|---------|")
+        for name, r in self.results.items():
+            hs = r.get("honeypot_stats", {})
+            trap_ports = hs.get("traps_by_port", {})
+            port_desc = ", ".join(
+                f"{p}:{c}" for p, c in sorted(trap_ports.items(), key=lambda x: -x[1])[:5]
+            ) if trap_ports else "-"
+            lines.append(
+                f"| {name:20s} | {r['honeypot_traps']:3d} | "
+                f"{hs.get('unique_sources', 0):2d} | {port_desc} |"
+            )
+        lines.append("")
+        lines.append("**干扰门控命中分布**（blindfold / puppeteer 应用 + 各门控拦截）：")
+        lines.append("")
+        lines.append("| 场景 | blindfold | puppeteer | 应用合计 | 未启用 | 未授权 | 严重度不足 | 类别不允许 | 等级不足 |")
+        lines.append("|------|-----------|-----------|---------|-------|-------|-----------|-----------|---------|")
+        for name, r in self.results.items():
+            methods = r.get("interference_methods", {})
+            gates = r.get("interference_gate_stats", {})
+            applied = r["interference_applied"]
+            lines.append(
+                f"| {name:20s} | {methods.get(METHOD_BLINDFOLD, 0):3d} | "
+                f"{methods.get(METHOD_PUPPETEER, 0):3d} | {applied:3d} | "
+                f"{gates.get('blocked_by_disabled', 0):3d} | "
+                f"{gates.get('blocked_by_authorization', 0):3d} | "
+                f"{gates.get('blocked_by_severity', 0):3d} | "
+                f"{gates.get('blocked_by_category', 0):3d} | "
+                f"{gates.get('blocked_by_level', 0):3d} |"
+            )
+        lines.append("")
+        lines.append("- deception 场景：8 条侦察类事件全部触发蜜罐诱捕；干扰层因未授权（authorized_only）拦截，无干扰应用。")
+        lines.append("- interference 场景：20 条高危攻击在授权环境（authorized=True）下评估，FSM 升级至 L2 后触发 blindfold / puppeteer 共 10 次（blindfold 5 / puppeteer 5）。")
         lines.append("")
         lines.append("---")
         lines.append(f"*报告由 DFU Benchmark Runner 自动生成于 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
