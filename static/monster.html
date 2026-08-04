@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MonsterDFU · 小怪兽安全中枢</title>
+<style>
+/* ============ 主题变量 ============ */
+:root{
+  --primary:#3b82f6;
+  --primary-weak:rgba(59,130,246,.12);
+  --bg:#f0f6ff;
+  --surface:#ffffff;
+  --surface-2:#e8f1fc;
+  --text:#1e2b3c;
+  --text-2:#5b6b80;
+  --border:#d7e3f5;
+  --shadow:0 2px 12px rgba(30,64,120,.08);
+  --ok:#22c55e; --busy:#3b82f6; --warn:#eab308; --err:#ef4444;
+  --ok-bg:rgba(34,197,94,.14); --busy-bg:rgba(59,130,246,.14);
+  --warn-bg:rgba(234,179,8,.16); --err-bg:rgba(239,68,68,.14);
+  --radius:14px;
+  --sidebar-w:236px;
+}
+[data-theme="dark"]{
+  --primary:#60a5fa; --primary-weak:rgba(96,165,250,.16);
+  --bg:#0d1520; --surface:#131f30; --surface-2:#1b2a3f;
+  --text:#e6eefb; --text-2:#93a7c4; --border:#24364f; --shadow:0 2px 12px rgba(0,0,0,.35);
+}
+[data-theme="mint"]{
+  --primary:#0ea5a4; --primary-weak:rgba(14,165,164,.14);
+  --bg:#eefaf7; --surface:#ffffff; --surface-2:#e2f6f0;
+  --text:#123b36; --text-2:#4e7a74; --border:#cfeae4; --shadow:0 2px 12px rgba(10,90,80,.08);
+}
+[data-theme="sunset"]{
+  --primary:#f97316; --primary-weak:rgba(249,115,22,.14);
+  --bg:#fff7ed; --surface:#ffffff; --surface-2:#ffedd5;
+  --text:#3b2417; --text-2:#8a6a52; --border:#f5ddc3; --shadow:0 2px 12px rgba(140,70,20,.08);
+}
+/* ============ 基础 ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;
+  transition:background .3s ease,color .3s ease;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;outline:none;transition:border-color .2s,box-shadow .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-weak)}
+input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
+::placeholder{color:var(--text-2);opacity:.6}
+a{color:var(--primary);text-decoration:none}
+/* ============ 布局 ============ */
+.app{display:flex;height:100vh;overflow:hidden}
+/* ---- 侧边栏 ---- */
+.sidebar{
+  width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;transition:background .3s;
+}
+.side-brand{display:flex;align-items:center;gap:10px;padding:18px 16px 14px;border-bottom:1px solid var(--border)}
+.side-logo{
+  width:38px;height:38px;border-radius:11px;flex:0 0 38px;
+  background:linear-gradient(135deg,var(--primary),#22d3ee);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;
+}
+.side-title{font-size:16px;font-weight:700;letter-spacing:.5px}
+.side-status{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12px;color:var(--text-2)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg);animation:pulse 2s infinite}
+.dot.off{background:#94a3b8;box-shadow:none;animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.side-nav{flex:1;overflow-y:auto;padding:10px 10px 14px}
+.nav-group{font-size:11px;color:var(--text-2);letter-spacing:1px;margin:14px 8px 6px;text-transform:uppercase;opacity:.75}
+.nav-item{
+  display:flex;align-items:center;gap:10px;width:100%;min-height:44px;
+  padding:9px 10px;border-radius:10px;color:var(--text-2);
+  transition:background .18s,color .18s,transform .18s;
+}
+.nav-item:hover{background:var(--surface-2);color:var(--text);transform:translateX(2px)}
+.nav-item.active{background:var(--primary-weak);color:var(--primary);font-weight:600}
+.nav-item svg{flex:0 0 18px;width:18px;height:18px}
+.nav-item .nav-label{flex:1;text-align:left;line-height:1.2}
+.nav-item .nav-badge{font-size:10px;background:var(--err);color:#fff;border-radius:9px;padding:1px 7px;display:none}
+.nav-item .nav-badge.show{display:inline-block}
+.side-foot{border-top:1px solid var(--border);padding:8px 10px;display:flex;align-items:center;justify-content:space-between}
+.lang-toggle{
+  display:flex;align-items:center;gap:4px;min-height:32px;padding:4px 10px;
+  border:1px solid var(--border);border-radius:8px;background:var(--surface-2);
+  color:var(--text-2);font-size:12px;font-weight:600;
+  transition:border-color .2s,color .2s;
+}
+.lang-toggle:hover{color:var(--primary);border-color:var(--primary)}
+.lang-toggle .lt-active{color:var(--primary);font-weight:700}
+.lang-toggle .lt-div{color:var(--border);margin:0 2px}
+/* ---- 主区 ---- */
+.main{flex:1;overflow-y:auto;position:relative}
+.page{display:none;padding:22px 26px 40px;max-width:1240px;margin:0 auto}
+.page.active{display:block;animation:fadeIn .28s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.page-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.page-title{font-size:22px;font-weight:700}
+.page-sub{color:var(--text-2);font-size:13px;margin-top:4px}
+/* ============ 通用组件 ============ */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);transition:background .3s,border-color .3s}
+.card-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.panel-actions{margin-left:auto;display:inline-flex;gap:6px;align-items:center}
+.panel-toggle{width:22px;padding:1px 0;text-align:center;line-height:1.2;font-size:13px}
+.panel-body{overflow:hidden;transition:opacity .2s}
+.grid{display:grid;gap:14px}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.grid-4,.grid-3,.grid-2{grid-template-columns:1fr}.sidebar{display:none}}
+/* 指标卡 */
+.metric{display:flex;flex-direction:column;gap:6px;padding:14px 16px}
+.metric .m-label{font-size:12px;color:var(--text-2)}
+.metric .m-value{font-size:24px;font-weight:700;line-height:1.2}
+.metric .m-hint{font-size:12px;color:var(--text-2)}
+.metric .m-value.ok{color:var(--ok)} .metric .m-value.warn{color:var(--warn)} .metric .m-value.err{color:var(--err)} .metric .m-value.busy{color:var(--busy)}
+/* 状态灯 */
+.lamp{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 11px}
+.lamp.ok{background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg)}
+.lamp.busy{background:var(--busy);box-shadow:0 0 0 3px var(--busy-bg);animation:pulse 1.4s infinite}
+.lamp.warn{background:var(--warn);box-shadow:0 0 0 3px var(--warn-bg)}
+.lamp.err{background:var(--err);box-shadow:0 0 0 3px var(--err-bg)}
+.lamp.off{background:#94a3b8;box-shadow:none}
+/* 开关 */
+.switch{position:relative;width:46px;height:26px;flex:0 0 46px;border-radius:13px;background:var(--border);transition:background .2s;min-height:26px}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switch.on{background:var(--primary)}
+.switch.on::after{transform:translateX(20px)}
+/* 按钮 */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:10px;font-weight:600;transition:transform .15s,opacity .15s,background .2s;user-select:none}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover:not(:disabled){filter:brightness(1.06)}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border)}
+.btn-ghost:hover:not(:disabled){color:var(--primary);border-color:var(--primary)}
+.btn-danger{background:var(--err);color:#fff}
+.btn-danger:hover:not(:disabled){filter:brightness(1.06)}
+.btn-sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn-xs{min-height:32px;padding:0 10px;font-size:12px}
+/* 表格 */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:600;color:var(--text-2);padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface-2)}
+td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:var(--surface-2)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+/* 标签 */
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.tag.lv1{background:var(--ok-bg);color:var(--ok)}
+.tag.lv2{background:var(--warn-bg);color:#b45309}
+.tag.lv3{background:rgba(249,115,22,.16);color:#ea580c}
+.tag.lv4{background:var(--err-bg);color:var(--err)}
+.tag.plain{background:var(--surface-2);color:var(--text-2)}
+/* 空态/错误 */
+.empty{padding:34px 16px;text-align:center;color:var(--text-2)}
+.empty .e-icon{font-size:34px;margin-bottom:8px;opacity:.5}
+.error-box{padding:20px;text-align:center;color:var(--err);background:var(--err-bg);border-radius:12px;margin:10px 0}
+.error-box .btn{margin-top:10px}
+/* 演示标注 */
+.demo-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#b45309;background:rgba(249,115,22,.14);border:1px dashed #fb923c;padding:2px 8px;border-radius:999px;margin-left:8px}
+/* DFU 启动控制 */
+.dfu-control{display:flex;flex-direction:column;gap:9px;padding:12px 14px 14px;border-bottom:1px solid var(--border);background:var(--surface)}
+.dfu-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dfu-label{font-size:12px;color:var(--text-2);font-weight:600;letter-spacing:.5px}
+.dfu-uptime{font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.dfu-uptime b{color:var(--primary)}
+.dfu-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 14px;border-radius:10px;font-weight:600;font-size:13px;background:var(--primary);color:#fff;transition:filter .2s,transform .15s;user-select:none}
+.dfu-btn:hover{filter:brightness(1.06)}
+.dfu-btn:active{transform:scale(.97)}
+.dfu-btn.running{background:rgba(34,197,94,.14);color:var(--ok);border:1px solid rgba(34,197,94,.45)}
+.dfu-btn.running .dfu-breathe{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,.22);animation:pulse 1.4s infinite}
+.dfu-notice{display:none;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;background:var(--primary-weak);border:1px solid var(--border);color:var(--text-2);font-size:12.5px;margin-bottom:14px}
+.dfu-notice.show{display:flex}
+/* 状态网格 */
+.org-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+@media(max-width:1100px){.org-grid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:720px){.org-grid{grid-template-columns:repeat(2,1fr)}}
+.org-tile{
+  display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:96px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;
+  cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;
+}
+.org-tile:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:var(--primary)}
+.org-tile .ot-head{display:flex;align-items:center;gap:8px;width:100%}
+.org-tile .ot-name{font-weight:600;font-size:13px}
+.org-tile .ot-desc{font-size:11px;color:var(--text-2);line-height:1.5;text-align:left}
+.org-tile .ot-stat{margin-left:auto;font-size:11px;color:var(--text-2)}
+/* 器官卡片（home） */
+.home-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:1100px){.home-cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.home-cards{grid-template-columns:1fr}}
+.home-card{
+  display:flex;gap:12px;align-items:flex-start;padding:14px;min-height:88px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;cursor:pointer;
+  transition:transform .15s,box-shadow .15s,border-color .15s;
+}
+.home-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:var(--primary)}
+.hc-icon{width:40px;height:40px;flex:0 0 40px;border-radius:11px;background:var(--primary-weak);color:var(--primary);display:flex;align-items:center;justify-content:center}
+.hc-icon svg{width:22px;height:22px}
+.hc-body{flex:1;min-width:0}
+.hc-name{font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px}
+.hc-desc{font-size:12px;color:var(--text-2);margin-top:5px;line-height:1.5}
+/* 对话 */
+.chat-area{display:flex;flex-direction:column;height:420px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden}
+.chat-list{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.bubble{max-width:78%;padding:10px 14px;border-radius:14px;line-height:1.6;font-size:13px;white-space:pre-wrap;word-break:break-word}
+.bubble.user{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:4px}
+.bubble.bot{align-self:flex-start;background:var(--surface-2);border-bottom-left-radius:4px}
+.bubble.bot.loading{color:var(--text-2);font-style:italic}
+.chat-input-row{display:flex;gap:10px;padding:12px;border-top:1px solid var(--border);background:var(--surface)}
+.chat-input-row textarea{flex:1;resize:none;min-height:44px;max-height:120px;line-height:1.5}
+/* 主题切换 */
+.theme-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:720px){.theme-grid{grid-template-columns:repeat(2,1fr)}}
+.theme-opt{
+  display:flex;align-items:center;gap:10px;padding:12px;min-height:56px;border:2px solid var(--border);
+  border-radius:12px;background:var(--surface);transition:border-color .2s,transform .15s;
+}
+.theme-opt:hover{transform:translateY(-2px)}
+.theme-opt.active{border-color:var(--primary);background:var(--primary-weak)}
+.theme-swatch{width:26px;height:26px;border-radius:8px;flex:0 0 26px;border:1px solid rgba(0,0,0,.08)}
+/* 设置表单 */
+.form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.form-row label{font-size:12px;color:var(--text-2);font-weight:600}
+.form-row input{transition:border-color .3s ease, box-shadow .3s ease}
+.form-row input.save-flash{border-color:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,.25)}
+.form-inline{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.form-inline .form-row{flex:1;min-width:180px}
+/* tab */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tab{min-height:44px;padding:0 16px;border-radius:10px;background:var(--surface);border:1px solid var(--border);color:var(--text-2);font-weight:600;transition:all .18s}
+.tab:hover{color:var(--primary);border-color:var(--primary)}
+.tab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+/* 图表 */
+.chart-box{width:100%;position:relative}
+.chart-box canvas{width:100%;display:block}
+.chart-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-2);font-size:13px}
+/* 列表行 */
+.list-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.list-row:last-child{border-bottom:none}
+.list-row:hover{background:var(--surface-2)}
+.lr-main{flex:1;min-width:0}
+.lr-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr-sub{font-size:12px;color:var(--text-2);margin-top:2px}
+/* 可折叠/小节 */
+.section-gap{margin-top:16px}
+.hint-text{font-size:12px;color:var(--text-2);margin-top:6px}
+.toast-wrap{position:fixed;top:18px;right:18px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:10px;padding:12px 16px;box-shadow:var(--shadow);font-size:13px;min-width:220px;max-width:360px;animation:slideIn .25s ease}
+.toast.err{border-left-color:var(--err)}
+.toast.ok{border-left-color:var(--ok)}
+@keyframes slideIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+/* monster 占位 */
+.monster-stage{
+  position:relative;height:220px;border:2px dashed var(--border);border-radius:18px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:linear-gradient(180deg,var(--primary-weak),transparent 60%);
+  transition:border-color .2s,background .3s;
+}
+.monster-stage.drag-over{border-color:var(--primary);background:var(--primary-weak)}
+.monster-stage .ms-hint{font-size:12px;color:var(--text-2);letter-spacing:1px}
+.monster-stage .ms-img{max-width:100%;max-height:190px;border-radius:12px;object-fit:contain}
+.monster-upload-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:2px}
+.monster-upload-btns .btn{font-size:12px}
+/* 器官 Key 卡片（设置页） */
+.org-key-cards{display:flex;flex-direction:column;gap:12px}
+.org-key-card{
+  display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;box-shadow:var(--shadow);transition:border-color .2s;
+}
+.org-key-card:hover{border-color:var(--primary)}
+@media(max-width:800px){.org-key-card{grid-template-columns:1fr}}
+.okc-left{display:flex;flex-direction:column;gap:6px}
+.okc-icon-row{display:flex;align-items:center;gap:8px}
+.okc-icon{width:38px;height:38px;flex:0 0 38px;border-radius:10px;background:var(--primary-weak);color:var(--primary);display:flex;align-items:center;justify-content:center}
+.okc-icon svg{width:20px;height:20px}
+.okc-name{font-weight:700;font-size:14px}
+.okc-sub{font-size:11px;color:var(--text-2)}
+.okc-desc{font-size:12px;color:var(--text-2);line-height:1.5;margin-top:4px}
+.okc-right{display:flex;flex-direction:column;gap:10px}
+.okc-toggle-row{display:flex;align-items:center;gap:10px;min-height:28px}
+.okc-label{font-size:12px;color:var(--text-2);font-weight:600;white-space:nowrap}
+.okc-input-row{display:flex;gap:8px;flex-wrap:wrap}
+.okc-input-row input,.okc-input-row select{flex:1;min-width:150px}
+.okc-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:999px;font-weight:600;white-space:nowrap}
+.okc-badge.global{background:var(--ok-bg);color:var(--ok)}
+.okc-badge.custom{background:var(--primary-weak);color:var(--primary)}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body data-theme="blue">
+<div class="app">
+  <!-- ====== 左侧导航 ====== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="side-brand">
+      <div class="side-logo">M</div>
+      <div>
+        <div class="side-title">MonsterDFU</div>
+        <div class="side-status"><span class="dot" id="side-dot"></span><span id="side-status-text" data-i18n="side.connecting">连接中…</span></div>
+      </div>
+    </div>
+    <!-- DFU 核心系统控制 -->
+    <div class="dfu-control">
+      <div class="dfu-row">
+        <span class="dfu-label" data-i18n="dfu.control">DFU 核心系统</span>
+        <span class="dfu-uptime" id="dfu-uptime">--</span>
+      </div>
+      <button class="dfu-btn" id="dfu-btn" onclick="toggleDfu()"><span data-i18n="dfu.start">启动 DFU</span></button>
+    </div>
+    <nav class="side-nav" id="side-nav">
+      <div class="nav-group" data-i18n="nav.console">控制台</div>
+      <button class="nav-item active" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span class="nav-label" data-i18n="nav.overview">总览</span>
+      </button>
+      <button class="nav-item" data-page="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+        <span class="nav-label" data-i18n="nav.monster">小怪兽</span>
+      </button>
+      <div class="nav-group" data-i18n="nav.organs">器官单元</div>
+      <div id="organ-nav"><!-- JS 渲染 12 个器官导航 --></div>
+      <div class="nav-group" data-i18n="nav.manage">管理</div>
+      <button class="nav-item" data-page="alarms">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span class="nav-label" data-i18n="nav.alarms">告警中心</span><span class="nav-badge" id="alarm-badge"></span>
+      </button>
+      <button class="nav-item" data-page="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="nav-label" data-i18n="nav.settings">设置</span>
+      </button>
+    </nav>
+    <div class="side-foot">
+      <div class="hint-text" style="padding:4px 0">DFU Intelligent Defense · v1.1</div>
+      <button class="lang-toggle" id="lang-toggle" onclick="toggleLang()" title="Switch Language / 切换语言">
+        <span class="lt-active" id="lt-zh">中</span>
+        <span class="lt-div">/</span>
+        <span id="lt-en">EN</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ====== 右侧主区 ====== -->
+  <main class="main">
+    <!-- 总览 -->
+    <section class="page active" id="page-overview">
+      <div class="page-head">
+        <div><div class="page-title" data-i18n="page.overview">总览</div><div class="page-sub" data-i18n="page.overviewSub">系统实时态势一屏掌握</div></div>
+        <span class="demo-tag" id="ov-demo-tag" style="display:none" data-i18n="label.demo">演示数据</span>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost btn-sm" onclick="loadOverview(true)" data-i18n="btn.refresh">刷新</button>
+      </div>
+      <div class="grid grid-4" id="ov-status-bar">
+        <div class="card metric"><span class="m-label" data-i18n="metric.uptime">运行时长</span><span class="m-value" id="ov-uptime">--</span><span class="m-hint" data-i18n="metric.uptimeHint">自服务启动起</span></div>
+        <div class="card metric"><span class="m-label" data-i18n="metric.attacks">在线攻击数</span><span class="m-value" id="ov-attacks">--</span><span class="m-hint" data-i18n="metric.attacksHint">当前活跃威胁</span></div>
+        <div class="card metric"><span class="m-label" data-i18n="metric.maxLevel">最高告警等级</span><span class="m-value" id="ov-maxlevel">--</span><span class="m-hint" data-i18n="metric.maxLevelHint">L1-L4 四级色阶</span></div>
+        <div class="card metric"><span class="m-label" data-i18n="metric.health">自愈自检结果</span><span class="m-value" id="ov-health">--</span><span class="m-hint" data-i18n="metric.healthHint">最近一次自检</span></div>
+      </div>
+      <div class="grid grid-2 section-gap">
+        <div class="card">
+          <div class="card-title"><span data-i18n="chart.traffic">实时流量</span> <span class="hint-text" data-i18n="chart.trafficHint">最近 60 秒</span></div>
+          <div class="chart-box" style="height:220px"><canvas id="ov-traffic-chart"></canvas><div class="chart-empty" id="ov-traffic-empty" data-i18n="chart.noData">暂无流量数据</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span data-i18n="chart.conn">活跃连接</span> <span class="hint-text" data-i18n="chart.connHint">最近 60 秒</span></div>
+          <div class="chart-box" style="height:220px"><canvas id="ov-conn-chart"></canvas><div class="chart-empty" id="ov-conn-empty" data-i18n="chart.noConnData">暂无连接数据</div></div>
+        </div>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title"><span data-i18n="chart.orgHealth">器官健康状态</span> <span class="hint-text" data-i18n="chart.orgHealthHint">点击卡片跳转对应器官</span></div>
+        <div class="org-grid" id="ov-org-grid"></div>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title"><span data-i18n="chart.recentAlarms">最近告警</span> <span class="hint-text" id="ov-alarm-src">Data Source: API</span></div>
+        <div id="ov-alarm-list"></div>
+      </div>
+
+      <!-- 新增器官能力展示区 -->
+      <div class="grid grid-2 section-gap">
+        <div class="card" data-panel="forensic">
+          <div class="card-title"><span data-i18n="chart.forensic">取证时间线</span> <span class="hint-text" id="ov-forensic-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="折叠">▾</button></span></div>
+          <div class="panel-body"><div id="ov-forensic-list"></div></div>
+        </div>
+        <div class="card" data-panel="ports">
+          <div class="card-title"><span data-i18n="chart.portScan">端口扫描</span> <span class="hint-text" id="ov-ports-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
+          <div class="panel-body" style="display:none"><div id="ov-ports-list"></div></div>
+        </div>
+      </div>
+      <div class="grid grid-2 section-gap">
+        <div class="card" data-panel="outbound">
+          <div class="card-title"><span data-i18n="chart.outbound">出站连接</span> <span class="hint-text" id="ov-outbound-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
+          <div class="panel-body" style="display:none"><div id="ov-outbound-list"></div></div>
+        </div>
+        <div class="card" data-panel="resource">
+          <div class="card-title"><span data-i18n="chart.resource">资源监控</span> <span class="hint-text" id="ov-resource-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
+          <div class="panel-body" style="display:none"><div id="ov-resource-list"></div></div>
+        </div>
+      </div>
+      <div class="card section-gap" data-panel="audit">
+        <div class="card-title"><span data-i18n="chart.audit">日志审计</span> <span class="hint-text" id="ov-audit-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
+        <div class="panel-body" style="display:none"><div id="ov-audit-list"></div></div>
+      </div>
+    </section>
+
+    <!-- 小怪兽首页 -->
+    <section class="page" id="page-home">
+      <div class="page-head">
+        <div><div class="page-title" data-i18n="page.monster">小怪兽</div><div class="page-sub" data-i18n="page.monsterSub">和 Monster 对话，掌控每一只器官</div></div>
+      </div>
+      <div class="monster-stage" id="monster-stage">
+        <svg id="monster-svg-default" width="120" height="110" viewBox="0 0 120 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="60" cy="82" rx="46" ry="22" fill="var(--primary-weak)" stroke="var(--primary)" stroke-width="2"/>
+          <path d="M60 22 C 34 22 18 44 18 62 L 18 66 C 18 70 22 72 24 68 C 26 64 30 62 34 62 L 34 78 C 34 84 40 86 44 84 C 47 82 48 80 48 78 L 50 78 C 52 88 68 88 70 78 L 72 78 C 72 80 73 82 76 84 C 80 86 86 84 86 78 L 86 62 C 90 62 94 64 96 68 C 98 72 102 70 102 66 L 102 62 C 102 44 86 22 60 22 Z" fill="var(--surface)" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round"/>
+          <circle cx="44" cy="52" r="6" fill="var(--text)"/><circle cx="76" cy="52" r="6" fill="var(--text)"/>
+          <circle cx="46" cy="50" r="2" fill="#fff"/><circle cx="78" cy="50" r="2" fill="#fff"/>
+          <path d="M50 66 Q 60 74 70 66" stroke="var(--primary)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M22 34 L 8 24 M 98 34 L 112 24" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <img id="monster-img" class="ms-img" style="display:none" src="" alt="MonsterDFU Avatar">
+        <div class="ms-hint" id="monster-hint" data-i18n="monster.placeholder">点击上传小怪兽形象（拖拽或点击下方按钮）</div>
+        <div class="monster-upload-btns">
+          <button class="btn btn-ghost btn-xs" onclick="document.getElementById('monster-file-input').click()" data-i18n="monster.chooseFile">选择图片</button>
+          <button class="btn btn-ghost btn-xs" id="monster-reset-btn" style="display:none" onclick="resetMonsterImage()" data-i18n="monster.reset">恢复默认</button>
+        </div>
+        <input type="file" id="monster-file-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="handleMonsterFile(this.files)">
+      </div>
+      <div class="card section-gap">
+        <div class="card-title"><span data-i18n="chat.title">和小怪兽对话</span> <span class="hint-text" data-i18n="chat.hint">Enter 发送 · Shift+Enter 换行</span></div>
+        <div class="chat-area">
+          <div class="chat-list" id="chat-list"></div>
+          <div class="chat-input-row">
+            <textarea id="chat-input" data-i18n-placeholder="chat.placeholder" placeholder="问一问小怪兽当前的防御态势…" rows="1"></textarea>
+            <button class="btn btn-primary" id="chat-send" onclick="sendChat()" data-i18n="btn.send">发送</button>
+          </div>
+        </div>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title"><span data-i18n="page.organOverview">器官一览</span> <span class="hint-text" data-i18n="page.organOverviewHint">点击卡片进入对应器官页</span></div>
+        <div class="home-cards" id="home-org-cards"></div>
+      </div>
+    </section>
+
+    <!-- 器官页容器（JS 渲染 12 个页面） -->
+    <div id="organ-pages"></div>
+
+    <!-- 告警中心 -->
+    <section class="page" id="page-alarms">
+      <div class="page-head">
+        <div><div class="page-title" data-i18n="page.alarms">告警中心</div><div class="page-sub" data-i18n="page.alarmsSub">四级告警筛选与处置</div></div>
+        <span class="demo-tag" id="al-demo-tag" style="display:none" data-i18n="label.demo">演示数据</span>
+      </div>
+      <div class="tabs" id="alarm-tabs">
+        <button class="tab active" data-level="all" data-i18n="alarm.all">全部</button>
+        <button class="tab" data-level="1" data-i18n="alarm.l1">L1 提示</button>
+        <button class="tab" data-level="2" data-i18n="alarm.l2">L2 关注</button>
+        <button class="tab" data-level="3" data-i18n="alarm.l3">L3 严重</button>
+        <button class="tab" data-level="4" data-i18n="alarm.l4">L4 紧急</button>
+      </div>
+      <div class="card">
+        <div class="card-title"><span data-i18n="alarm.list">告警列表</span>
+          <button class="btn btn-ghost btn-xs" onclick="markAlarmsHandled()" data-i18n="alarm.markAll">标记已处理</button>
+        </div>
+        <div id="alarm-list"></div>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="page" id="page-settings">
+      <div class="page-head">
+        <div><div class="page-title" data-i18n="page.settings">设置</div><div class="page-sub" data-i18n="page.settingsSub">主题 · API Key · 模型配置</div></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title" data-i18n="settings.theme">主题配色</div>
+          <div class="theme-grid" id="theme-grid">
+            <button class="theme-opt active" data-theme-name="blue"><span class="theme-swatch" style="background:linear-gradient(135deg,#3b82f6,#f0f6ff)"></span><span data-i18n="theme.blue">淡蓝默认</span></button>
+            <button class="theme-opt" data-theme-name="dark"><span class="theme-swatch" style="background:linear-gradient(135deg,#60a5fa,#0d1520)"></span><span data-i18n="theme.dark">深空黑</span></button>
+            <button class="theme-opt" data-theme-name="mint"><span class="theme-swatch" style="background:linear-gradient(135deg,#0ea5a4,#eefaf7)"></span><span data-i18n="theme.mint">薄荷绿</span></button>
+            <button class="theme-opt" data-theme-name="sunset"><span class="theme-swatch" style="background:linear-gradient(135deg,#f97316,#fff7ed)"></span><span data-i18n="theme.sunset">暖阳橙</span></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" data-i18n="settings.global">全局模型配置</div>
+          <div class="form-row"><label data-i18n="settings.vendor">API 厂商</label>
+            <select id="set-vendor" onchange="onVendorChange()">
+              <option value="openai">OpenAI</option>
+              <option value="volcano">火山引擎 (Ark)</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="ollama">本地 Ollama</option>
+              <option value="custom" data-i18n="vendor.custom">自定义</option>
+            </select>
+          </div>
+          <div class="form-row"><label data-i18n="settings.baseUrl">API Base URL</label><input id="set-base-url" placeholder="https://你的API地址/v1（如火山引擎/OpenAI）" spellcheck="false"></div>
+          <div class="form-row"><label data-i18n="settings.model">模型名称</label><input id="set-model" placeholder="必填，如 deepseek-v3-241226 或 gpt-4o-mini" list="global-model-list" spellcheck="false"><datalist id="global-model-list"></datalist></div>
+          <div class="form-row"><label data-i18n="settings.globalKey">全局 API Key</label><input id="set-global-key" type="password" placeholder="必填，粘贴你的 API Key" spellcheck="false"></div>
+          <div class="form-row"><label>DFU API Token</label><input id="set-dfu-token" type="password" placeholder="留空使用演示模式" spellcheck="false"><span class="hint-text" data-i18n="settings.dfuTokenHint">留空则使用演示数据</span></div>
+          <button class="btn btn-primary" style="margin-top:8px" onclick="saveSettings()" data-i18n="btn.save">保存配置</button>
+        </div>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title" data-i18n="settings.organKeys">各器官独立配置 <span class="hint-text" data-i18n="settings.organKeysHint">每个器官可独立配置 Key 和模型</span></div>
+        <div class="org-key-cards" id="organ-key-cards"></div>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="saveSettings()" data-i18n="btn.save">保存配置</button>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+"use strict";
+
+/* ================== 中英文词库 ================== */
+const I18N = {
+  zh: {
+    "side.connecting":"连接中…","side.online":"运行正常 · 实时","side.offline":"后端离线 · 演示模式",
+    "nav.console":"控制台","nav.overview":"总览","nav.monster":"小怪兽","nav.organs":"器官单元","nav.manage":"管理","nav.alarms":"告警中心","nav.settings":"设置",
+    "page.overview":"总览","page.overviewSub":"系统实时态势一屏掌握","page.monster":"小怪兽","page.monsterSub":"和 Monster 对话，掌控每一只器官",
+    "page.alarms":"告警中心","page.alarmsSub":"四级告警筛选与处置","page.settings":"设置","page.settingsSub":"主题 · API Key · 模型配置",
+    "page.organOverview":"器官一览","page.organOverviewHint":"点击卡片进入对应器官页",
+    "metric.uptime":"运行时长","metric.uptimeHint":"自服务启动起","metric.attacks":"在线攻击数","metric.attacksHint":"当前活跃威胁",
+    "metric.maxLevel":"最高告警等级","metric.maxLevelHint":"L1-L4 四级色阶","metric.health":"自愈自检结果","metric.healthHint":"最近一次自检",
+    "chart.traffic":"实时流量","chart.trafficHint":"最近 60 秒","chart.conn":"活跃连接","chart.connHint":"最近 60 秒",
+    "chart.noData":"暂无流量数据","chart.noConnData":"暂无连接数据","chart.orgHealth":"器官健康状态","chart.orgHealthHint":"点击卡片跳转对应器官",
+    "chart.recentAlarms":"最近告警","chart.realtime":"实时","chart.demo":"演示",
+    "btn.refresh":"刷新","btn.send":"发送","btn.save":"保存配置",
+    "label.demo":"演示数据","label.apiUnavailable":"API 不可用","label.demoData":"演示数据","label.noKey":"未配置 API Key","label.keyConfigured":"已配置独立/全局 Key",
+    "alarm.all":"全部","alarm.l1":"L1 提示","alarm.l2":"L2 关注","alarm.l3":"L3 严重","alarm.l4":"L4 紧急",
+    "alarm.list":"告警列表","alarm.markAll":"标记已处理","alarm.empty":"当前筛选下暂无告警","alarm.noAlarm":"暂无告警，一切安静","alarm.marked":"已标记为处理","alarm.markedCount":"已标记 {n} 条告警为已处理","alarm.noPending":"当前没有可处理的告警",
+    "theme.blue":"淡蓝默认","theme.dark":"深空黑","theme.mint":"薄荷绿","theme.sunset":"暖阳橙",
+    "settings.theme":"主题配色","settings.global":"全局模型配置","settings.vendor":"API 厂商","settings.baseUrl":"API Base URL","settings.model":"模型名称","settings.globalKey":"全局 API Key",
+    "settings.dfuTokenHint":"留空则使用演示数据","settings.organKeys":"各器官独立配置","settings.organKeysHint":"每个器官可独立配置 Key 和模型",
+    "settings.saved":"配置已保存","settings.useGlobal":"使用全局 Key","settings.vendorLabel":"厂商","settings.modelLabel":"模型",
+    "vendor.custom":"自定义",
+    "monster.placeholder":"点击上传小怪兽形象（拖拽或点击下方按钮）","monster.chooseFile":"选择图片","monster.reset":"恢复默认",
+    "monster.tooBig":"文件过大（最大 2MB）","monster.unsupported":"不支持的文件类型（支持 PNG/JPG/GIF/WebP）",
+    "chat.title":"和小怪兽对话","chat.hint":"Enter 发送 · Shift+Enter 换行","chat.placeholder":"问一问小怪兽当前的防御态势…",
+    "chat.thinking":"思考中…","chat.fail":"对话失败：","chat.noReply":"（无回复内容）","chat.greeting":"你好，我是小怪兽 Monster。我可以帮你查看防御态势、攻击事件与各器官运行状态。有什么想问的？",
+    "switch.on":"已启用","switch.off":"已停用","export.done":"已导出攻击事件时间线 CSV","export.noData":"暂无可导出的数据",
+    "whitelist.added":"已加入白名单","whitelist.removed":"已移出白名单","whitelist.empty":"白名单为空，新增 IP/域名后自动放行","whitelist.addError":"请输入 IP 或域名",
+    "memory.searchHint":"输入特征关键词检索攻击特征库","memory.placeholder":"输入特征关键词，如 RDP 爆破","memory.search":"检索","memory.notFound":"未命中，可前往\"新增案例\"沉淀",
+    "data.healthy":"正常","data.working":"工作中","data.degraded":"轻微异常","data.fault":"故障","data.unknown":"未知",
+    "data.sourceAPI":"数据来源：API","data.sourceDemo":"数据来源：演示数据",
+    "export.btn":"导出 CSV",
+    "dfu.control":"DFU 核心系统","dfu.start":"启动 DFU","dfu.running":"运行中","dfu.stop":"停止 DFU",
+    "dfu.uptime":"已运行 {s}","dfu.demoNotice":"DFU 系统未启动，当前显示演示数据","dfu.stopConfirm":"确定要停止 DFU 吗？停止后各器官将回到演示数据模式。",
+  },
+  en: {
+    "side.connecting":"Connecting…","side.online":"Running · Live","side.offline":"Backend Offline · Demo",
+    "nav.console":"Console","nav.overview":"Overview","nav.monster":"Monster","nav.organs":"Organ Units","nav.manage":"Management","nav.alarms":"Alerts","nav.settings":"Settings",
+    "page.overview":"Overview","page.overviewSub":"Real-time situational awareness at a glance","page.monster":"Monster","page.monsterSub":"Chat with Monster and command every organ",
+    "page.alarms":"Alert Center","page.alarmsSub":"4-level alert filtering & handling","page.settings":"Settings","page.settingsSub":"Theme · API Key · Model Config",
+    "page.organOverview":"Organs Overview","page.organOverviewHint":"Click card to navigate to organ page",
+    "metric.uptime":"Uptime","metric.uptimeHint":"Since service start","metric.attacks":"Active Attacks","metric.attacksHint":"Ongoing threats",
+    "metric.maxLevel":"Max Alert Level","metric.maxLevelHint":"L1-L4 4-color scale","metric.health":"Self-Heal Result","metric.healthHint":"Latest self-check",
+    "chart.traffic":"Real-time Traffic","chart.trafficHint":"Last 60s","chart.conn":"Active Connections","chart.connHint":"Last 60s",
+    "chart.noData":"No traffic data","chart.noConnData":"No connection data","chart.orgHealth":"Organ Health Status","chart.orgHealthHint":"Click tile to navigate to organ",
+    "chart.recentAlarms":"Recent Alarms","chart.realtime":"Live","chart.demo":"Demo",
+    "btn.refresh":"Refresh","btn.send":"Send","btn.save":"Save Config",
+    "label.demo":"Demo Data","label.apiUnavailable":"API Unavailable","label.demoData":"Demo Data","label.noKey":"No API Key","label.keyConfigured":"Independent/Global Key Set",
+    "alarm.all":"All","alarm.l1":"L1 Info","alarm.l2":"L2 Watch","alarm.l3":"L3 Severe","alarm.l4":"L4 Critical",
+    "alarm.list":"Alert List","alarm.markAll":"Mark Handled","alarm.empty":"No alerts under current filter","alarm.noAlarm":"No alerts, all clear","alarm.marked":"Marked as handled","alarm.markedCount":"{n} alerts marked as handled","alarm.noPending":"No pending alerts",
+    "theme.blue":"Blue Default","theme.dark":"Deep Space","theme.mint":"Mint Green","theme.sunset":"Sunset Orange",
+    "settings.theme":"Theme Colors","settings.global":"Global Model Config","settings.vendor":"API Vendor","settings.baseUrl":"API Base URL","settings.model":"Model Name","settings.globalKey":"Global API Key",
+    "settings.dfuTokenHint":"Leave blank for demo data","settings.organKeys":"Per-Organ Config","settings.organKeysHint":"Each organ can have its own Key and model",
+    "settings.saved":"Config saved","settings.useGlobal":"Use Global Key","settings.vendorLabel":"Vendor","settings.modelLabel":"Model",
+    "vendor.custom":"Custom",
+    "monster.placeholder":"Click to upload a monster avatar (drag & drop or click below)","monster.chooseFile":"Choose Image","monster.reset":"Reset to Default",
+    "monster.tooBig":"File too large (max 2MB)","monster.unsupported":"Unsupported file type (PNG/JPG/GIF/WebP only)",
+    "chat.title":"Chat with Monster","chat.hint":"Enter to send · Shift+Enter for newline","chat.placeholder":"Ask Monster about current defense posture…",
+    "chat.thinking":"Thinking…","chat.fail":"Chat failed: ","chat.noReply":"(No response)","chat.greeting":"Hi, I'm Monster. I can help you check defense posture, attack events, and organ status. What would you like to know?",
+    "switch.on":"Enabled","switch.off":"Disabled","export.done":"Attack timeline CSV exported","export.noData":"No data to export",
+    "whitelist.added":"Added to whitelist","whitelist.removed":"Removed from whitelist","whitelist.empty":"Whitelist is empty. Add IP/domain to auto-allow","whitelist.addError":"Please enter IP or domain",
+    "memory.searchHint":"Enter feature keyword to search attack signature library","memory.placeholder":"Enter keyword, e.g. RDP brute-force","memory.search":"Search","memory.notFound":"No match. You can add to \"Add Case\"",
+    "data.healthy":"Healthy","data.working":"Working","data.degraded":"Degraded","data.fault":"Fault","data.unknown":"Unknown",
+    "data.sourceAPI":"Source: API","data.sourceDemo":"Source: Demo Data",
+    "export.btn":"Export CSV",
+    "dfu.control":"DFU Core System","dfu.start":"Start DFU","dfu.running":"Running","dfu.stop":"Stop DFU",
+    "dfu.uptime":"Uptime {s}","dfu.demoNotice":"DFU is not running — showing demo data","dfu.stopConfirm":"Stop DFU? Organs will fall back to demo data.",
+  }
+};
+let currentLang = "zh";
+function setLang(lang){
+  currentLang = lang;
+  // Update toggle UI
+  document.getElementById("lt-zh").classList.toggle("lt-active", lang==="zh");
+  document.getElementById("lt-en").classList.toggle("lt-active", lang==="en");
+  // Apply i18n to all elements
+  applyI18n();
+}
+function toggleLang(){
+  setLang(currentLang === "zh" ? "en" : "zh");
+  const s = loadSettings(); s.lang = currentLang; localStorage.setItem(LS_KEY, JSON.stringify(s));
+}
+function t(key){ return (I18N[currentLang] && I18N[currentLang][key]) || key; }
+function tf(key, replaces){
+  let s = t(key);
+  if(replaces) Object.keys(replaces).forEach(k => s = s.replace("{"+k+"}", replaces[k]));
+  return s;
+}
+function applyI18n(){
+  // Elements with data-i18n attribute
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.dataset.i18n;
+    if(el.tagName === "INPUT" && (el.type==="text"||el.type==="password") && el.dataset.i18nPlaceholder) return;
+    el.textContent = t(key);
+  });
+  // Placeholder via data-i18n-placeholder
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  // Theme labels
+  document.querySelectorAll(".theme-opt span:last-child").forEach(el => {
+    const btn = el.closest(".theme-opt");
+    if(btn){ const tn = btn.dataset.themeName; el.textContent = t("theme."+tn) || tn; }
+  });
+  // Vendor custom option
+  const vCustom = document.querySelector("#set-vendor option[value='custom']");
+  if(vCustom) vCustom.textContent = t("vendor.custom");
+  // Re-render organs to pick up translations
+  if(document.getElementById("organ-nav").children.length > 0) renderOrganNav();
+  // Re-render settings
+  if(document.getElementById("page-settings").classList.contains("active")) renderOrganKeyCards();
+  // Re-render overview (if active)
+  if(document.getElementById("page-overview").classList.contains("active")) loadOverview();
+  // Re-render alarms (if active)
+  if(document.getElementById("page-alarms").classList.contains("active")) loadAlarms();
+  // Re-render home
+  renderHome();
+}
+
+/* ================== 厂商预设 ================== */
+const VENDOR_PRESETS = {
+  openai: { name:"OpenAI", base_url:"https://api.openai.com/v1", models:["gpt-4o","gpt-4o-mini","gpt-4-turbo","gpt-3.5-turbo"] },
+  volcano: { name:"火山引擎", base_url:"https://ark.cn-beijing.volces.com/api/v3", models:["deepseek-v3-241226","deepseek-r1-250120","doubao-pro-32k"] },
+  deepseek: { name:"DeepSeek", base_url:"https://api.deepseek.com/v1", models:["deepseek-chat","deepseek-reasoner"] },
+  ollama: { name:"本地 Ollama", base_url:"http://localhost:11434/v1", models:["llama3.2","qwen2.5","mistral"] },
+  custom: { name:"自定义", base_url:"", models:[] },
+};
+function getVendorModels(vendorId){
+  const v = VENDOR_PRESETS[vendorId];
+  return v ? v.models : [];
+}
+function getVendorBaseUrl(vendorId){
+  const v = VENDOR_PRESETS[vendorId];
+  return v ? v.base_url : "";
+}
+function fillModelDatalist(datalistId, vendorId){
+  const dl = document.getElementById(datalistId);
+  if(!dl) return;
+  const models = getVendorModels(vendorId);
+  dl.innerHTML = models.map(m => `<option value="${m}">`).join("");
+}
+function onVendorChange(){
+  const vendor = document.getElementById("set-vendor").value;
+  document.getElementById("set-base-url").value = getVendorBaseUrl(vendor);
+  fillModelDatalist("global-model-list", vendor);
+}
+
+/* ================== 器官定义 ================== */
+const ORGANS = [
+  { id:"prefrontal", name_zh:"前额叶", name_en:"Prefrontal", sub_zh:"实时态势", sub_en:"Real-time Ops", icon:"brain", desc_zh:"统揽全局态势，汇总各器官情报，形成当前威胁全景图。", desc_en:"Oversees global posture, aggregates organ intel, forms current threat landscape.", pages:["port","conn","traffic","fw"], metrics_zh:["监控端口","IP 连接","阻断规则"], metrics_en:["Monitored Ports","IP Connections","Block Rules"] },
+  { id:"left-hand", name_zh:"左手", name_en:"Left Hand", sub_zh:"巡逻感知", sub_en:"Patrol Sensing", icon:"hand", desc_zh:"对外部环境持续巡逻扫描，发现端口、漏洞与可疑探测。", desc_en:"Continuously patrols external environment, detects ports, vulnerabilities & probes.", pages:["target","preview","alarm","policy"], metrics_zh:["巡逻目标","探测告警","扫描速率"], metrics_en:["Patrol Targets","Detection Alerts","Scan Rate"] },
+  { id:"left-brain", name_zh:"左脑", name_en:"Left Brain", sub_zh:"防御决策", sub_en:"Defense Decision", icon:"brain", desc_zh:"基于知识库推理，输出防御处置方案并下发执行指令。", desc_en:"Knowledge-based reasoning, outputs defense plans and dispatches execution commands.", pages:["decision","command","latency"], metrics_zh:["决策方案","下发指令","平均推理耗时"], metrics_en:["Decision Plans","Commands Dispatched","Avg Inference"] },
+  { id:"right-brain", name_zh:"右脑", name_en:"Right Brain", sub_zh:"干扰决策", sub_en:"Deception Ops", icon:"brain", desc_zh:"生成主动干扰与反制方案，迷惑并迟滞攻击者行动。", desc_en:"Generates active deception & countermeasures to confuse and delay attackers.", pages:["plan","lock","latency"], metrics_zh:["干扰方案","锁定指令","推理耗时"], metrics_en:["Deception Plans","Lock Commands","Inference"] },
+  { id:"right-hand", name_zh:"右手", name_en:"Right Hand", sub_zh:"主动执行", sub_en:"Active Execute", icon:"hand", desc_zh:"执行阻断、隔离等主动动作，反馈成功率与任务队列。", desc_en:"Executes blocks, isolation, reports success rate & task queue.", pages:["queue","action","success"], metrics_zh:["任务队列","已执行动作","成功率"], metrics_en:["Task Queue","Executed Actions","Success Rate"] },
+  { id:"repair-hand", name_zh:"备用修复手", name_en:"Repair Hand", sub_zh:"弹性执行", sub_en:"Resilient Exec", icon:"hand", desc_zh:"主链路异常时接管执行，支持巡逻/作战双角色弹性切换。", desc_en:"Takes over when primary link fails, supports patrol/combat dual-role switching.", pages:["role","task"], metrics_zh:["当前角色","辅助任务","接管次数"], metrics_en:["Current Role","Aux Tasks","Takeovers"] },
+  { id:"self-heal", name_zh:"自愈单元", name_en:"Self-Heal", sub_zh:"本体监护", sub_en:"Health Monitor", icon:"heart", desc_zh:"监护本体进程与器官健康，异常自动重启、自愈自检。", desc_en:"Monitors core processes & organ health, auto-restarts on anomalies.", pages:["heart","report","restart"], metrics_zh:["心跳状态","自检报告","异常重启"], metrics_en:["Heartbeat","Self-Check Report","Restarts"] },
+  { id:"report-mouth", name_zh:"汇报嘴", name_en:"Report Mouth", sub_zh:"事件日志", sub_en:"Event Log", icon:"mouth", desc_zh:"汇总攻击事件时间线，输出处置记录与导出报告。", desc_en:"Aggregates attack timelines, outputs handling records & exportable reports.", pages:["timeline","export"], metrics_zh:["攻击事件","处置方案","泄露状态"], metrics_en:["Attack Events","Handling Plans","Leak Status"] },
+  { id:"alarm-nose", name_zh:"报警鼻", name_en:"Alarm Nose", sub_zh:"告警熔断", sub_en:"Alert & Fuse", icon:"nose", desc_zh:"嗅探威胁并分级告警，支持三级/四级熔断倒计时。", desc_en:"Sniffs threats, graded alerts, supports L3/L4 circuit breaker countdown.", pages:["alarm","history","meltdown","isolation"], metrics_zh:["当前告警","四级告警","熔断状态"], metrics_en:["Current Alerts","L4 Alerts","Fuse Status"] },
+  { id:"memory", name_zh:"记忆库脑干", name_en:"Memory Brainstem", sub_zh:"攻防知识库", sub_en:"Attack KB", icon:"memory", desc_zh:"沉淀攻防特征库，支撑检索、新增案例与样本管理。", desc_en:"Stores attack-defense signatures, supports search, case addition & sample management.", pages:["search","add","samples"], metrics_zh:["特征条目","新增案例","样本数量"], metrics_en:["Signatures","New Cases","Samples"] },
+  { id:"whitelist", name_zh:"白名单前置单元", name_en:"Whitelist Unit", sub_zh:"信任前置", sub_en:"Trust Pre-Check", icon:"shield", desc_zh:"维护可信 IP/域名白名单，命中即放行，降低误报。", desc_en:"Maintains trusted IP/domain whitelist; matched traffic is allowed through.", pages:["ip","domain"], metrics_zh:["白名单 IP","白名单域名","命中次数"], metrics_en:["WL IPs","WL Domains","Hits"] },
+  { id:"skill-box", name_zh:"Skill工具箱", name_en:"Skill Box", sub_zh:"工具接入", sub_en:"Tool Access", icon:"tool", desc_zh:"接入外部技能与工具链，管理启用开关与调用日志。", desc_en:"Integrates external skills & toolchains, manages enable switches & call logs.", pages:["tools","switch","log"], metrics_zh:["已接入工具","启用中","调用次数"], metrics_en:["Tools Connected","Enabled","Calls"] },
+];
+function organName(o){ return currentLang==="en" ? o.name_en : o.name_zh; }
+function organSub(o){ return currentLang==="en" ? o.sub_en : o.sub_zh; }
+function organDesc(o){ return currentLang==="en" ? o.desc_en : o.desc_zh; }
+
+const ORG_ICONS = {
+  brain:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2a2.5 2.5 0 0 0-2.5 2.5v.55A3.5 3.5 0 0 0 4 8.5 3.5 3.5 0 0 0 2.3 11.7 3.5 3.5 0 0 0 5 15.1V17a4 4 0 0 0 8 0v-.4a3.5 3.5 0 0 0 2-3.2 3.5 3.5 0 0 0 2-3.1A3.5 3.5 0 0 0 15 6.55V6a2.5 2.5 0 0 0-5 0c0 .7.2 1.2.5 1.5A2.5 2.5 0 0 0 9.5 2z"/><path d="M9.5 2a2.5 2.5 0 0 0-2.5 2.5v.55A3.5 3.5 0 0 0 4 8.5 3.5 3.5 0 0 0 2.3 11.7 3.5 3.5 0 0 0 5 15.1V17a4 4 0 0 0 8 0v-.4a3.5 3.5 0 0 0 2-3.2 3.5 3.5 0 0 0 2-3.1A3.5 3.5 0 0 0 15 6.55V6a2.5 2.5 0 0 0-5 0c0 .7.2 1.2.5 1.5A2.5 2.5 0 0 0 9.5 2z" transform="translate(5 2)" opacity=".4"/></svg>',
+  hand:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V5a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>',
+  heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  mouth:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18"/><path d="M3 15a9 9 0 0 0 18 0"/><path d="M7 11a5 5 0 0 1 10 0"/></svg>',
+  nose:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 1 8 8c0 5-3 10-8 10S4 15 4 10a8 8 0 0 1 8-8z"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="9" r="1.2"/><path d="M9 14h6"/></svg>',
+  memory:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M15 4v16M4 9h5M4 15h5M15 9h5M15 15h5"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
+  tool:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+};
+
+/* ================== 状态与工具 ================== */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const LS_KEY = "monsterdfu.settings.v1";
+const demoFlag = { overview:false, alarms:false };
+
+function toast(msg, type="ok"){
+  const w = document.createElement("div");
+  w.className = "toast " + type;
+  w.textContent = msg;
+  document.getElementById("toast-wrap").appendChild(w);
+  setTimeout(()=>{ w.style.opacity="0"; w.style.transition="opacity .3s"; setTimeout(()=>w.remove(), 320); }, 2800);
+}
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fmtTime(ts){
+  if(!ts) return "--";
+  const d = new Date(ts * 1000);
+  return d.toLocaleString(currentLang==="en"?"en-US":"zh-CN", {month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit"});
+}
+function fmtDur(sec){
+  sec = Math.max(0, Math.floor(sec || 0));
+  const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = sec%60;
+  if(currentLang==="en") return (h>0 ? h+"h " : "") + (m>0 ? m+"m " : "") + s+"s";
+  return (h>0 ? h+"小时" : "") + (m>0 ? m+"分" : "") + s+"秒";
+}
+const LEVEL_META = {1:["L1","lv1"],2:["L2","lv2"],3:["L3","lv3"],4:["L4","lv4"]};
+function levelTag(level){ const m = LEVEL_META[level] || LEVEL_META[1]; return `<span class="tag ${m[1]}">${m[0]}</span>`; }
+
+/* ---------- API 封装 ---------- */
+let _dfuApiToken = null;
+async function ensureApiToken(){
+  if(_dfuApiToken) return _dfuApiToken;
+  try{
+    const r = await fetch("/api/token", {headers:{"Accept":"application/json"}});
+    if(r.ok){ const d = await r.json(); _dfuApiToken = d.token || null; }
+  }catch(e){ _dfuApiToken = null; }
+  return _dfuApiToken;
+}
+function apiHeaders(extra){
+  const h = Object.assign({}, extra || {});
+  if(_dfuApiToken) h["Authorization"] = "Bearer " + _dfuApiToken;
+  return h;
+}
+async function apiGet(url, timeout=5000){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), timeout);
+  try{
+    await ensureApiToken();
+    let r = await fetch(url, {signal:ctrl.signal, headers:apiHeaders({"Accept":"application/json"})});
+    if(r.status === 401){
+      // Token 过期：清空本地缓存并重新获取后重试一次（服务端 /api/token 会自动轮换刷新）
+      _dfuApiToken = null;
+      await ensureApiToken();
+      r = await fetch(url, {signal:ctrl.signal, headers:apiHeaders({"Accept":"application/json"})});
+    }
+    clearTimeout(timer);
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } catch(e){
+    clearTimeout(timer);
+    throw e;
+  }
+}
+function normalizeLamp(raw){
+  const s = String(raw || "").toLowerCase();
+  if(s.includes("error") || s.includes("fault") || s.includes("故障") || s.includes("异常")) return "err";
+  if(s.includes("warn") || s.includes("轻微") || s.includes("degrad")) return "warn";
+  if(s.includes("busy") || s.includes("work") || s.includes("运行中") || s.includes("working")) return "busy";
+  if(s.includes("ok") || s.includes("正常") || s.includes("healthy") || s.includes("running")) return "ok";
+  return "off";
+}
+
+/* ================== DFU 核心系统控制 ================== */
+let dfuStatus = { running:false, uptime:0, start_time:null, components:{} };
+let dfuOrgansCache = null, dfuOrgansTs = 0, dfuTimer = null;
+// 后端 Agent 名称 → 前端器官 id 映射
+const COMPONENT_MAP = {
+  "TrafficMonitor":"left-hand", "LeftBrain":"left-brain", "RightBrain":"right-brain",
+  "Validator":"prefrontal", "IPIsolation":"right-hand", "VulnScanner":"alarm-nose",
+  "LogAuditor":"report-mouth", "ResourceScheduler":"repair-hand", "ForensicTracker":"memory",
+  "PacketCapture":"left-hand", "MedicAgent":"self-heal",
+};
+function normalizeComponentKey(k){
+  const m = COMPONENT_MAP[k];
+  if(m) return m;
+  return String(k).toLowerCase().replace(/_/g,"-").replace(/([a-z0-9])([A-Z])/g,"$1-$2").toLowerCase();
+}
+function fmtUptime(sec){
+  if(!sec || sec <= 0) return "--";
+  return tf("dfu.uptime", {s:fmtDur(sec)});
+}
+async function refreshDfuStatus(applyUI=true){
+  try{
+    dfuStatus = await apiGet("/api/dfu/status");
+  }catch(e){
+    dfuStatus = { running:false, uptime:0, start_time:null, components:{} };
+  }
+  if(applyUI) updateDfuUI();
+  return dfuStatus;
+}
+function updateDfuUI(){
+  const btn = document.getElementById("dfu-btn");
+  const up = document.getElementById("dfu-uptime");
+  if(!btn) return;
+  const running = !!dfuStatus.running;
+  window.__dfuRunning = running;
+  if(running){
+    btn.classList.add("running");
+    btn.innerHTML = '<span class="dfu-breathe"></span><span>' + t("dfu.running") + "</span>";
+    if(up) up.innerHTML = fmtUptime(dfuStatus.uptime);
+  }else{
+    btn.classList.remove("running");
+    btn.innerHTML = "<span>" + t("dfu.start") + "</span>";
+    if(up) up.textContent = "--";
+  }
+  updateOrganNotices();
+}
+function updateOrganNotices(){
+  ORGANS.forEach(o => {
+    const el = document.getElementById("dfu-notice-" + o.id);
+    if(!el) return;
+    const page = document.getElementById("page-organ-" + o.id);
+    const active = page && page.classList.contains("active");
+    el.classList.toggle("show", active && !dfuStatus.running);
+  });
+}
+async function toggleDfu(){
+  const btn = document.getElementById("dfu-btn");
+  if(btn && btn.classList.contains("running")){
+    if(!confirm(t("dfu.stopConfirm"))) return;
+    btn.innerHTML = "<span>" + t("dfu.stop") + "</span>";
+    try{
+      await apiGet("/api/dfu/stop", 8000);
+      toast(t("dfu.stop"));
+    }catch(e){
+      toast(t("dfu.start") + " API Error", "err");
+    }
+  }else{
+    try{
+      await ensureApiToken();
+      await fetch("/api/dfu/start", {method:"POST", headers:apiHeaders({"Accept":"application/json"})});
+      toast(t("dfu.start"));
+    }catch(e){
+      toast("DFU API Error", "err");
+    }
+  }
+  await refreshDfuStatus();
+  dfuOrgansCache = null; dfuOrgansTs = 0;
+  await ensureDfuData();
+  if(document.getElementById("page-overview").classList.contains("active")) loadOverview(true);
+  const actOrg = $$(".page.active")[0];
+  if(actOrg && actOrg.id && actOrg.id.startsWith("page-organ-")){
+    loadOrganData(actOrg.id.replace("page-organ-",""), true);
+  }
+}
+async function ensureDfuData(){
+  if(!dfuStatus.running){
+    dfuOrgansCache = null; dfuOrgansTs = 0;
+    return;
+  }
+  const now = Date.now();
+  if(dfuOrgansCache && now - dfuOrgansTs < 3000) return;
+  try{
+    dfuOrgansCache = await apiGet("/api/dfu/organs/data");
+    dfuOrgansTs = Date.now();
+  }catch(e){}
+}
+function getOrganData(organId){
+  const cache = dfuOrgansCache && dfuOrgansCache.organs ? dfuOrgansCache.organs : dfuOrgansCache;
+  if(dfuStatus.running && cache && cache[organId]){
+    return cache[organId];
+  }
+  return window.DEMO_ORGAN_DATA[organId] || {};
+}
+function initDfuControl(){
+  refreshDfuStatus();
+  if(dfuTimer) clearInterval(dfuTimer);
+  dfuTimer = setInterval(async ()=>{
+    const prevRunning = dfuStatus.running;
+    await refreshDfuStatus();
+    if(dfuStatus.running !== prevRunning){
+      dfuOrgansCache = null; dfuOrgansTs = 0;
+      if(document.getElementById("page-overview").classList.contains("active")) loadOverview(true);
+    }
+  }, 3000);
+}
+
+/* ================== 导航与路由 ================== */
+function navigate(page){
+  $$(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.page === page));
+  $$(".page").forEach(p => p.classList.remove("active"));
+  const target = page.startsWith("organ:") ? document.getElementById("page-organ-"+page.split(":")[1]) : document.getElementById("page-"+page);
+  if(target) target.classList.add("active");
+  window.scrollTo({top:0});
+  if(page === "overview") loadOverview();
+  if(page === "alarms") loadAlarms();
+  if(page === "settings") initSettings();
+  if(page.startsWith("organ:")) renderOrganPage(page.split(":")[1]);
+}
+document.getElementById("side-nav").addEventListener("click", e=>{
+  const item = e.target.closest(".nav-item");
+  if(!item) return;
+  navigate(item.dataset.page);
+});
+
+/* ================== 设置（含器官卡片、厂商、i18n） ================== */
+function defaultSettings(){
+  return { theme:"blue", baseUrl:"https://api.openai.com/v1", model:"gpt-4o-mini", globalKey:"", dfuToken:"", organKeys:{},
+    lang:"zh", organConfigs:{}, monsterImage:"", globalVendor:"openai" };
+}
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){
+      const s = JSON.parse(raw);
+      const def = defaultSettings();
+      // Migrate old organKeys to organConfigs
+      if(s.organKeys && !s.organConfigs){
+        s.organConfigs = {};
+        Object.keys(s.organKeys).forEach(k => {
+          s.organConfigs[k] = { useGlobalKey:true, apiKey:s.organKeys[k]||"", vendor:"custom", baseUrl:"", model:"" };
+        });
+      }
+      return Object.assign(def, s);
+    }
+  }catch(e){}
+  return defaultSettings();
+}
+function getOrganConfig(organId){
+  const s = loadSettings();
+  const def = { useGlobalKey:true, apiKey:"", vendor:"custom", baseUrl:"", model:"" };
+  return (s.organConfigs && s.organConfigs[organId]) ? Object.assign({}, def, s.organConfigs[organId]) : def;
+}
+function setOrganConfig(organId, cfg){ /* used by saveSettings */ }
+
+async function saveSettings(){
+  const s = loadSettings();
+  s.baseUrl = document.getElementById("set-base-url").value.trim();
+  s.model = document.getElementById("set-model").value.trim();
+  s.globalKey = document.getElementById("set-global-key").value.trim();
+  s.dfuToken = document.getElementById("set-dfu-token").value.trim();
+  s.globalVendor = document.getElementById("set-vendor").value;
+  s.lang = currentLang;
+  // Collect organ configs from cards
+  ORGANS.forEach(o => {
+    const useGlobal = document.getElementById("org-use-global-"+o.id);
+    const apiKey = document.getElementById("org-key-"+o.id);
+    const vendor = document.getElementById("org-vendor-"+o.id);
+    const baseUrl = document.getElementById("org-base-url-"+o.id);
+    const model = document.getElementById("org-model-"+o.id);
+    s.organConfigs[o.id] = {
+      useGlobalKey: useGlobal ? useGlobal.classList.contains("on") : true,
+      apiKey: apiKey ? apiKey.value.trim() : "",
+      vendor: vendor ? vendor.value : "custom",
+      baseUrl: baseUrl ? baseUrl.value.trim() : "",
+      model: model ? model.value.trim() : "",
+    };
+  });
+  localStorage.setItem(LS_KEY, JSON.stringify(s));
+  applySettings(s);
+  toast(t("settings.saved"));
+
+  // 保存成功：绿色边框短暂闪烁（0.5s）
+  const flashInputs = Array.from(document.querySelectorAll(".form-row input"));
+  flashInputs.forEach(i => { i.classList.remove("save-flash"); void i.offsetWidth; i.classList.add("save-flash"); });
+  setTimeout(() => flashInputs.forEach(i => i.classList.remove("save-flash")), 500);
+
+  // 保存后立即验证后端 LLM 模式，反馈配置是否真正生效
+  try{
+    const st = await apiGet("/api/status", 8000);
+    if(st && st.llm_mode === "real"){
+      toast("配置生效，LLM 已连接", "ok");
+    }else{
+      toast("⚠ 当前为模拟模式，请检查 API Key 和 Base URL 是否正确", "err");
+    }
+  }catch(e){
+    /* 后端不可达时不额外提示，保留"保存成功"提示 */
+  }
+}
+function applySettings(s){
+  document.body.dataset.theme = s.theme;
+  $$(".theme-opt").forEach(t => t.classList.toggle("active", t.dataset.themeName === s.theme));
+}
+function getEffectiveKey(organId){
+  const s = loadSettings();
+  const cfg = getOrganConfig(organId);
+  if(cfg.useGlobalKey) return s.globalKey || "";
+  return cfg.apiKey || s.globalKey || "";
+}
+function getEffectiveConfig(organId){
+  const s = loadSettings();
+  const cfg = getOrganConfig(organId);
+  if(cfg.useGlobalKey){
+    return { apiKey:s.globalKey, baseUrl:s.baseUrl, model:s.model };
+  }
+  return { apiKey: cfg.apiKey || s.globalKey, baseUrl: cfg.baseUrl || s.baseUrl, model: cfg.model || s.model };
+}
+
+function renderOrganKeyCards(){
+  const container = document.getElementById("organ-key-cards");
+  const s = loadSettings();
+  container.innerHTML = ORGANS.map(o => {
+    const cfg = getOrganConfig(o.id);
+    const useGlobal = cfg.useGlobalKey !== false; // default true
+    const disabledAttr = useGlobal ? " disabled" : "";
+    const vendorOpts = Object.keys(VENDOR_PRESETS).map(vk => {
+      const vp = VENDOR_PRESETS[vk];
+      const vn = vk==="custom" ? t("vendor.custom") : vp.name;
+      return `<option value="${vk}" ${cfg.vendor===vk?"selected":""}>${vn}</option>`;
+    }).join("");
+    const models = getVendorModels(cfg.vendor);
+    const modelOpts = models.map(m => `<option value="${m}" ${cfg.model===m?"selected":""}>${m}</option>`).join("");
+    return `<div class="org-key-card" id="org-card-${o.id}">
+      <div class="okc-left">
+        <div class="okc-icon-row">
+          <div class="okc-icon">${ORG_ICONS[o.icon] || ORG_ICONS.brain}</div>
+          <div>
+            <div class="okc-name">${organName(o)}</div>
+            <div class="okc-sub">${organSub(o)}</div>
+          </div>
+        </div>
+        <div class="okc-desc">${organDesc(o)}</div>
+        <span class="okc-badge ${useGlobal?'global':'custom'}">${useGlobal?t('settings.useGlobal'):'Custom Key'}</span>
+      </div>
+      <div class="okc-right">
+        <div class="okc-toggle-row">
+          <span class="okc-label">${t('settings.useGlobal')}</span>
+          <label class="switch ${useGlobal?'on':''}" id="org-use-global-${o.id}" onclick="toggleOrganKey('${o.id}')" style="cursor:pointer"><input type="checkbox" style="display:none"></label>
+        </div>
+        <div class="okc-input-row">
+          <input id="org-key-${o.id}" type="password" placeholder="sk-..." value="${esc(cfg.apiKey)}"${disabledAttr} style="flex:1.2;min-width:200px">
+        </div>
+        <div class="okc-input-row">
+          <select id="org-vendor-${o.id}" onchange="onOrganVendorChange('${o.id}')"${disabledAttr}>
+            ${vendorOpts}
+          </select>
+          <input id="org-base-url-${o.id}" type="text" placeholder="Base URL" value="${esc(cfg.baseUrl)}"${disabledAttr}>
+        </div>
+        <div class="okc-input-row">
+          <input id="org-model-${o.id}" type="text" placeholder="Model" value="${esc(cfg.model)}" list="org-model-list-${o.id}"${disabledAttr}>
+          <datalist id="org-model-list-${o.id}">${modelOpts}</datalist>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+function toggleOrganKey(organId){
+  const sw = document.getElementById("org-use-global-"+organId);
+  sw.classList.toggle("on");
+  const on = sw.classList.contains("on");
+  const keyEl = document.getElementById("org-key-"+organId);
+  const vendorEl = document.getElementById("org-vendor-"+organId);
+  const baseEl = document.getElementById("org-base-url-"+organId);
+  const modelEl = document.getElementById("org-model-"+organId);
+  [keyEl, vendorEl, baseEl, modelEl].forEach(el => { if(el) el.disabled = on; });
+  const badge = document.querySelector("#org-card-"+organId+" .okc-badge");
+  if(badge){
+    badge.textContent = on ? t("settings.useGlobal") : "Custom Key";
+    badge.className = "okc-badge " + (on ? "global" : "custom");
+  }
+}
+function onOrganVendorChange(organId){
+  const vendor = document.getElementById("org-vendor-"+organId).value;
+  document.getElementById("org-base-url-"+organId).value = getVendorBaseUrl(vendor);
+  const dl = document.getElementById("org-model-list-"+organId);
+  if(dl){ const models = getVendorModels(vendor); dl.innerHTML = models.map(m => `<option value="${m}">`).join(""); }
+}
+
+function initSettings(){
+  const s = loadSettings();
+  currentLang = s.lang || "zh";
+  setLangUI();
+  document.getElementById("set-vendor").value = s.globalVendor || "openai";
+  document.getElementById("set-base-url").value = s.baseUrl;
+  document.getElementById("set-model").value = s.model;
+  document.getElementById("set-global-key").value = s.globalKey;
+  document.getElementById("set-dfu-token").value = s.dfuToken;
+  fillModelDatalist("global-model-list", s.globalVendor || "openai");
+  applySettings(s);
+  renderOrganKeyCards();
+}
+function initThemeButtons(){
+  $$(".theme-opt").forEach(t => t.addEventListener("click", ()=>{
+    const s = loadSettings(); s.theme = t.dataset.themeName; localStorage.setItem(LS_KEY, JSON.stringify(s)); applySettings(s);
+  }));
+}
+function setLangUI(){
+  document.getElementById("lt-zh").classList.toggle("lt-active", currentLang==="zh");
+  document.getElementById("lt-en").classList.toggle("lt-active", currentLang==="en");
+  applyI18n();
+}
+
+/* ================== 器官导航渲染 ================== */
+function renderOrganNav(){
+  const box = document.getElementById("organ-nav");
+  if(!box) return;
+  box.innerHTML = ORGANS.map(o => `
+    <button class="nav-item" data-page="organ:${o.id}">
+      ${ORG_ICONS[o.icon] || ORG_ICONS.brain}
+      <span class="nav-label">${organName(o)}<br><small style="font-weight:400;opacity:.75">${organSub(o)}</small></span>
+    </button>`).join("");
+}
+
+/* ================== 概览数据 ================== */
+let ovTimer = null, ovData = { traffic:[], conn:[] };
+function genDemoTraffic(){
+  const now = Date.now();
+  return { ts: now, incoming: 20 + Math.random()*60, outgoing: 10 + Math.random()*40, conn: 8 + Math.round(Math.random()*40) };
+}
+async function fetchOverview(){
+  demoFlag.overview = false;
+  let status=null, stats=null, metrics=null, events=null;
+  try{ status = await apiGet("/api/status"); }catch(e){ demoFlag.overview = true; }
+  try{ stats = await apiGet("/api/stats"); }catch(e){ demoFlag.overview = true; }
+  try{ metrics = await apiGet("/api/metrics"); }catch(e){ demoFlag.overview = true; }
+  try{ events = await apiGet("/api/events?limit=20"); }catch(e){ demoFlag.overview = true; }
+  try{ dfuStatus = await apiGet("/api/dfu/status"); }catch(e){ dfuStatus = { running:false, uptime:0, start_time:null, components:{} }; }
+  window.__dfuRunning = !!dfuStatus.running;
+  return { status, stats, metrics, events };
+}
+function loadOverview(force=false){
+  if(force) clearInterval(ovTimer);
+  fetchOverview().then(d => {
+    const { status, stats, metrics, events } = d;
+    const demo = demoFlag.overview;
+    document.getElementById("ov-demo-tag").style.display = demo ? "inline-flex" : "none";
+    document.getElementById("ov-demo-tag").textContent = t("label.demo");
+
+    const uptime = (status && status.uptime) || (metrics && metrics.uptime) || (demo ? 86400 : 0);
+    document.getElementById("ov-uptime").textContent = uptime ? fmtDur(uptime) : "--";
+    const attacks = (stats && (stats.active_attacks ?? stats.activeAttacks)) ?? (demo ? 2 : 0);
+    document.getElementById("ov-attacks").textContent = attacks ?? "--";
+    let maxLevel = 0;
+    if(events && Array.isArray(events)) events.forEach(e => { const l = Number(e.level || e.risk_level || 0); if(l>maxLevel) maxLevel=l; });
+    if(demo && !maxLevel) maxLevel = 2;
+    document.getElementById("ov-maxlevel").textContent = maxLevel ? "L"+maxLevel : "L1";
+    document.getElementById("ov-maxlevel").className = "m-value " + (maxLevel>=4?"err":maxLevel>=3?"warn":maxLevel>=2?"warn":"ok");
+    const heal = (status && status.self_heal) || (metrics && metrics.self_heal) || (demo ? "自愈正常" : "--");
+    const healStr = typeof heal === "object" ? (heal.status || heal.result || JSON.stringify(heal)) : heal;
+    document.getElementById("ov-health").textContent = healStr || "--";
+    const healthy = String(healStr).includes("正常") || String(healStr).includes("ok");
+    document.getElementById("ov-health").className = "m-value " + (healthy ? "ok" : String(healStr).includes("异常") ? "err" : "");
+
+    const point = genDemoTraffic();
+    if(metrics && typeof metrics.traffic_rate === "number"){
+      point.incoming = metrics.traffic_rate; point.outgoing = (metrics.traffic_rate||0)*0.6;
+    }
+    if(metrics && typeof metrics.active_connections === "number") point.conn = metrics.active_connections;
+    ovData.traffic.push({ts:point.ts, in:point.incoming, out:point.outgoing});
+    ovData.conn.push({ts:point.ts, v:point.conn});
+    if(ovData.traffic.length > 60) ovData.traffic.shift();
+    if(ovData.conn.length > 60) ovData.conn.shift();
+    drawLineChart("ov-traffic-chart", ovData.traffic.map(p=>p.in), "in", demo);
+    drawLineChart("ov-conn-chart", ovData.conn.map(p=>p.v), "v", demo);
+
+    renderOrgGrid(status, metrics, demo, dfuStatus);
+    renderRecentAlarms(events, demo);
+    updateSidebarStatus(demo, events);
+    loadEnhanced();
+    if(!ovTimer){
+      ovTimer = setInterval(()=>loadOverview(), 5000);
+    }
+  }).catch(()=>{
+    document.getElementById("ov-demo-tag").style.display = "inline-flex";
+    updateSidebarStatus(true, null);
+    loadEnhanced();
+    if(!ovTimer) ovTimer = setInterval(()=>loadOverview(), 5000);
+  });
+}
+function updateSidebarStatus(demo, events){
+  const dot = document.getElementById("side-dot"), txt = document.getElementById("side-status-text");
+  if(demo){ dot.classList.remove("off"); txt.textContent = t("side.offline"); return; }
+  dot.classList.remove("off"); txt.textContent = t("side.online");
+  let maxL = 0;
+  if(events && Array.isArray(events)) events.forEach(e=>{ const l=Number(e.level||e.risk_level||0); if(l>maxL) maxL=l; });
+  const badge = document.getElementById("alarm-badge");
+  if(maxL>=3){ badge.textContent = maxL; badge.classList.add("show"); } else { badge.classList.remove("show"); }
+}
+function renderOrgGrid(status, metrics, demo, dfuStatus){
+  const grid = document.getElementById("ov-org-grid");
+  const statusMap = {};
+  if(status && status.organs) Object.keys(status.organs).forEach(k => statusMap[k] = status.organs[k]);
+  if(dfuStatus && dfuStatus.components){
+    Object.keys(dfuStatus.components).forEach(k => statusMap[normalizeComponentKey(k)] = dfuStatus.components[k]);
+  }
+  grid.innerHTML = ORGANS.map(o => {
+    const raw = statusMap[o.id] || statusMap[o.name] || (metrics && metrics.organs && metrics.organs[o.id]) || (demo ? "ok" : "off");
+    const lamp = normalizeLamp(raw);
+    const label = {ok:t("data.healthy"), busy:t("data.working"), warn:t("data.degraded"), err:t("data.fault"), off:t("data.unknown")}[lamp];
+    return `<button class="org-tile" onclick="navigate('organ:${o.id}')">
+      <div class="ot-head"><span class="lamp ${lamp}"></span><span class="ot-name">${organName(o)}</span><span class="ot-stat">${label}</span></div>
+      <span class="ot-desc">${organDesc(o)}</span>
+    </button>`;
+  }).join("");
+}
+function renderRecentAlarms(events, demo){
+  const box = document.getElementById("ov-alarm-list");
+  const srcEl = document.getElementById("ov-alarm-src");
+  if(srcEl) srcEl.textContent = demo ? t("data.sourceDemo") : t("data.sourceAPI");
+  let list = Array.isArray(events) ? events.map(ev => ({
+    time: ev.ts || ev.timestamp || Date.now()/1000,
+    level: ev.level || ev.risk_level || (demo ? 2 : 1),
+    title: ev.attack_type || ev.title || ev.event_type || "Attack Event",
+    detail: ev.detail || ev.description || ev.src_ip || "",
+  })) : [];
+  if(demo && !list.length){
+    list = [ {time:Date.now()/1000-40, level:2, title:"Port scan probe", detail:"192.168.1.23 → 445/tcp"},
+             {time:Date.now()/1000-130, level:1, title:"Abnormal login attempt", detail:"10.0.0.7 → SSH"},
+             {time:Date.now()/1000-600, level:3, title:"Web path traversal probe", detail:"/etc/passwd"} ];
+  }
+  if(!list.length){ box.innerHTML = `<div class="empty"><div class="e-icon">O</div>${t("alarm.noAlarm")}</div>`; return; }
+  box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>${currentLang==="en"?"Time":"时间"}</th><th>${currentLang==="en"?"Level":"等级"}</th><th>${currentLang==="en"?"Event":"事件"}</th><th>${currentLang==="en"?"Detail":"详情"}</th></tr></thead><tbody>` +
+    list.slice(0,10).map(ev => `<tr><td style="white-space:nowrap">${fmtTime(ev.time)}</td><td>${levelTag(ev.level)}</td><td>${esc(ev.title)}</td><td>${esc(ev.detail)}</td></tr>`).join("") +
+    `</tbody></table></div>`;
+}
+
+/* ================== 新增器官能力展示 ================== */
+let enhTimer = null;
+function enhSource(id, ok){
+  const el = document.getElementById(id);
+  if(el) el.textContent = ok ? t("data.sourceAPI") : t("data.sourceDemo");
+}
+function sevTag(s){
+  const v = String(s||"").toLowerCase();
+  const cls = v==="critical"||v==="high" ? "err" : (v==="medium"||v==="warn" ? "warn" : "ok");
+  const lbl = v ? s : "info";
+  return `<span class="tag ${cls}">${esc(lbl)}</span>`;
+}
+function fmtIso(iso){
+  if(!iso) return "--";
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return esc(String(iso));
+  return fmtTime(d.getTime()/1000);
+}
+function renderForensicTimeline(data, demo){
+  const box = document.getElementById("ov-forensic-list");
+  enhSource("ov-forensic-src", !demo);
+  const list = Array.isArray(data && data.timeline) ? data.timeline : (demo ? [
+    {timestamp:new Date(Date.now()-3600000).toISOString(), source_ip:"192.168.1.23", attack_type:"port_scan", action:"拦截扫描源并关闭端口", severity:"medium"},
+    {timestamp:new Date(Date.now()-7200000).toISOString(), source_ip:"10.0.0.7", attack_type:"login_failure", action:"记录并加强监控", severity:"medium"},
+  ] : []);
+  if(!list.length){ box.innerHTML = `<div class="empty"><div class="e-icon">O</div>暂无取证记录</div>`; return; }
+  box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>${currentLang==="en"?"Time":"时间"}</th><th>${currentLang==="en"?"Source IP":"源IP"}</th><th>${currentLang==="en"?"Attack Type":"攻击类型"}</th><th>${currentLang==="en"?"Action":"处置动作"}</th></tr></thead><tbody>` +
+    list.slice(0,8).map(e => `<tr><td style="white-space:nowrap">${fmtIso(e.timestamp)}</td><td>${esc(e.source_ip||"")}</td><td>${sevTag(e.attack_type||e.category||"")}</td><td>${esc(e.action||"--")}</td></tr>`).join("") +
+    `</tbody></table></div>`;
+}
+function renderPortScan(data, demo){
+  const box = document.getElementById("ov-ports-list");
+  enhSource("ov-ports-src", !demo);
+  const list = Array.isArray(data && data.ports) ? data.ports : (demo ? [{port:80,service:"http",high_risk:false},{port:135,service:"msrpc",high_risk:true}] : []);
+  if(!list.length){ box.innerHTML = `<div class="empty"><div class="e-icon">O</div>暂无开放端口</div>`; return; }
+  box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>${currentLang==="en"?"Port":"端口"}</th><th>${currentLang==="en"?"Service":"服务"}</th><th>${currentLang==="en"?"Risk":"风险"}</th></tr></thead><tbody>` +
+    list.slice(0,10).map(p => `<tr><td>${esc(String(p.port))}</td><td>${esc(p.service||"unknown")}</td><td>${p.high_risk ? `<span class="tag err">high</span>` : `<span class="tag ok">normal</span>`}</td></tr>`).join("") +
+    `</tbody></table></div>`;
+}
+function renderOutbound(data, demo){
+  const box = document.getElementById("ov-outbound-list");
+  enhSource("ov-outbound-src", !demo);
+  const list = Array.isArray(data && data.connections) ? data.connections : (demo ? [
+    {process:"svchost.exe", remote_ip:"198.51.100.7", remote_port:443, suspicious:false},
+    {process:"chrome.exe", remote_ip:"203.0.113.9", remote_port:4444, suspicious:true},
+  ] : []);
+  if(!list.length){ box.innerHTML = `<div class="empty"><div class="e-icon">O</div>暂无出站连接</div>`; return; }
+  box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>${currentLang==="en"?"Process":"进程"}</th><th>${currentLang==="en"?"Remote":"远端"}</th><th>${currentLang==="en"?"Flag":"标记"}</th></tr></thead><tbody>` +
+    list.slice(0,10).map(c => `<tr><td>${esc(c.process||"unknown")}</td><td style="white-space:nowrap">${esc(c.remote_ip||"")}:${esc(String(c.remote_port||""))}</td><td>${c.suspicious ? `<span class="tag err">suspicious</span>` : `<span class="tag ok">normal</span>`}</td></tr>`).join("") +
+    `</tbody></table></div>`;
+}
+function renderResource(data, demo){
+  const box = document.getElementById("ov-resource-list");
+  enhSource("ov-resource-src", !demo);
+  const r = (data && data.resource) || (demo ? {cpu_percent:23.5, mem_percent:61.2, mem_used_gb:7.8, mem_total_gb:16.0, last_monitor_time:null} : {});
+  const cpu = r.cpu_percent == null ? "--" : Number(r.cpu_percent).toFixed(1)+"%";
+  const mem = r.mem_percent == null ? "--" : Number(r.mem_percent).toFixed(1)+"%";
+  const memDetail = (r.mem_used_gb != null && r.mem_total_gb != null) ? `${r.mem_used_gb} / ${r.mem_total_gb} GB` : "--";
+  const bar = (v) => `<div class="res-bar"><div class="res-bar-inner" style="width:${Math.min(100,Math.max(0,Number(v)||0)).toFixed(1)}%"></div></div>`;
+  box.innerHTML = `
+    <div class="metric" style="margin-bottom:10px"><span class="m-label">CPU</span><span class="m-value" style="font-size:1.2em">${cpu}</span><div style="margin-top:6px">${r.cpu_percent==null?"":bar(r.cpu_percent)}</div></div>
+    <div class="metric"><span class="m-label">内存</span><span class="m-value" style="font-size:1.2em">${mem}</span><span class="m-hint">${memDetail}</span><div style="margin-top:6px">${r.mem_percent==null?"":bar(r.mem_percent)}</div></div>
+    <div style="margin-top:10px;opacity:.6;font-size:12px">${currentLang==="en"?"Last sample":"最近采样"}: ${fmtIso(r.last_monitor_time)}</div>`;
+}
+function renderAuditEvents(data, demo){
+  const box = document.getElementById("ov-audit-list");
+  enhSource("ov-audit-src", !demo);
+  const list = Array.isArray(data && data.events) ? data.events : (demo ? [
+    {timestamp:new Date(Date.now()-600000).toISOString(), event_id:4625, source_log:"Security", description:"登录失败 (Logon failure)"},
+    {timestamp:new Date(Date.now()-1800000).toISOString(), event_id:4672, source_log:"Security", description:"特殊权限指派 (Special privileges)"},
+    {timestamp:new Date(Date.now()-5400000).toISOString(), event_id:7034, source_log:"System", description:"服务意外终止 (Service terminated unexpectedly)"},
+  ] : []);
+  if(!list.length){ box.innerHTML = `<div class="empty"><div class="e-icon">O</div>暂无安全事件</div>`; return; }
+  box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>${currentLang==="en"?"Time":"时间"}</th><th>${currentLang==="en"?"Event ID":"事件ID"}</th><th>${currentLang==="en"?"Log":"日志"}</th><th>${currentLang==="en"?"Description":"描述"}</th></tr></thead><tbody>` +
+    list.slice(0,8).map(e => `<tr><td style="white-space:nowrap">${fmtIso(e.timestamp)}</td><td>${esc(String(e.event_id||""))}</td><td>${esc(e.source_log||"")}</td><td>${esc(e.description||"")}</td></tr>`).join("") +
+    `</tbody></table></div>`;
+}
+function togglePanel(btn){
+  const card = btn.closest(".card");
+  if(!card) return;
+  const body = card.querySelector(".panel-body");
+  if(!body) return;
+  const hidden = body.style.display === "none";
+  body.style.display = hidden ? "" : "none";
+  btn.textContent = hidden ? "▾" : "▸";
+  btn.title = hidden ? "折叠" : "展开";
+}
+async function loadEnhanced(){
+  let demo = false;
+  let forensic=null, ports=null, outbound=null, resource=null, audit=null;
+  try{ forensic = await apiGet("/api/forensic/timeline?limit=50"); }catch(e){ demo = true; }
+  try{ ports = await apiGet("/api/vuln/ports"); }catch(e){ demo = true; }
+  try{ outbound = await apiGet("/api/outbound/connections"); }catch(e){ demo = true; }
+  try{ resource = await apiGet("/api/resources"); }catch(e){ demo = true; }
+  try{ audit = await apiGet("/api/audit/events?limit=30"); }catch(e){ demo = true; }
+  renderForensicTimeline(forensic, demo);
+  renderPortScan(ports, demo);
+  renderOutbound(outbound, demo);
+  renderResource(resource, demo);
+  renderAuditEvents(audit, demo);
+  if(!enhTimer) enhTimer = setInterval(loadEnhanced, 8000);
+}
+
+/* ================== 折线图（canvas 手绘） ================== */
+function drawLineChart(canvasId, data, key, demo){
+  const canvas = document.getElementById(canvasId);
+  const emptyEl = document.getElementById(canvasId.replace("chart","") + "empty");
+  if(!canvas || !data.length){ if(emptyEl) emptyEl.style.display = "flex"; return; }
+  if(emptyEl) emptyEl.style.display = "none";
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + "px"; canvas.style.height = rect.height + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height, padL = 34, padR = 10, padT = 12, padB = 24;
+  const max = Math.max(...data) * 1.2 || 1, min = 0;
+  const x = i => padL + (W - padL - padR) * (data.length === 1 ? 1 : i / (data.length - 1));
+  const y = v => padT + (H - padT - padB) * (1 - (v - min) / (max - min));
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue("--border").trim() || "#d7e3f5";
+  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--text-2").trim() || "#5b6b80";
+  ctx.font = "10px sans-serif"; ctx.lineWidth = 1;
+  const gridN = 4;
+  for(let g=0; g<=gridN; g++){
+    const gy = padT + (H-padT-padB) * g/gridN;
+    ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(W-padR, gy); ctx.stroke();
+    ctx.fillText(Math.round(max - (max-min)*g/gridN), 4, gy+3);
+  }
+  const color = getComputedStyle(document.body).getPropertyValue("--primary").trim() || "#3b82f6";
+  ctx.beginPath(); data.forEach((v,i)=> i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+  ctx.lineTo(x(data.length-1), H-padB); ctx.lineTo(x(0), H-padB); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, padT, 0, H-padB);
+  grad.addColorStop(0, color + "44"); grad.addColorStop(1, color + "05");
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.beginPath(); ctx.arc(x(data.length-1), y(data[data.length-1]), 3.5, 0, Math.PI*2);
+  ctx.fillStyle = color; ctx.fill();
+  ctx.font = "10px sans-serif"; ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--text-2").trim() || "#5b6b80";
+  ctx.fillText(demo ? t("chart.demo") : t("chart.realtime"), padL, H - 6);
+}
+
+/* ================== 12 器官页面 ================== */
+// Define ORGAN_PAGE_DEFS
+(function(){
+  const defs = {
+    prefrontal:{ charts:[
+      { title_zh:"实时流量", title_en:"Real-time Traffic", type:"line", key:"prefrontal" },
+      { title_zh:"端口/IP 连接列表", title_en:"Port/IP Connection List", type:"table", cols_zh:["类型","地址","状态","操作"], cols_en:["Type","Address","Status","Action"] }
+    ]},
+    "left-hand":{ charts:[
+      { title_zh:"抓包预览", title_en:"Capture Preview", type:"table", cols_zh:["时间","协议","源","目的"], cols_en:["Time","Protocol","Src","Dst"] },
+      { title_zh:"巡逻策略", title_en:"Patrol Policy", type:"list" }
+    ]},
+    "left-brain":{ charts:[
+      { title_zh:"决策方案列表", title_en:"Decision Plan List", type:"table", cols_zh:["方案","目标","状态","耗时"], cols_en:["Plan","Target","Status","Time"] },
+      { title_zh:"下发指令", title_en:"Dispatched Commands", type:"list" }
+    ]},
+    "right-brain":{ charts:[
+      { title_zh:"干扰方案", title_en:"Deception Plan", type:"table", cols_zh:["方案","目标","状态","耗时"], cols_en:["Plan","Target","Status","Time"] },
+      { title_zh:"锁定指令", title_en:"Lock Commands", type:"list" }
+    ]},
+    "right-hand":{ charts:[
+      { title_zh:"任务队列", title_en:"Task Queue", type:"table", cols_zh:["任务","动作","状态","耗时"], cols_en:["Task","Action","Status","Time"] },
+      { title_zh:"已执行动作", title_en:"Executed Actions", type:"list" }
+    ]},
+    "repair-hand":{ charts:[
+      { title_zh:"角色状态", title_en:"Role Status", type:"list" },
+      { title_zh:"辅助任务列表", title_en:"Aux Task List", type:"table", cols_zh:["任务","承接方","状态"], cols_en:["Task","Assignee","Status"] }
+    ]},
+    "self-heal":{ charts:[
+      { title_zh:"心跳状态", title_en:"Heartbeat Status", type:"list" },
+      { title_zh:"自检报告 / 异常重启记录", title_en:"Self-Check / Restart Log", type:"table", cols_zh:["时间","项目","结果"], cols_en:["Time","Item","Result"] }
+    ]},
+    "report-mouth":{ charts:[
+      { title_zh:"攻击事件时间线", title_en:"Attack Event Timeline", type:"table", cols_zh:["起止时间","攻击手段","处置方案","执行单元","风险等级","是否泄露"], cols_en:["Time","Method","Plan","Unit","Level","Leaked"] },
+      { title_zh:"导出", title_en:"Export", type:"export" }
+    ]},
+    "alarm-nose":{ charts:[
+      { title_zh:"当前告警列表", title_en:"Current Alert List", type:"table", cols_zh:["时间","等级","告警内容"], cols_en:["Time","Level","Content"] },
+      { title_zh:"四级告警历史", title_en:"L4 Alert History", type:"list" }
+    ]},
+    memory:{ charts:[
+      { title_zh:"攻击特征库检索", title_en:"Attack Signature Search", type:"search" },
+      { title_zh:"样本列表", title_en:"Sample List", type:"table", cols_zh:["样本","类型","时间"], cols_en:["Sample","Type","Time"] }
+    ]},
+    whitelist:{ charts:[
+      { title_zh:"白名单管理", title_en:"Whitelist Management", type:"whitelist" },
+      { title_zh:"最近命中", title_en:"Recent Hits", type:"table", cols_zh:["时间","来源","类型"], cols_en:["Time","Source","Type"] }
+    ]},
+    "skill-box":{ charts:[
+      { title_zh:"工具接入清单", title_en:"Tool Access List", type:"table", cols_zh:["工具","用途","启用","调用"], cols_en:["Tool","Purpose","Enabled","Calls"] },
+      { title_zh:"调用日志", title_en:"Call Log", type:"list" }
+    ]},
+  };
+  // Add metrics to defs from ORGANS
+  ORGANS.forEach(o => {
+    defs[o.id] = defs[o.id] || { charts:[] };
+    defs[o.id].metrics_zh = o.metrics_zh;
+    defs[o.id].metrics_en = o.metrics_en;
+  });
+  window.ORGAN_PAGE_DEFS = defs;
+})();
+(function(){
+  window.DEMO_ORGAN_DATA = {
+    prefrontal:{ metrics:[128, 86, 12], tableRows:[["Port","80/tcp","Listening","-"],["IP","192.168.1.10","Active","-"],["IP","10.0.0.55","Suspicious","Blocked"]], list:[{t:"Firewall",s:"Enabled, 42 rules"},{t:"Defense Mode",s:"Auto"}] },
+    "left-hand":{ metrics:[24, 3, 12.4], tableRows:[["10:22:01","TCP","192.168.1.23","445"],["10:21:57","UDP","10.0.0.7","53"]], list:[{t:"Patrol Policy",s:"Scan C-segment ports every 60s"},{t:"Deep Scan",s:"High-risk ports only"}] },
+    "left-brain":{ metrics:[18, 42, 213], tableRows:[["Block Src IP","192.168.1.23","Dispatched",0.8],["Rate Limit","10.0.0.0/24","Dispatched",1.1]], list:[{t:"Last Command",s:"BLOCK 192.168.1.23"},{t:"Model",s:"LLM + Rules"}] },
+    "right-brain":{ metrics:[9, 15, 187], tableRows:[["Honeypot Lure","192.168.1.23","Running",1.4],["Conn Throttle","10.0.0.7","Pending",0.9]], list:[{t:"Last Command",s:"DECOY 192.168.1.23"}] },
+    "right-hand":{ metrics:[7, 156, 98.2], tableRows:[["#1042","BLOCK","Done",0.4],["#1043","ISOLATE","Running",1.2]], list:[{t:"Last Action",s:"Block 192.168.1.23:445"}] },
+    "repair-hand":{ metrics:["Patrol", 3, 2], tableRows:[["Port Scan","Repair Hand","Running"]], list:[{t:"Role",s:"Patrol (combat on failover)"},{t:"Takeovers",s:"Last 2 times"}] },
+    "self-heal":{ metrics:["Healthy", "Pass", 0], tableRows:[["07-31 10:00","All Organs","Pass"]], list:[{t:"Heartbeat",s:"1s cycle · OK"},{t:"Checks",s:"12/12 Pass"}] },
+    "report-mouth":{ metrics:[37, 37, "0 Leaks"], tableRows:[["10:00-10:05","Port Scan","Block","Left Hand",2,"No"]], list:[] },
+    "alarm-nose":{ metrics:[5, 12, "Normal"], tableRows:[["10:21","2","Port Scan"]], list:[{t:"Fuse Config",s:"L3=30s / L4=10s"},{t:"Isolation",s:"Off"}] },
+    memory:{ metrics:[1520, 34, 260], tableRows:[["RDP Brute-force","Signature","07-29"]], list:[{t:"Search",s:"Enter keyword to search"}] },
+    whitelist:{ metrics:[18, 9, 233], tableRows:[["07-31 09:00","10.0.0.5","IP"]], list:[{t:"Policy",s:"Matched WL entries pass through"}] },
+    "skill-box":{ metrics:[8, 6, 412], tableRows:[["nmap","Port Scan","On","86"],["tcpdump","Capture","On","120"]], list:[{t:"Last Call",s:"nmap · 09:58"}] },
+  };
+})();
+
+function renderOrganPages(){
+  const container = document.getElementById("organ-pages");
+  container.innerHTML = ORGANS.map(o => `
+    <section class="page" id="page-organ-${o.id}">
+      <div class="dfu-notice" id="dfu-notice-${o.id}"><span class="dot off"></span><span>${t("dfu.demoNotice")}</span></div>
+      <div class="page-head">
+        <div><div class="page-title">${organName(o)} <span class="hint-text">${organSub(o)}</span></div>
+        <div class="page-sub">${organDesc(o)}</div></div>
+        <span class="lamp ok" id="lamp-${o.id}" style="width:14px;height:14px"></span>
+        <label class="switch on" id="sw-${o.id}" title="Toggle"><input type="checkbox" style="display:none"></label>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost btn-sm" onclick="loadOrganData('${o.id}', true)" data-i18n="btn.refresh">Refresh</button>
+      </div>
+      <div class="grid grid-3" id="metrics-${o.id}"></div>
+      <div class="grid grid-2 section-gap" id="charts-${o.id}"></div>
+    </section>`).join("");
+  ORGANS.forEach(o => {
+    const sw = document.getElementById("sw-"+o.id);
+    if(sw) sw.addEventListener("click", ()=>{ sw.classList.toggle("on"); toast((sw.classList.contains("on")?t("switch.on"):t("switch.off")) + ": " + organName(o)); });
+  });
+}
+function renderOrganPage(organId){
+  const def = window.ORGAN_PAGE_DEFS[organId];
+  if(!def) return;
+  loadOrganData(organId, false);
+}
+async function loadOrganData(organId, force){
+  const def = window.ORGAN_PAGE_DEFS[organId];
+  const s = loadSettings();
+  const cfg = getEffectiveConfig(organId);
+  const key = cfg.apiKey;
+  const mBox = document.getElementById("metrics-"+organId);
+  const live = !!dfuStatus.running;
+  await ensureDfuData();
+  const data = getOrganData(organId);
+  const demo = live && dfuOrgansCache && dfuOrgansCache[organId] ? {} : data;
+  const metrics = currentLang==="en" ? (def.metrics_en || []) : (def.metrics_zh || []);
+  mBox.innerHTML = metrics.map((label,i)=>{
+    let v = "--", hint = t("label.apiUnavailable");
+    if(data.metrics && data.metrics[i] !== undefined){ v = data.metrics[i]; hint = live ? t("data.sourceAPI") : t("label.demoData"); }
+    return `<div class="card metric"><span class="m-label">${label}${!live && hint===t('label.demoData')?'<span class="demo-tag">'+t('label.demo')+'</span>':''}</span><span class="m-value">${v}</span><span class="m-hint">${live ? t("data.sourceAPI") : (key ? t("label.keyConfigured") : t("label.noKey"))}</span></div>`;
+  }).join("");
+  const cBox = document.getElementById("charts-"+organId);
+  cBox.innerHTML = (def.charts||[]).map((c,i)=>renderChartCard(organId, c, i)).join("");
+  updateOrganNotices();
+}
+function renderChartCard(organId, c, idx){
+  const demo = getOrganData(organId) || {};
+  const live = !!dfuStatus.running;
+  const title = currentLang==="en" ? (c.title_en || c.title_zh) : (c.title_zh || c.title_en);
+  const cols = currentLang==="en" ? (c.cols_en || c.cols_zh) : (c.cols_zh || c.cols_en);
+  const head = `<div class="card-title">${title}${live ? "" : `<span class="demo-tag">${t("label.demo")}</span>`}</div>`;
+  if(c.type === "line"){
+    return `<div class="card"><div class="card-title">${title}</div><div class="chart-box" style="height:200px"><canvas id="organ-line-${organId}"></canvas></div></div>`;
+  }
+  if(c.type === "table"){
+    const rows = demo.tableRows || [];
+    const body = rows.length ? rows.map(r=>`<tr>${r.map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`).join("")
+      : `<tr><td colspan="${(cols||[]).length}"><div class="empty">No data yet</div></td></tr>`;
+    return `<div class="card">${head}<div class="tbl-wrap"><table><thead><tr>${(cols||[]).map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+  }
+  if(c.type === "list"){
+    const items = demo.list || [];
+    const body = items.length ? items.map(it=>`<div class="list-row"><span class="lr-main"><div class="lr-title">${esc(it.t)}</div><div class="lr-sub">${esc(it.s||"")}</div></span></div>`).join("")
+      : `<div class="empty">No records</div>`;
+    return `<div class="card">${head}<div>${body}</div></div>`;
+  }
+  if(c.type === "export"){
+    return `<div class="card">${head}<div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start"><div class="hint-text">Export attack timeline as CSV.</div><button class="btn btn-primary btn-sm" onclick="exportTimeline('${organId}')">${t("export.btn")}</button></div></div>`;
+  }
+  if(c.type === "search"){
+    return `<div class="card">${head}<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="memory-search-input" placeholder="${t('memory.placeholder')}" style="flex:1;min-width:200px"><button class="btn btn-primary btn-sm" onclick="searchMemory()">${t('memory.search')}</button></div><div id="memory-search-result" style="margin-top:10px"><div class="empty">${t('memory.searchHint')}</div></div></div>`;
+  }
+  if(c.type === "whitelist"){
+    return `<div class="card">${head}<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="wl-input" placeholder="IP or Domain" style="flex:1;min-width:180px"><select id="wl-type"><option>IP</option><option>Domain</option></select><button class="btn btn-primary btn-sm" onclick="addWhitelist()">Add</button></div><div id="wl-list" style="margin-top:10px"></div></div>`;
+  }
+  return "";
+}
+function exportTimeline(organId){
+  const d = getOrganData(organId) || {};
+  const rows = d.tableRows || [];
+  if(!rows.length){ toast(t("export.noData"), "err"); return; }
+  const csv = "\uFEFF" + ["Time,Method,Plan,Unit,Level,Leaked"].join(",") + "\n" +
+    rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+  a.download = "attack_timeline.csv"; a.click();
+  URL.revokeObjectURL(a.href);
+  toast(t("export.done"));
+}
+function searchMemory(){
+  const q = document.getElementById("memory-search-input").value.trim();
+  const box = document.getElementById("memory-search-result");
+  if(!q){ box.innerHTML = `<div class="error-box">${t("memory.placeholder")}</div>`; return; }
+  const hits = [ "RDP brute-force (>5 failures)", "Path traversal (../ encoding bypass)", "Port scan (SYN scan)" ].filter(x=>x.toLowerCase().includes(q.toLowerCase()));
+  box.innerHTML = hits.length
+    ? hits.map(h=>`<div class="list-row"><span class="lr-main"><div class="lr-title">${esc(h)}</div></span><span class="tag plain">Hit</span></div>`).join("")
+    : `<div class="empty">${t("memory.notFound")}</div>`;
+}
+let wlStore = JSON.parse(localStorage.getItem("monsterdfu.whitelist") || "[]");
+function renderWhitelist(){
+  const box = document.getElementById("wl-list");
+  if(!box) return;
+  box.innerHTML = wlStore.length ? wlStore.map((w,i)=>`<div class="list-row"><span class="lr-main"><div class="lr-title">${esc(w.v)}</div><div class="lr-sub">Type: ${esc(w.t)}</div></span><button class="btn btn-ghost btn-xs" onclick="removeWhitelist(${i})">Delete</button></div>`).join("")
+    : `<div class="empty">${t("whitelist.empty")}</div>`;
+}
+function addWhitelist(){
+  const v = document.getElementById("wl-input").value.trim();
+  const t = document.getElementById("wl-type").value;
+  if(!v){ toast(t("whitelist.addError"), "err"); return; }
+  wlStore.push({v, t});
+  localStorage.setItem("monsterdfu.whitelist", JSON.stringify(wlStore));
+  renderWhitelist(); document.getElementById("wl-input").value = ""; toast(t("whitelist.added"));
+}
+function removeWhitelist(i){
+  wlStore.splice(i,1);
+  localStorage.setItem("monsterdfu.whitelist", JSON.stringify(wlStore));
+  renderWhitelist(); toast(t("whitelist.removed"));
+}
+
+/* ================== 首页：对话 ================== */
+function renderHome(){
+  const cards = document.getElementById("home-org-cards");
+  if(!cards) return;
+  cards.innerHTML = ORGANS.map(o => `
+    <div class="home-card" onclick="navigate('organ:${o.id}')">
+      <div class="hc-icon">${ORG_ICONS[o.icon] || ORG_ICONS.brain}</div>
+      <div class="hc-body"><div class="hc-name"><span class="lamp ok"></span>${organName(o)}</div><div class="hc-desc">${organDesc(o)}</div></div>
+    </div>`).join("");
+}
+function pushChat(role, text, loading){
+  const list = document.getElementById("chat-list");
+  const div = document.createElement("div");
+  div.className = "bubble " + role + (loading ? " loading" : "");
+  div.textContent = text;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+  return div;
+}
+async function sendChat(){
+  const input = document.getElementById("chat-input");
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = "";
+  pushChat("user", text);
+  const botEl = pushChat("bot", t("chat.thinking"), true);
+  const sendBtn = document.getElementById("chat-send");
+  sendBtn.disabled = true;
+  try{
+    const s = loadSettings();
+    const apiKey = s.globalKey || "";
+    await ensureApiToken();
+    const resp = await fetch("/api/chat", {
+      method:"POST",
+      headers:apiHeaders({"Content-Type":"application/json"}),
+      body: JSON.stringify({ messages:[{role:"user", content:text}], api_key: apiKey, model: s.model, base_url: s.baseUrl, stream:false })
+    });
+    const data = await resp.json();
+    if(!resp.ok){ throw new Error(data.error || ("HTTP " + resp.status)); }
+    const reply = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || t("chat.noReply");
+    botEl.textContent = reply; botEl.classList.remove("loading");
+  }catch(e){
+    botEl.classList.remove("loading");
+    botEl.textContent = t("chat.fail") + e.message + (currentLang==="en"?" (Configure API Key in Settings)":"（请在设置页配置 API Key 与模型）");
+  }finally{
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+function initChat(){
+  const input = document.getElementById("chat-input");
+  input.addEventListener("keydown", e=>{
+    if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendChat(); }
+  });
+  input.addEventListener("input", ()=>{ input.style.height = "auto"; input.style.height = Math.min(120, input.scrollHeight) + "px"; });
+  pushChat("bot", t("chat.greeting"));
+}
+
+/* ================== 小怪兽形象上传 ================== */
+function loadMonsterImage(){
+  const s = loadSettings();
+  const imgData = s.monsterImage;
+  const imgEl = document.getElementById("monster-img");
+  const svgEl = document.getElementById("monster-svg-default");
+  const hintEl = document.getElementById("monster-hint");
+  const resetBtn = document.getElementById("monster-reset-btn");
+  if(imgData){
+    imgEl.src = imgData;
+    imgEl.style.display = "block";
+    if(svgEl) svgEl.style.display = "none";
+    if(hintEl) hintEl.style.display = "none";
+    if(resetBtn) resetBtn.style.display = "inline-flex";
+  } else {
+    imgEl.style.display = "none";
+    if(svgEl) svgEl.style.display = "";
+    if(hintEl) hintEl.style.display = "";
+    if(resetBtn) resetBtn.style.display = "none";
+  }
+}
+function handleMonsterFile(files){
+  if(!files || !files[0]) return;
+  const file = files[0];
+  const allowed = ["image/png","image/jpeg","image/gif","image/webp"];
+  if(!allowed.includes(file.type)){
+    toast(t("monster.unsupported"), "err");
+    return;
+  }
+  if(file.size > 2 * 1024 * 1024){
+    toast(t("monster.tooBig"), "err");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const s = loadSettings();
+    s.monsterImage = e.target.result;
+    localStorage.setItem(LS_KEY, JSON.stringify(s));
+    loadMonsterImage();
+    toast("Avatar updated");
+  };
+  reader.readAsDataURL(file);
+}
+function resetMonsterImage(){
+  const s = loadSettings();
+  s.monsterImage = "";
+  localStorage.setItem(LS_KEY, JSON.stringify(s));
+  loadMonsterImage();
+  toast("Avatar reset");
+}
+function initMonsterUpload(){
+  const stage = document.getElementById("monster-stage");
+  if(!stage) return;
+  // Click to invoke file input via the choose button
+  // Drag & drop
+  stage.addEventListener("dragover", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    stage.classList.add("drag-over");
+  });
+  stage.addEventListener("dragleave", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    stage.classList.remove("drag-over");
+  });
+  stage.addEventListener("drop", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    stage.classList.remove("drag-over");
+    const files = e.dataTransfer.files;
+    if(files && files.length > 0) handleMonsterFile(files);
+  });
+  loadMonsterImage();
+}
+
+/* ================== 告警中心 ================== */
+let alarmLevel = "all";
+const DEMO_ALARMS = [
+  {time:Date.now()/1000-60, level:2, title:"Port scan probe", src:"192.168.1.23", handled:false},
+  {time:Date.now()/1000-300, level:1, title:"Abnormal login attempt", src:"10.0.0.7", handled:false},
+  {time:Date.now()/1000-900, level:3, title:"Web path traversal probe", src:"203.0.113.5", handled:false},
+  {time:Date.now()/1000-3600, level:4, title:"Lateral movement", src:"10.0.0.55", handled:true},
+];
+async function loadAlarms(){
+  let events = null, demo = false;
+  try{ events = await apiGet("/api/events?limit=100"); }catch(e){ demo = true; }
+  demoFlag.alarms = demo;
+  document.getElementById("al-demo-tag").style.display = demo ? "inline-flex" : "none";
+  let alarms = Array.isArray(events) ? events.map(ev => ({
+    time: ev.ts || ev.timestamp || Date.now()/1000,
+    level: Number(ev.level || ev.risk_level || 1),
+    title: ev.attack_type || ev.title || ev.event_type || "Alert Event",
+    src: ev.src_ip || ev.source || "",
+    handled: false,
+  })) : [];
+  if(demo && !alarms.length) alarms = DEMO_ALARMS.slice();
+  renderAlarmList(alarms);
+}
+function renderAlarmList(alarms){
+  const box = document.getElementById("alarm-list");
+  const filtered = alarmLevel === "all" ? alarms : alarms.filter(a=>a.level === Number(alarmLevel));
+  if(!filtered.length){
+    box.innerHTML = `<div class="empty"><div class="e-icon">O</div>${t("alarm.empty")}</div>`;
+    return;
+  }
+  box.innerHTML = filtered.map(a=>`
+    <div class="list-row">
+      <span class="lr-main">
+        <div class="lr-title">${levelTag(a.level)} ${esc(a.title)}</div>
+        <div class="lr-sub">${fmtTime(a.time)} ${a.src ? "· Source " + esc(a.src) : ""} ${a.handled ? "· Handled" : ""}</div>
+      </span>
+      ${a.handled ? "" : `<button class="btn btn-ghost btn-xs" onclick="markAlarmSingle(this)">${currentLang==="en"?"Mark Handled":"标记已处理"}</button>`}
+    </div>`).join("");
+}
+function markAlarmSingle(btn){
+  const row = btn.closest(".list-row"); if(row) row.remove();
+  toast(t("alarm.marked"));
+}
+function markAlarmsHandled(){
+  const rows = $$("#alarm-list .list-row");
+  if(!rows.length){ toast(t("alarm.noPending"), "err"); return; }
+  rows.forEach(r=>r.remove());
+  toast(tf("alarm.markedCount",{n:rows.length}));
+}
+function initAlarmTabs(){
+  $$("#alarm-tabs .tab").forEach(t => t.addEventListener("click", ()=>{
+    $$("#alarm-tabs .tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    alarmLevel = t.dataset.level;
+    loadAlarms();
+  }));
+}
+
+/* ================== 启动 ================== */
+function init(){
+  // Load lang from settings first
+  const s = loadSettings();
+  currentLang = s.lang || "zh";
+  setLangUI();
+  renderOrganNav();
+  renderOrganPages();
+  renderHome();
+  renderWhitelist();
+  initThemeButtons();
+  initChat();
+  initAlarmTabs();
+  initMonsterUpload();
+  initDfuControl();
+  initSettings();
+  navigate("overview");
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

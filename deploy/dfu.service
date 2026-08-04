@@ -1,0 +1,25 @@
+[Unit]
+Description=DFU AI-Driven Defense System
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/dfu_prototype
+EnvironmentFile=-/etc/dfu/env.conf
+ExecStartPre=/usr/bin/docker compose -f /opt/dfu_prototype/docker-compose.yml down
+ExecStart=/usr/bin/docker compose -f /opt/dfu_prototype/docker-compose.yml up --remove-orphans
+ExecStop=/usr/bin/docker compose -f /opt/dfu_prototype/docker-compose.yml down
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+# 日志输出到 journald
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

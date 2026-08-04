@@ -1,0 +1,70 @@
+# DFU Defense System - 默认配置
+# 环境变量覆盖规则: DFU_<SECTION>_<KEY>，例如 DFU_SERVER_PORT=8080
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  ssl_cert: ""   # HTTPS 证书路径，留空用 HTTP
+  ssl_key: ""     # HTTPS 密钥路径
+
+auth:
+  enabled: true
+  api_token: "dfu-default-token-change-me"  # 首次启动强制提示修改
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+  file: "logs/dfu.log"
+  max_size_mb: 100
+  backup_count: 5
+  json_output: false   # 设为 true 启用 JSON 格式（适合生产）
+
+detection:
+  outbound_monitor:
+    enabled: true
+    poll_interval_ms: 2000
+    beacon:
+      min_connections: 3
+      min_interval_sec: 1.0
+    exfiltration:
+      threshold_bytes: 10485760  # 10MB
+    domain:
+      blocklist: []     # 自定义域名黑名单
+
+countermeasure:
+  fsm:
+    default_policy: "monitor"
+    auto_escalate: true
+    levels:
+      L0: "monitor"
+      L1: "soft_block"
+      L2: "hard_block"
+      L3: "offensive"
+      L4: "isolate"
+    l4:
+      vuln_threshold: 5
+      web_confirm_timeout_sec: 600
+      l3_persist_threshold_sec: 180
+    offensive:
+      enabled: true
+
+llm:
+  provider: "volcano"   # 可选: volcano / openai / mock
+  api_key: ""           # 从环境变量 DFU_LLM_API_KEY 读取
+  model: "deepseek-v3-241226"
+  temperature: 0.1
+  max_tokens: 1024
+  timeout_sec: 30
+  mock_mode: true       # 无 API Key 时自动降级为模拟分析
+
+storage:
+  persistent:
+    enabled: true
+    db_path: "data/dfu.db"
+  memory:
+    max_events: 5000
+
+management:
+  allow_origins: ["*"]
+  rate_limit_per_min: 60

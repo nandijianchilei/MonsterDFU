@@ -1,0 +1,10 @@
+aiohttp>=3.9
+aiosqlite>=0.20
+chromadb>=1.5
+fastapi>=0.100
+uvicorn>=0.20
+sse-starlette>=1.8
+aiohappyeyeballs>=2.3
+pyyaml>=6.0
+scapy>=2.5
+sentence-transformers>=2.2
