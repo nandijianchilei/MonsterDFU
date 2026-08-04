@@ -1447,6 +1447,21 @@ async def api_kill_switch_set(request: Request, _auth=Depends(verify_token)):
     on = bool(body.get("on", False))
     _KILL_SWITCH_ON = on
     state = "开启" if on else "关闭"
+
+    # 联动 FSM：熔断开启时禁止任何自动升级（evaluate 保持当前等级，仅告警）
+    manager = _get_manager()
+    fsm = manager.fsm if hasattr(manager, "fsm") else None
+    if fsm is not None:
+        fsm.set_enabled(not on)
+
+    # 发布 kill_switch 总线事件：干扰层（InterferenceAgent）订阅后强制停用
+    await get_message_bus().publish(Message(
+        source="web_server",
+        target="*",
+        type="kill_switch",
+        payload={"type": "kill_switch", "on": on},
+    ))
+
     print(f"[KillSwitch] {state}全局熔断")
     return {
         "status": "ok",

@@ -37,6 +37,7 @@ from core.medic_agent import MedicAgent
 from core.agent_registry import AgentRegistry, AgentSpec
 from core.countermeasure_fsm import CountermeasureFSM
 from core.honeypot import HoneypotAgent
+from core.interference import InterferenceAgent
 from core.validator import ValidatorAgent
 from organs.actor_ip_isolation import IPIsolationAgent
 from organs.auditor_log import LogAuditorAgent, LogAnomalySimulator
@@ -101,6 +102,9 @@ class EventChainRecorder:
         "outbound_l4_isolate": ("outbound", "L4网络隔离已触发"),
         # 融合增强 v1.1 阶段2 新增事件类型
         "honeypot_trap":    ("deception", "欺骗层蜜罐诱捕事件"),
+        # 融合增强 v1.1 阶段3 新增事件类型
+        "interference_applied": ("interference", "攻击路径干扰已执行（仅授权环境）"),
+        "kill_switch":      ("interference", "全局熔断状态事件"),
     }
 
     def __init__(self, bus: MessageBus):
@@ -407,6 +411,8 @@ class DFUPrototypeRunner:
         self.log_simulator: Optional[LogAnomalySimulator] = None
         # 融合增强 v1.1 阶段2：欺骗层蜜罐（realtime 模式同样装配）
         self.honeypot: Optional[HoneypotAgent] = None
+        # 融合增强 v1.1 阶段3：攻击路径干扰层（默认关闭，仅授权环境，联动 FSM）
+        self.interference_agent: Optional[InterferenceAgent] = None
 
         if not self._is_realtime and stage >= 2:
             self.vuln_scanner = VulnScannerAgent(config)
@@ -419,9 +425,14 @@ class DFUPrototypeRunner:
             self.honeypot = HoneypotAgent(config)
             # 蜜罐决策支持注入响应引擎（侦察类告警自动获得重定向策略）
             self.right_brain.honeypot = self.honeypot
+            # 干扰层：注入 FSM 以执行等级门槛与熔断联动
+            self.interference_agent = InterferenceAgent(config, fsm=self.fsm)
+            self.right_brain.interference_agent = self.interference_agent
         elif self._is_realtime:
             self.honeypot = HoneypotAgent(config)
             self.right_brain.honeypot = self.honeypot
+            self.interference_agent = InterferenceAgent(config, fsm=self.fsm)
+            self.right_brain.interference_agent = self.interference_agent
 
         # ===== 阶段3：集群化与冷热知识库 =====
         self.registry: Optional[ClusterRegistry] = None
@@ -556,6 +567,11 @@ class DFUPrototypeRunner:
         # 欺骗层蜜罐：非实时 stage>=2 与 realtime 均装配；先于双脑启动以提供决策支持
         reg.add(AgentSpec(
             name="Honeypot", instance=self.honeypot,
+            stage_required=2, medic_monitored=True,
+        ))
+        # 攻击路径干扰层：默认关闭，仅授权环境；注入 FSM 做等级门槛与熔断联动
+        reg.add(AgentSpec(
+            name="Interference", instance=self.interference_agent,
             stage_required=2, medic_monitored=True,
         ))
 

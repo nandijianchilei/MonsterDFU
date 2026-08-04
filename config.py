@@ -150,6 +150,11 @@ def build_config() -> "Config":
     isolation = yaml_data.get("isolation", {}) or {}
     # 报警鼻 4 级警报配置（空 dict 使用 AlarmNoseConfig 默认值）
     alarm_nose = yaml_data.get("alarm_nose", {}) or {}
+    # 攻击路径干扰层配置（空 dict 使用 InterferenceConfig 默认值；默认关闭）
+    interference = yaml_data.get("interference", {}) or {}
+    # 授权环境显式开启：DFU_INTERFERENCE=on / 1 / true 覆盖 enabled
+    if os.environ.get("DFU_INTERFERENCE", "").strip().lower() in ("on", "1", "true"):
+        interference = {**interference, "enabled": True}
     # 数据/审计目录
     data_dir = _get_cfg(yaml_data, "project", "data_dir", "logs")
 
@@ -210,6 +215,15 @@ def build_config() -> "Config":
             l1_decay_secs=float(alarm_nose.get("l1_decay_secs", AlarmNoseConfig.l1_decay_secs)),
             organ_failure_l3_ratio=float(alarm_nose.get("organ_failure_l3_ratio", AlarmNoseConfig.organ_failure_l3_ratio)),
             organ_failure_l4_ratio=float(alarm_nose.get("organ_failure_l4_ratio", AlarmNoseConfig.organ_failure_l4_ratio)),
+        ),
+        interference=InterferenceConfig(
+            enabled=bool(interference.get("enabled", InterferenceConfig.enabled)),
+            authorized_only=bool(interference.get("authorized_only", InterferenceConfig.authorized_only)),
+            blindfold_enabled=bool(interference.get("blindfold_enabled", InterferenceConfig.blindfold_enabled)),
+            puppeteer_enabled=bool(interference.get("puppeteer_enabled", InterferenceConfig.puppeteer_enabled)),
+            min_severity=str(interference.get("min_severity", InterferenceConfig.min_severity)),
+            trigger_categories=tuple(interference.get("trigger_categories", InterferenceConfig.trigger_categories)),
+            audit_capacity=int(interference.get("audit_capacity", InterferenceConfig.audit_capacity)),
         ),
         data_dir=data_dir,
         _rabbitmq_url=rabbitmq_url,
@@ -419,6 +433,31 @@ class Stage4Config:
 
 
 @dataclass
+class InterferenceConfig:
+    """攻击路径干扰层配置（融合增强 v1.1 第三阶段，默认关闭）。
+
+    对外口径：攻击路径干扰与安全验证（降低攻击成功率、增加攻击成本），
+    不表述为"控制/反制攻击者"。默认关闭，仅授权环境可通过
+    `DFU_INTERFERENCE=on` 环境变量或 config 开启；kill-switch 开启时强制停用。
+    """
+
+    # 干扰层总开关：默认关闭（安全默认）。仅授权环境显式开启。
+    enabled: bool = False
+    # 仅授权环境：True 时要求 payload 携带 authorized 标志或环境变量确认
+    authorized_only: bool = True
+    # 终端输出污染（BLINDFOLD 思路）：对攻击者会话返回混淆/误导响应
+    blindfold_enabled: bool = True
+    # API 拦截改写（PUPPETEER 思路）：对攻击者请求返回诱饵响应
+    puppeteer_enabled: bool = True
+    # 最小触发严重级别（low/medium/high/severe），低于该级别不干扰
+    min_severity: str = "high"
+    # 触发干扰的威胁类别白名单
+    trigger_categories: tuple = ("exploit", "brute_force", "command_injection", "port_scan", "vuln", "c2_beacon")
+    # 审计日志容量上限
+    audit_capacity: int = 1000
+
+
+@dataclass
 class LLMConfig:
     """LLM 调用配置"""
     # 火山引擎 API 地址（OpenAI 兼容格式）
@@ -507,6 +546,8 @@ class Config:
     outbound_monitor: OutboundMonitorConfig = field(default_factory=OutboundMonitorConfig)
     alarm_nose: AlarmNoseConfig = field(default_factory=AlarmNoseConfig)
     evolver: EvolverConfig = field(default_factory=EvolverConfig)
+    # 攻击路径干扰层（v1.1 第三阶段；默认关闭，仅授权环境开启）
+    interference: InterferenceConfig = field(default_factory=InterferenceConfig)
 
     # 项目根目录（容器内默认 /app，本地可通过环境变量 DFU_PROJECT_ROOT 覆盖）
     project_root: str = ""

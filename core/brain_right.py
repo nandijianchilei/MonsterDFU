@@ -30,6 +30,7 @@ from utils.logger import get_logger
 
 if TYPE_CHECKING:
     from core.honeypot import HoneypotAgent
+    from core.interference import InterferenceAgent
     from core.llm_client import LLMClient
     from knowledge.router import KnowledgeRouter
 
@@ -117,18 +118,21 @@ class RightBrain:
 
     def __init__(self, config: Config, llm_client: Optional["LLMClient"] = None,
                  knowledge_router: Optional["KnowledgeRouter"] = None,
-                 honeypot: Optional["HoneypotAgent"] = None):
+                 honeypot: Optional["HoneypotAgent"] = None,
+                 interference_agent: Optional["InterferenceAgent"] = None):
         """
         Args:
             config:          全局配置对象
             llm_client:      LLM 客户端（可选，不传则纯规则模式）
             knowledge_router: 知识库路由器（可选，开启后先查 KB 再走 LLM）
             honeypot:        蜜罐 Agent（可选，开启后侦察类告警注入蜜罐重定向策略）
+            interference_agent: 攻击路径干扰层 Agent（可选，默认关闭；开启后高危告警注入干扰策略）
         """
         self.config = config
         self.llm_client = llm_client
         self.knowledge_router = knowledge_router
         self.honeypot = honeypot
+        self.interference_agent = interference_agent
         self.metrics = get_metrics_collector()
         self.bus: MessageBus = get_message_bus()
         self.middleware = SkillMiddleware()
@@ -631,6 +635,24 @@ class RightBrain:
                     f"({', '.join(map(str, trap_context['ports_probed']))})，"
                     f"服务指纹 {trap_context['services_seen']}，"
                     f"累计 {trap_context['interaction_count']} 次交互。"
+                )
+
+        # ---- 阶段2.5: 攻击路径干扰层决策支持（融合增强 v1.1 第三阶段）----
+        # 干扰层默认关闭（仅授权环境可执行）；开启时对高危/严重告警注入
+        # interference_blindfold / interference_puppeteer 策略，并附加风险提示，
+        # 最终仍由动作闸门与 HITL 把关。
+        if (
+            self.interference_agent is not None
+            and threat.severity.value in ("high", "severe")
+        ):
+            if_plan = self.interference_agent.build_interference_plan(
+                threat.source_ip, severity=threat.severity.value
+            )
+            if if_plan.get("action") != "none" and if_plan["action"] not in strategies:
+                strategies.append(if_plan["action"])
+                self.logger.info(
+                    f"[干扰] {threat.id} | 源IP {threat.source_ip} | "
+                    f"注入攻击路径干扰策略: {if_plan['action']} | {if_plan['reason']}"
                 )
 
         # ---- 阶段2.5: 动作闸门（提示注入第三层防护）----

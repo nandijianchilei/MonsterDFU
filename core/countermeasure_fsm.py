@@ -361,6 +361,27 @@ class CountermeasureFSM:
             PendingAction 描述反制动作
         """
         now = time.time()
+
+        # kill-switch 联动（融合增强 v1.1 第三阶段）：
+        # 全局熔断开启时禁止任何自动升级，仅记录告警并保持当前等级
+        if not self._enabled:
+            state = self._states.get(source_ip)
+            if state is None:
+                state = IPState(source_ip)
+                self._states[source_ip] = state
+                self._stats["total_ips"] += 1
+            state.alert_count += 1
+            state.last_alert = now
+            self._refresh_stats()
+            return PendingAction(
+                ip=source_ip,
+                old_level=state.level,
+                new_level=state.level,
+                action=LEVEL_ACTIONS[state.level],
+                reason="kill-switch 熔断：自动处置已停用，保持当前等级（仅告警）",
+                keep_level=True,
+            )
+
         state = self._states.get(source_ip)
         if state is None:
             state = IPState(source_ip)
