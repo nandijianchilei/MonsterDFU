@@ -29,6 +29,7 @@ from core.signature_engine import SignatureEngine, create_engine
 from utils.logger import get_logger
 
 if TYPE_CHECKING:
+    from core.honeypot import HoneypotAgent
     from core.llm_client import LLMClient
     from knowledge.router import KnowledgeRouter
 
@@ -115,16 +116,19 @@ class RightBrain:
     }
 
     def __init__(self, config: Config, llm_client: Optional["LLMClient"] = None,
-                 knowledge_router: Optional["KnowledgeRouter"] = None):
+                 knowledge_router: Optional["KnowledgeRouter"] = None,
+                 honeypot: Optional["HoneypotAgent"] = None):
         """
         Args:
             config:          全局配置对象
             llm_client:      LLM 客户端（可选，不传则纯规则模式）
             knowledge_router: 知识库路由器（可选，开启后先查 KB 再走 LLM）
+            honeypot:        蜜罐 Agent（可选，开启后侦察类告警注入蜜罐重定向策略）
         """
         self.config = config
         self.llm_client = llm_client
         self.knowledge_router = knowledge_router
+        self.honeypot = honeypot
         self.metrics = get_metrics_collector()
         self.bus: MessageBus = get_message_bus()
         self.middleware = SkillMiddleware()
@@ -604,7 +608,32 @@ class RightBrain:
             llm_reasoning = fallback["reasoning"]
             self._stats["fallback_count"] += 1
 
-        # ---- 阶段2: 动作闸门（提示注入第三层防护）----
+        # ---- 阶段2: 蜜罐欺骗层决策支持 ----
+        # 侦察类告警（port_scan/vuln/brute_force）若蜜罐可用，注入 redirect_honeypot 策略，
+        # 并将诱捕情报并入推理链，为取证与双脑联合分析提供上下文。
+        if self.honeypot is not None and threat.category.value in (
+            "port_scan", "vuln", "brute_force", "probe"
+        ):
+            trap_plan = self.honeypot.build_redirect_plan(
+                threat.source_ip, severity=threat.severity.value
+            )
+            if trap_plan["action"] not in strategies:
+                strategies.append(trap_plan["action"])
+                self.logger.info(
+                    f"[HONEYPOT] {threat.id} | 源IP {threat.source_ip} | "
+                    f"注入蜜罐重定向策略: {trap_plan['reason']}"
+                )
+            trap_context = self.honeypot.get_trap_context(threat.source_ip)
+            if trap_context.get("trapped"):
+                root_cause = (
+                    f"{root_cause}\n\n[HONEYPOT] 蜜罐诱捕情报: "
+                    f"源IP {threat.source_ip} 已探测 {len(trap_context['ports_probed'])} 个端口 "
+                    f"({', '.join(map(str, trap_context['ports_probed']))})，"
+                    f"服务指纹 {trap_context['services_seen']}，"
+                    f"累计 {trap_context['interaction_count']} 次交互。"
+                )
+
+        # ---- 阶段2.5: 动作闸门（提示注入第三层防护）----
         # 若 LLM/规则生成的策略含拦截语义（block/isolate/封禁/隔离），用该源 IP 与
         # 决策置信度过 PolicyGate；deny/human_review 时策略降级为监控。
         gate_action = None

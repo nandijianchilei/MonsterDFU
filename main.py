@@ -36,6 +36,7 @@ from core.llm_client import LLMClient
 from core.medic_agent import MedicAgent
 from core.agent_registry import AgentRegistry, AgentSpec
 from core.countermeasure_fsm import CountermeasureFSM
+from core.honeypot import HoneypotAgent
 from core.validator import ValidatorAgent
 from organs.actor_ip_isolation import IPIsolationAgent
 from organs.auditor_log import LogAuditorAgent, LogAnomalySimulator
@@ -98,6 +99,8 @@ class EventChainRecorder:
         "outbound_exfil":   ("outbound", "出站监测检测到数据外泄"),
         "outbound_domain":  ("outbound", "出站监测命中可疑域名"),
         "outbound_l4_isolate": ("outbound", "L4网络隔离已触发"),
+        # 融合增强 v1.1 阶段2 新增事件类型
+        "honeypot_trap":    ("deception", "欺骗层蜜罐诱捕事件"),
     }
 
     def __init__(self, bus: MessageBus):
@@ -402,6 +405,8 @@ class DFUPrototypeRunner:
         self.medic_agent: Optional[MedicAgent] = None
         self.vuln_simulator: Optional[VulnSimulator] = None
         self.log_simulator: Optional[LogAnomalySimulator] = None
+        # 融合增强 v1.1 阶段2：欺骗层蜜罐（realtime 模式同样装配）
+        self.honeypot: Optional[HoneypotAgent] = None
 
         if not self._is_realtime and stage >= 2:
             self.vuln_scanner = VulnScannerAgent(config)
@@ -411,6 +416,12 @@ class DFUPrototypeRunner:
             self.medic_agent = MedicAgent(config)
             self.vuln_simulator = VulnSimulator(config)
             self.log_simulator = LogAnomalySimulator(config)
+            self.honeypot = HoneypotAgent(config)
+            # 蜜罐决策支持注入响应引擎（侦察类告警自动获得重定向策略）
+            self.right_brain.honeypot = self.honeypot
+        elif self._is_realtime:
+            self.honeypot = HoneypotAgent(config)
+            self.right_brain.honeypot = self.honeypot
 
         # ===== 阶段3：集群化与冷热知识库 =====
         self.registry: Optional[ClusterRegistry] = None
@@ -541,6 +552,11 @@ class DFUPrototypeRunner:
         reg.add(AgentSpec(
             name="LogAuditor", instance=self.log_auditor,
             stage_required=2, non_realtime_only=True, medic_monitored=True,
+        ))
+        # 欺骗层蜜罐：非实时 stage>=2 与 realtime 均装配；先于双脑启动以提供决策支持
+        reg.add(AgentSpec(
+            name="Honeypot", instance=self.honeypot,
+            stage_required=2, medic_monitored=True,
         ))
 
         # 双引擎注册
