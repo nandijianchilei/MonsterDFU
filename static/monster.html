@@ -294,6 +294,32 @@ tr:hover td{background:var(--surface-2)}
 @media (prefers-reduced-motion: reduce){
   *{animation:none !important;transition:none !important}
 }
+/* ============ 模式指示灯 ============ */
+.mode-lamp{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap;line-height:1.4}
+.mode-lamp .ml-dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.mode-lamp.live{color:var(--ok);background:var(--ok-bg);border:1px solid rgba(34,197,94,.35)}
+.mode-lamp.live .ml-dot{background:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,.3);animation:pulse 1.4s infinite}
+.mode-lamp.demo{color:#b45309;background:rgba(249,115,22,.12);border:1px dashed #fb923c}
+.mode-lamp.demo .ml-dot{background:#f97316}
+/* ============ 技能管理面板 ============ */
+.skill-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.skill-stat-card{display:flex;flex-direction:column;gap:4px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;text-align:center}
+.skill-stat-card .ss-val{font-size:22px;font-weight:700}
+.skill-stat-card .ss-label{font-size:11px;color:var(--text-2)}
+.skill-stat-card .ss-val.ok{color:var(--ok)}.skill-stat-card .ss-val.busy{color:var(--busy)}
+.skill-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.skill-table-toggle{position:relative;width:40px;height:22px;border-radius:11px;background:var(--border);cursor:pointer;transition:background .2s;flex:0 0 40px}
+.skill-table-toggle.on{background:var(--ok)}
+.skill-table-toggle::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.skill-table-toggle.on::after{transform:translateX(18px)}
+.skill-detail{padding:10px 14px;margin-top:6px;background:var(--surface-2);border-radius:10px;font-size:12px;display:none}
+.skill-detail.show{display:block}
+.skill-detail .sd-row{display:flex;gap:8px;padding:4px 0}
+.skill-detail .sd-row .sd-k{font-weight:600;min-width:70px;color:var(--text-2)}
+.skill-detail .sd-row .sd-v{flex:1;word-break:break-all}
+.call-detail{padding:10px 14px;margin-top:6px;background:var(--surface-2);border-radius:10px;font-size:12px;display:none;max-height:200px;overflow-y:auto}
+.call-detail.show{display:block}
+.call-detail pre{white-space:pre-wrap;word-break:break-all;font-family:inherit;margin:0}
 </style>
 </head>
 <body data-theme="blue">
@@ -474,7 +500,7 @@ tr:hover td{background:var(--surface-2)}
     <!-- 设置 -->
     <section class="page" id="page-settings">
       <div class="page-head">
-        <div><div class="page-title" data-i18n="page.settings">设置</div><div class="page-sub" data-i18n="page.settingsSub">主题 · API Key · 模型配置</div></div>
+        <div><div class="page-title" data-i18n="page.settings">设置</div><div class="page-sub" data-i18n="page.settingsSub">主题 · DFU API Token</div></div>
       </div>
       <div class="grid grid-2">
         <div class="card">
@@ -487,27 +513,10 @@ tr:hover td{background:var(--surface-2)}
           </div>
         </div>
         <div class="card">
-          <div class="card-title" data-i18n="settings.global">全局模型配置</div>
-          <div class="form-row"><label data-i18n="settings.vendor">API 厂商</label>
-            <select id="set-vendor" onchange="onVendorChange()">
-              <option value="openai">OpenAI</option>
-              <option value="volcano">火山引擎 (Ark)</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="ollama">本地 Ollama</option>
-              <option value="custom" data-i18n="vendor.custom">自定义</option>
-            </select>
-          </div>
-          <div class="form-row"><label data-i18n="settings.baseUrl">API Base URL</label><input id="set-base-url" placeholder="https://你的API地址/v1（如火山引擎/OpenAI）" spellcheck="false"></div>
-          <div class="form-row"><label data-i18n="settings.model">模型名称</label><input id="set-model" placeholder="必填，如 deepseek-v3-241226 或 gpt-4o-mini" list="global-model-list" spellcheck="false"><datalist id="global-model-list"></datalist></div>
-          <div class="form-row"><label data-i18n="settings.globalKey">全局 API Key</label><input id="set-global-key" type="password" placeholder="必填，粘贴你的 API Key" spellcheck="false"></div>
+          <div class="card-title">DFU API Token</div>
           <div class="form-row"><label>DFU API Token</label><input id="set-dfu-token" type="password" placeholder="留空使用演示模式" spellcheck="false"><span class="hint-text" data-i18n="settings.dfuTokenHint">留空则使用演示数据</span></div>
           <button class="btn btn-primary" style="margin-top:8px" onclick="saveSettings()" data-i18n="btn.save">保存配置</button>
         </div>
-      </div>
-      <div class="card section-gap">
-        <div class="card-title" data-i18n="settings.organKeys">各器官独立配置 <span class="hint-text" data-i18n="settings.organKeysHint">每个器官可独立配置 Key 和模型</span></div>
-        <div class="org-key-cards" id="organ-key-cards"></div>
-        <button class="btn btn-primary" style="margin-top:12px" onclick="saveSettings()" data-i18n="btn.save">保存配置</button>
       </div>
     </section>
   </main>
@@ -523,7 +532,7 @@ const I18N = {
     "side.connecting":"连接中…","side.online":"运行正常 · 实时","side.offline":"后端离线 · 演示模式",
     "nav.console":"控制台","nav.overview":"总览","nav.monster":"小怪兽","nav.organs":"器官单元","nav.manage":"管理","nav.alarms":"告警中心","nav.settings":"设置",
     "page.overview":"总览","page.overviewSub":"系统实时态势一屏掌握","page.monster":"小怪兽","page.monsterSub":"和 Monster 对话，掌控每一只器官",
-    "page.alarms":"告警中心","page.alarmsSub":"四级告警筛选与处置","page.settings":"设置","page.settingsSub":"主题 · API Key · 模型配置",
+    "page.alarms":"告警中心","page.alarmsSub":"四级告警筛选与处置","page.settings":"设置","page.settingsSub":"主题 · DFU API Token",
     "page.organOverview":"器官一览","page.organOverviewHint":"点击卡片进入对应器官页",
     "metric.uptime":"运行时长","metric.uptimeHint":"自服务启动起","metric.attacks":"在线攻击数","metric.attacksHint":"当前活跃威胁",
     "metric.maxLevel":"最高告警等级","metric.maxLevelHint":"L1-L4 四级色阶","metric.health":"自愈自检结果","metric.healthHint":"最近一次自检",
@@ -556,7 +565,7 @@ const I18N = {
     "side.connecting":"Connecting…","side.online":"Running · Live","side.offline":"Backend Offline · Demo",
     "nav.console":"Console","nav.overview":"Overview","nav.monster":"Monster","nav.organs":"Organ Units","nav.manage":"Management","nav.alarms":"Alerts","nav.settings":"Settings",
     "page.overview":"Overview","page.overviewSub":"Real-time situational awareness at a glance","page.monster":"Monster","page.monsterSub":"Chat with Monster and command every organ",
-    "page.alarms":"Alert Center","page.alarmsSub":"4-level alert filtering & handling","page.settings":"Settings","page.settingsSub":"Theme · API Key · Model Config",
+    "page.alarms":"Alert Center","page.alarmsSub":"4-level alert filtering & handling","page.settings":"Settings","page.settingsSub":"Theme · DFU API Token",
     "page.organOverview":"Organs Overview","page.organOverviewHint":"Click card to navigate to organ page",
     "metric.uptime":"Uptime","metric.uptimeHint":"Since service start","metric.attacks":"Active Attacks","metric.attacksHint":"Ongoing threats",
     "metric.maxLevel":"Max Alert Level","metric.maxLevelHint":"L1-L4 4-color scale","metric.health":"Self-Heal Result","metric.healthHint":"Latest self-check",
@@ -621,13 +630,8 @@ function applyI18n(){
     const btn = el.closest(".theme-opt");
     if(btn){ const tn = btn.dataset.themeName; el.textContent = t("theme."+tn) || tn; }
   });
-  // Vendor custom option
-  const vCustom = document.querySelector("#set-vendor option[value='custom']");
-  if(vCustom) vCustom.textContent = t("vendor.custom");
   // Re-render organs to pick up translations
   if(document.getElementById("organ-nav").children.length > 0) renderOrganNav();
-  // Re-render settings
-  if(document.getElementById("page-settings").classList.contains("active")) renderOrganKeyCards();
   // Re-render overview (if active)
   if(document.getElementById("page-overview").classList.contains("active")) loadOverview();
   // Re-render alarms (if active)
@@ -862,11 +866,66 @@ async function ensureDfuData(){
   }catch(e){}
 }
 function getOrganData(organId){
+  // 优先从 MonsterAgent 实时态势缓存获取
+  const postCache = window.monsterPostureCache;
+  if(postCache && postCache[organId]){
+    const pd = postCache[organId];
+    // 将 MonsterAgent 态势字段映射为前端统一结构
+    const metrics = pd.metrics || pd.values || [];
+    const tableRows = pd.details || pd.rows || [];
+    const list = pd.list || [];
+    return { metrics, tableRows, list };
+  }
   const cache = dfuOrgansCache && dfuOrgansCache.organs ? dfuOrgansCache.organs : dfuOrgansCache;
   if(dfuStatus.running && cache && cache[organId]){
     return cache[organId];
   }
   return window.DEMO_ORGAN_DATA[organId] || {};
+}
+/* ================== MonsterAgent 实时态势轮询 ================== */
+const MONSTER_API_BASE = (function(){
+  try{ return location.origin; }catch(e){ return "http://127.0.0.1:8765"; }
+})();
+window.monsterPostureCache = null;
+let __monsterPostureTimer = null;
+async function fetchMonsterPosture(){
+  try{
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/posture", {
+      headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(8000)
+    });
+    if(resp.ok){
+      const data = await resp.json();
+      window.monsterPostureCache = data;
+      // 更新当前活跃器官页的模式指示灯
+      updateModeLamps();
+      // 自动刷新当前活跃器官页
+      const actOrg = $$(".page.active")[0];
+      if(actOrg && actOrg.id && actOrg.id.startsWith("page-organ-")){
+        loadOrganData(actOrg.id.replace("page-organ-",""), true);
+      }
+    }
+  }catch(e){
+    // MonsterAgent 不可达，静默使用 demo 数据
+  }
+}
+function updateModeLamps(){
+  const hasPosture = !!window.monsterPostureCache;
+  ORGANS.forEach(o => {
+    const lamp = document.getElementById("mode-lamp-"+o.id);
+    if(!lamp) return;
+    if(hasPosture){
+      lamp.className = "mode-lamp live";
+      lamp.innerHTML = '<span class="ml-dot"></span><span>Live</span>';
+    } else {
+      lamp.className = "mode-lamp demo";
+      lamp.innerHTML = '<span class="ml-dot"></span><span>Demo</span>';
+    }
+  });
+}
+function initMonsterPosture(){
+  fetchMonsterPosture();
+  if(__monsterPostureTimer) clearInterval(__monsterPostureTimer);
+  __monsterPostureTimer = setInterval(fetchMonsterPosture, 30000);
 }
 function initDfuControl(){
   refreshDfuStatus();
@@ -891,7 +950,9 @@ function navigate(page){
   if(page === "overview") loadOverview();
   if(page === "alarms") loadAlarms();
   if(page === "settings") initSettings();
-  if(page.startsWith("organ:")) renderOrganPage(page.split(":")[1]);
+  if(page.startsWith("organ:")){ renderOrganPage(page.split(":")[1]); }
+  // 首次进入 skill-box 时加载技能管理面板
+  if(page === "organ:skill-box" && !skillCache.loaded){ initSkillPanel(); }
 }
 document.getElementById("side-nav").addEventListener("click", e=>{
   const item = e.target.closest(".nav-item");
@@ -931,27 +992,8 @@ function setOrganConfig(organId, cfg){ /* used by saveSettings */ }
 
 async function saveSettings(){
   const s = loadSettings();
-  s.baseUrl = document.getElementById("set-base-url").value.trim();
-  s.model = document.getElementById("set-model").value.trim();
-  s.globalKey = document.getElementById("set-global-key").value.trim();
   s.dfuToken = document.getElementById("set-dfu-token").value.trim();
-  s.globalVendor = document.getElementById("set-vendor").value;
   s.lang = currentLang;
-  // Collect organ configs from cards
-  ORGANS.forEach(o => {
-    const useGlobal = document.getElementById("org-use-global-"+o.id);
-    const apiKey = document.getElementById("org-key-"+o.id);
-    const vendor = document.getElementById("org-vendor-"+o.id);
-    const baseUrl = document.getElementById("org-base-url-"+o.id);
-    const model = document.getElementById("org-model-"+o.id);
-    s.organConfigs[o.id] = {
-      useGlobalKey: useGlobal ? useGlobal.classList.contains("on") : true,
-      apiKey: apiKey ? apiKey.value.trim() : "",
-      vendor: vendor ? vendor.value : "custom",
-      baseUrl: baseUrl ? baseUrl.value.trim() : "",
-      model: model ? model.value.trim() : "",
-    };
-  });
   localStorage.setItem(LS_KEY, JSON.stringify(s));
   applySettings(s);
   toast(t("settings.saved"));
@@ -967,7 +1009,7 @@ async function saveSettings(){
     if(st && st.llm_mode === "real"){
       toast("配置生效，LLM 已连接", "ok");
     }else{
-      toast("⚠ 当前为模拟模式，请检查 API Key 和 Base URL 是否正确", "err");
+      toast("⚠ 当前为模拟模式（后端 LLM 未连接）", "err");
     }
   }catch(e){
     /* 后端不可达时不额外提示，保留"保存成功"提示 */
@@ -994,6 +1036,7 @@ function getEffectiveConfig(organId){
 
 function renderOrganKeyCards(){
   const container = document.getElementById("organ-key-cards");
+  if(!container) return;
   const s = loadSettings();
   container.innerHTML = ORGANS.map(o => {
     const cfg = getOrganConfig(o.id);
@@ -1066,14 +1109,8 @@ function initSettings(){
   const s = loadSettings();
   currentLang = s.lang || "zh";
   setLangUI();
-  document.getElementById("set-vendor").value = s.globalVendor || "openai";
-  document.getElementById("set-base-url").value = s.baseUrl;
-  document.getElementById("set-model").value = s.model;
-  document.getElementById("set-global-key").value = s.globalKey;
   document.getElementById("set-dfu-token").value = s.dfuToken;
-  fillModelDatalist("global-model-list", s.globalVendor || "openai");
   applySettings(s);
-  renderOrganKeyCards();
 }
 function initThemeButtons(){
   $$(".theme-opt").forEach(t => t.addEventListener("click", ()=>{
@@ -1401,8 +1438,7 @@ function drawLineChart(canvasId, data, key, demo){
       { title_zh:"最近命中", title_en:"Recent Hits", type:"table", cols_zh:["时间","来源","类型"], cols_en:["Time","Source","Type"] }
     ]},
     "skill-box":{ charts:[
-      { title_zh:"工具接入清单", title_en:"Tool Access List", type:"table", cols_zh:["工具","用途","启用","调用"], cols_en:["Tool","Purpose","Enabled","Calls"] },
-      { title_zh:"调用日志", title_en:"Call Log", type:"list" }
+      { title_zh:"技能管理面板", title_en:"Skill Management Panel", type:"skill-panel" }
     ]},
   };
   // Add metrics to defs from ORGANS
@@ -1438,6 +1474,7 @@ function renderOrganPages(){
       <div class="page-head">
         <div><div class="page-title">${organName(o)} <span class="hint-text">${organSub(o)}</span></div>
         <div class="page-sub">${organDesc(o)}</div></div>
+        <span class="mode-lamp demo" id="mode-lamp-${o.id}"><span class="ml-dot"></span><span>Demo</span></span>
         <span class="lamp ok" id="lamp-${o.id}" style="width:14px;height:14px"></span>
         <label class="switch on" id="sw-${o.id}" title="Toggle"><input type="checkbox" style="display:none"></label>
         <div style="flex:1"></div>
@@ -1475,6 +1512,11 @@ async function loadOrganData(organId, force){
   const cBox = document.getElementById("charts-"+organId);
   cBox.innerHTML = (def.charts||[]).map((c,i)=>renderChartCard(organId, c, i)).join("");
   updateOrganNotices();
+  updateModeLamps();
+  // 如果是 skill-box 器官，触发技能管理面板渲染
+  if(organId === "skill-box"){ renderSkillPanel(); }
+  // 同时更新总览页的指标卡
+  updateOverviewMetrics();
 }
 function renderChartCard(organId, c, idx){
   const demo = getOrganData(organId) || {};
@@ -1505,6 +1547,9 @@ function renderChartCard(organId, c, idx){
   }
   if(c.type === "whitelist"){
     return `<div class="card">${head}<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="wl-input" placeholder="IP or Domain" style="flex:1;min-width:180px"><select id="wl-type"><option>IP</option><option>Domain</option></select><button class="btn btn-primary btn-sm" onclick="addWhitelist()">Add</button></div><div id="wl-list" style="margin-top:10px"></div></div>`;
+  }
+  if(c.type === "skill-panel"){
+    return `<div class="card">${head}<div id="skill-panel-content"></div></div>`;
   }
   return "";
 }
@@ -1550,6 +1595,257 @@ function removeWhitelist(i){
   renderWhitelist(); toast(t("whitelist.removed"));
 }
 
+/* ================== 总览指标实时更新 ================== */
+function updateOverviewMetrics(){
+  const postCache = window.monsterPostureCache;
+  if(!postCache) return;
+  // 从态势数据中取对应器官的 metrics 首项更新总览指标卡
+  const mapOv = {
+    "ov-uptime": ["prefrontal", 0],
+    "ov-attacks": ["alarm-nose", 0],
+    "ov-maxlevel": ["alarm-nose", 1],
+    "ov-health": ["self-heal", 0],
+  };
+  Object.keys(mapOv).forEach(elId => {
+    const [organId, idx] = mapOv[elId];
+    const pd = postCache[organId];
+    if(!pd) return;
+    const metrics = pd.metrics || pd.values || [];
+    const val = metrics[idx];
+    if(val !== undefined && val !== null){
+      const el = document.getElementById(elId);
+      if(el) el.textContent = String(val);
+    }
+  });
+}
+
+/* ================== 技能管理面板 ================== */
+let skillCache = { skills:[], calls:[], loaded:false };
+
+async function loadSkills(){
+  try{
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/skills", {
+      headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(5000)
+    });
+    if(resp.ok){
+      const data = await resp.json();
+      skillCache.skills = data.skills || [];
+    }
+  }catch(e){}
+}
+
+async function loadCalls(){
+  try{
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/calls?limit=50", {
+      headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(5000)
+    });
+    if(resp.ok){
+      const data = await resp.json();
+      skillCache.calls = data.calls || data || [];
+    }
+  }catch(e){}
+}
+
+async function initSkillPanel(){
+  await Promise.all([loadSkills(), loadCalls()]);
+  skillCache.loaded = true;
+  renderSkillPanel();
+}
+
+function renderSkillPanel(){
+  const container = document.getElementById("skill-panel-content");
+  if(!container) return;
+  const skills = skillCache.skills;
+  const calls = skillCache.calls;
+  const enabledCount = skills.filter(s=>s.enabled).length;
+  const totalCalls = calls.length;
+
+  container.innerHTML = `
+    <div class="skill-stats">
+      <div class="skill-stat-card"><span class="ss-val busy">${skills.length}</span><span class="ss-label">${currentLang==="en"?"Skills Connected":"已接入技能"}</span></div>
+      <div class="skill-stat-card"><span class="ss-val ok">${enabledCount}</span><span class="ss-label">${currentLang==="en"?"Enabled":"启用中"}</span></div>
+      <div class="skill-stat-card"><span class="ss-val">${totalCalls}</span><span class="ss-label">${currentLang==="en"?"Total Calls":"总调用次数"}</span></div>
+    </div>
+    <div class="skill-toolbar">
+      <button class="btn btn-ghost btn-sm" onclick="reloadSkills()">${currentLang==="en"?"Hot Reload Skills":"热重载技能"}</button>
+      <button class="btn btn-ghost btn-sm" onclick="showImportDialog()">${currentLang==="en"?"Import Skill":"导入技能"}</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="card-title" style="margin-bottom:8px">${currentLang==="en"?"Skill List":"技能列表"}</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>${currentLang==="en"?"Name":"技能名"}</th><th>${currentLang==="en"?"Description":"描述"}</th><th style="width:80px">${currentLang==="en"?"Status":"启用"}</th><th style="width:100px">${currentLang==="en"?"Actions":"操作"}</th></tr></thead>
+          <tbody>${skills.length ? skills.map(s=>`
+            <tr>
+              <td style="font-weight:600">${esc(s.name)}</td>
+              <td style="font-size:12px;color:var(--text-2)">${esc(s.description||"")}</td>
+              <td><span class="skill-table-toggle${s.enabled?' on':''}" onclick="toggleSkill('${esc(s.name)}', this)" title="Toggle"></span></td>
+              <td><button class="btn btn-ghost btn-xs" onclick="showSkillDetail('${esc(s.name)}')">${currentLang==="en"?"View":"查看"}</button></td>
+            </tr>
+            <tr id="skill-detail-${esc(s.name).replace(/[^a-zA-Z0-9]/g,'_')}" style="display:none"><td colspan="4"><div class="skill-detail" id="skill-detail-content-${esc(s.name).replace(/[^a-zA-Z0-9]/g,'_')}"></div></td></tr>
+          `).join("") : `<tr><td colspan="4"><div class="empty">${currentLang==="en"?"No skills loaded":"暂无技能"}</div></td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:8px">${currentLang==="en"?"Call Log":"调用日志"}</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>${currentLang==="en"?"Time":"时间"}</th><th>${currentLang==="en"?"Skill":"技能名"}</th><th>${currentLang==="en"?"Caller":"调用者"}</th><th style="width:70px">${currentLang==="en"?"Result":"结果"}</th><th style="width:60px">${currentLang==="en"?"Cost":"耗时"}</th></tr></thead>
+          <tbody>${calls.length ? calls.map((c,i)=>{
+            const ts = c.timestamp || c.ts || c.time;
+            const timeStr = ts ? new Date(ts * 1000).toLocaleTimeString(currentLang==="en"?"en-US":"zh-CN", {hour:"2-digit",minute:"2-digit",second:"2-digit"}) : "--";
+            const ok = c.success !== false && c.status !== "error" && c.status !== "fail";
+            const dur = c.duration || c.cost || c.elapsed || "";
+            return `<tr style="cursor:pointer" onclick="showCallDetail(${i})">
+              <td style="font-size:12px">${timeStr}</td>
+              <td style="font-weight:600">${esc(c.skill_name||c.skill||c.name||"--")}</td>
+              <td style="font-size:12px;color:var(--text-2)">${esc(c.caller||c.source||"--")}</td>
+              <td><span class="tag ${ok?'lv1':'lv4'}">${ok?(currentLang==="en"?"Success":"成功"):(currentLang==="en"?"Failed":"失败")}</span></td>
+              <td style="font-size:12px">${dur}${dur&&typeof dur==='number'?'ms':''}</td>
+            </tr>
+            <tr id="call-detail-${i}" style="display:none"><td colspan="5"><div class="call-detail" id="call-detail-content-${i}"></div></td></tr>`;
+          }).join("") : `<tr><td colspan="5"><div class="empty">${currentLang==="en"?"No call records":"暂无调用记录"}</div></td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function toggleSkill(name, toggleEl){
+  const enabled = !toggleEl.classList.contains("on");
+  try{
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/skills/toggle", {
+      method:"POST",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body: JSON.stringify({skill_name:name, enabled}),
+      signal: AbortSignal.timeout(5000)
+    });
+    if(resp.ok){
+      toggleEl.classList.toggle("on", enabled);
+      // 更新缓存
+      const sk = skillCache.skills.find(s=>s.name===name);
+      if(sk) sk.enabled = enabled;
+      toast((enabled ? (currentLang==="en"?"Enabled":"已启用") : (currentLang==="en"?"Disabled":"已禁用")) + ": " + name);
+      renderSkillPanel();
+    } else {
+      toast((currentLang==="en"?"Toggle failed":"切换失败") + ": " + name, "err");
+    }
+  }catch(e){
+    // 离线时本地切换
+    toggleEl.classList.toggle("on", enabled);
+    const sk = skillCache.skills.find(s=>s.name===name);
+    if(sk) sk.enabled = enabled;
+    toast((enabled ? (currentLang==="en"?"Enabled (local)":"已启用（本地）") : (currentLang==="en"?"Disabled (local)":"已禁用（本地）")) + ": " + name);
+    renderSkillPanel();
+  }
+}
+
+function showSkillDetail(name){
+  const safeId = name.replace(/[^a-zA-Z0-9]/g,'_');
+  const row = document.getElementById("skill-detail-"+safeId);
+  const content = document.getElementById("skill-detail-content-"+safeId);
+  if(!row || !content) return;
+  const sk = skillCache.skills.find(s=>s.name===name);
+  if(!sk) return;
+
+  if(row.style.display === "none" || !row.style.display){
+    const params = sk.params || sk.parameters || {};
+    const paramKeys = Array.isArray(params) ? params : Object.keys(params);
+    const paramHtml = paramKeys.length
+      ? (Array.isArray(params) ? params.map(p=>`<div class="sd-row"><span class="sd-k">${esc(p.name||p)}</span><span class="sd-v">${esc(p.type||p.desc||"")}${p.required?' (required)':''}</span></div>`).join("")
+         : Object.entries(params).map(([k,v])=>`<div class="sd-row"><span class="sd-k">${esc(k)}</span><span class="sd-v">${esc(String(v))}</span></div>`).join(""))
+      : '<div class="sd-row"><span class="sd-v">'+ (currentLang==="en"?"No parameters":"无参数") +'</span></div>';
+    content.innerHTML = `
+      <div class="sd-row"><span class="sd-k">${currentLang==="en"?"Name":"名称"}</span><span class="sd-v" style="font-weight:600">${esc(sk.name)}</span></div>
+      <div class="sd-row"><span class="sd-k">${currentLang==="en"?"Description":"描述"}</span><span class="sd-v">${esc(sk.description||"--")}</span></div>
+      <div class="sd-row"><span class="sd-k">${currentLang==="en"?"Enabled":"状态"}</span><span class="sd-v">${sk.enabled ? '<span class="tag lv1">'+ (currentLang==="en"?"Enabled":"已启用") +'</span>' : '<span class="tag plain">'+ (currentLang==="en"?"Disabled":"已禁用") +'</span>'}</span></div>
+      <div style="margin-top:6px;font-weight:600;font-size:12px;color:var(--text-2)">${currentLang==="en"?"Parameters":"参数列表"}:</div>
+      ${paramHtml}
+    `;
+    row.style.display = "";
+    content.classList.add("show");
+  } else {
+    row.style.display = "none";
+    content.classList.remove("show");
+  }
+}
+
+function showCallDetail(idx){
+  const row = document.getElementById("call-detail-"+idx);
+  const content = document.getElementById("call-detail-content-"+idx);
+  if(!row || !content) return;
+  const c = skillCache.calls[idx];
+  if(!c) return;
+
+  if(row.style.display === "none" || !row.style.display){
+    const payload = c.payload || c.input || c.args || c.params;
+    const result = c.result || c.output || c.response;
+    content.innerHTML = `
+      <div style="font-weight:600;margin-bottom:4px">${currentLang==="en"?"Request":"请求"}:</div>
+      <pre>${esc(JSON.stringify(payload||{},null,2))}</pre>
+      <div style="font-weight:600;margin-top:8px;margin-bottom:4px">${currentLang==="en"?"Response":"响应"}:</div>
+      <pre>${esc(JSON.stringify(result||{},null,2))}</pre>
+    `;
+    row.style.display = "";
+    content.classList.add("show");
+  } else {
+    row.style.display = "none";
+    content.classList.remove("show");
+  }
+}
+
+async function reloadSkills(){
+  try{
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/skills/reload", {
+      method:"POST",
+      headers:{"Accept":"application/json"},
+      signal: AbortSignal.timeout(8000)
+    });
+    if(resp.ok){
+      await loadSkills();
+      renderSkillPanel();
+      toast(currentLang==="en"?"Skills reloaded":"技能已热重载");
+    } else {
+      toast(currentLang==="en"?"Reload failed":"重载失败", "err");
+    }
+  }catch(e){
+    toast(currentLang==="en"?"Reload failed, MonsterAgent unreachable":"重载失败，MonsterAgent 不可达", "err");
+  }
+}
+
+function showImportDialog(){
+  const path = prompt(
+    currentLang==="en"
+      ? "Enter skill file path or directory path (e.g. D:/skills/my_skill.md or D:/skills/):"
+      : "输入技能 SKILL.md 文件路径或目录路径（如 D:/skills/my_skill.md 或 D:/skills/）："
+  );
+  if(!path || !path.trim()) return;
+  importSkill(path.trim());
+}
+
+async function importSkill(path){
+  try{
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/skills/import", {
+      method:"POST",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body: JSON.stringify({path}),
+      signal: AbortSignal.timeout(10000)
+    });
+    if(resp.ok){
+      const data = await resp.json();
+      toast((currentLang==="en"?"Skill imported":"技能已导入") + ": " + (data.name||path));
+      await loadSkills();
+      renderSkillPanel();
+    } else {
+      const err = await resp.text().catch(()=>"");
+      toast((currentLang==="en"?"Import failed":"导入失败") + ": " + (err||resp.status), "err");
+    }
+  }catch(e){
+    toast((currentLang==="en"?"Import failed, MonsterAgent unreachable":"导入失败，MonsterAgent 不可达"), "err");
+  }
+}
+
 /* ================== 首页：对话 ================== */
 function renderHome(){
   const cards = document.getElementById("home-org-cards");
@@ -1579,21 +1875,19 @@ async function sendChat(){
   const sendBtn = document.getElementById("chat-send");
   sendBtn.disabled = true;
   try{
-    const s = loadSettings();
-    const apiKey = s.globalKey || "";
     await ensureApiToken();
-    const resp = await fetch("/api/chat", {
+    const resp = await fetch("/api/monster/chat", {
       method:"POST",
       headers:apiHeaders({"Content-Type":"application/json"}),
-      body: JSON.stringify({ messages:[{role:"user", content:text}], api_key: apiKey, model: s.model, base_url: s.baseUrl, stream:false })
+      body: JSON.stringify({ message: text })
     });
     const data = await resp.json();
     if(!resp.ok){ throw new Error(data.error || ("HTTP " + resp.status)); }
-    const reply = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || t("chat.noReply");
+    const reply = (data.result && data.result.reply) || t("chat.noReply");
     botEl.textContent = reply; botEl.classList.remove("loading");
   }catch(e){
     botEl.classList.remove("loading");
-    botEl.textContent = t("chat.fail") + e.message + (currentLang==="en"?" (Configure API Key in Settings)":"（请在设置页配置 API Key 与模型）");
+    botEl.textContent = t("chat.fail") + e.message;
   }finally{
     sendBtn.disabled = false;
     input.focus();
@@ -1756,6 +2050,7 @@ function init(){
   initAlarmTabs();
   initMonsterUpload();
   initDfuControl();
+  initMonsterPosture();
   initSettings();
   navigate("overview");
 }

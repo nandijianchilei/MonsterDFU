@@ -51,12 +51,13 @@ countermeasure:
 
 llm:
   provider: "volcano"   # 可选: volcano / openai / mock
-  api_key: ""           # 从环境变量 DFU_LLM_API_KEY 读取
-  model: "deepseek-v3-241226"
+  api_key: ""           # 从环境变量 DFU_LLM__API_KEY 读取（.env 中配置，不入库）
+  model: "deepseek-v4-pro-260425"
+  backup_model: "deepseek-v4-flash-260425"
   temperature: 0.1
   max_tokens: 1024
   timeout_sec: 30
-  mock_mode: true       # 无 API Key 时自动降级为模拟分析
+  mock_mode: false
 
 storage:
   persistent:

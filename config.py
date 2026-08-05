@@ -530,6 +530,32 @@ class EvolverConfig:
 
 
 @dataclass
+class MonsterAgentConfig:
+    """小怪兽全局 Agent 配置（v2）"""
+    # 态势缓存 TTL（秒）
+    posture_ttl_sec: float = 5.0
+    # ReAct 最大迭代轮数
+    max_iterations: int = 8
+    # 对话历史保留条数（双向，含 user/assistant）
+    history_max: int = 40
+    # 系统提示词中的态势摘要截断长度
+    posture_summary_max_chars: int = 4000
+
+
+@dataclass
+class SkillToolboxConfig:
+    """技能工具箱配置（v2）"""
+    # 技能目录（相对项目根）
+    skills_dir: str = "organs/skills"
+    # 每技能限频（次/分钟，0=不限）
+    ratelimit_per_min: int = 5
+    # 高危确认令牌有效期（秒）
+    confirm_token_ttl_sec: float = 60.0
+    # 审计日志容量上限
+    call_log_max: int = 500
+
+
+@dataclass
 class Config:
     """总配置"""
     thresholds: TrafficThresholds = field(default_factory=TrafficThresholds)
@@ -548,6 +574,10 @@ class Config:
     evolver: EvolverConfig = field(default_factory=EvolverConfig)
     # 攻击路径干扰层（v1.1 第三阶段；默认关闭，仅授权环境开启）
     interference: InterferenceConfig = field(default_factory=InterferenceConfig)
+    # 小怪兽全局 Agent（v2）
+    monster: MonsterAgentConfig = field(default_factory=MonsterAgentConfig)
+    # 技能工具箱（v2）
+    skill_toolbox: SkillToolboxConfig = field(default_factory=SkillToolboxConfig)
 
     # 项目根目录（容器内默认 /app，本地可通过环境变量 DFU_PROJECT_ROOT 覆盖）
     project_root: str = ""

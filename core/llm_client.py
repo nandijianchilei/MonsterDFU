@@ -806,3 +806,79 @@ class LLMClient:
             f"[LLM] 模式: {mode}{backup_note} | 模型: {model_label} | "
             f"调用次数: {self._call_count} | 失败: {self._fail_count}"
         )
+
+    # ── Function Calling（MonsterAgent 使用）──
+
+    async def chat_with_tools(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: List[Dict[str, Any]],
+        temperature: float = 0.3,
+    ) -> Dict[str, Any]:
+        """带工具定义的对话接口（真实模式）。
+
+        Args:
+            messages: OpenAI 格式消息列表（含 system/user/assistant/tool 角色）
+            tools: OpenAI function calling 工具定义列表
+
+        Returns:
+            {"content": str, "tool_calls": list | None, "finish_reason": str}
+
+        注：mock 模式下 MonsterAgent 走 _mock_response 决策，
+            本方法仅服务于真实 LLM 模式。
+        """
+        self._call_count += 1
+        if self._mock_mode:
+            return {"content": "", "tool_calls": None, "finish_reason": "mock"}
+
+        payload = {
+            "model": self._current_model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": self.config.max_tokens,
+        }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+
+        t0 = time.time()
+        try:
+            message = await self._call_api_once_full(payload)
+            self._last_latency_ms = (time.time() - t0) * 1000.0
+            usage = message.get("usage", {})
+            self._update_token_usage(usage)
+            return message
+        except Exception as e:
+            self._fail_count += 1
+            self.logger.error(f"[LLM-ERROR] chat_with_tools 调用失败，降级到 mock 决策: {e}")
+            return {"content": "", "tool_calls": None, "finish_reason": "fallback"}
+
+    async def _call_api_once_full(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """单次 API 调用，返回完整 message 对象（含 tool_calls）。"""
+        import aiohttp
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.config.api_key}",
+        }
+        url = f"{self.config.api_base.rstrip('/')}/chat/completions"
+
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=payload, headers=headers) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    choice = data["choices"][0]["message"]
+                    usage = data.get("usage", {})
+                    return {
+                        "content": choice.get("content") or "",
+                        "tool_calls": choice.get("tool_calls"),
+                        "finish_reason": data["choices"][0].get("finish_reason", ""),
+                        "usage": usage,
+                    }
+                else:
+                    error_text = await resp.text()
+                    volc_error = self._parse_volc_error(resp.status, error_text)
+                    raise RuntimeError(volc_error)

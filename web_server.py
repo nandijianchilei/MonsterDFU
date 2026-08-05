@@ -43,6 +43,7 @@ from core.countermeasure_fsm import CountermeasureFSM, FSMLevel
 from core.llm_client import LLMClient
 from core.medic_agent import MedicAgent
 from core.monitor import get_metrics_collector
+from core.monster_agent import MonsterAgent
 from core.validator import ValidatorAgent
 from knowledge.hot_store import HotKnowledgeStore
 from knowledge.cold_store import ColdKnowledgeStore
@@ -57,6 +58,7 @@ from organs.observer_outbound import OutboundMonitor
 from organs.observer_traffic import TrafficMonitorAgent
 from organs.scanner_vuln import VulnScannerAgent, VulnSimulator
 from organs.scheduler_resource import ResourceSchedulerAgent
+from organs.skill_box import SkillToolbox, SkillLoader, set_skill_env
 from organs.tracker_forensic import ForensicTrackerAgent
 from persistence import get_persistence, PersistenceStore
 from tests.simulate_attack import AttackSimulator
@@ -256,6 +258,161 @@ class DFUWebManager:
             "Validator": True, "IPIsolation": True, "VulnScanner": True,
             "LogAuditor": True, "ResourceScheduler": True, "ForensicTracker": True,
             "PacketCapture": True,
+        }
+
+        # ── v2: 小怪兽全局 Agent + 技能工具箱 ──
+        # 技能执行共用防火墙（模拟模式，跨平台安全；真实规则下发需管理员权限）
+        self._skill_firewall = FirewallExecutor(self.logger, real_exec=False)
+        self._skill_blocked_ips: set = set()  # 技能层封锁记账（同步可读）
+        self.skill_toolbox = SkillToolbox(self.config.skill_toolbox)
+        self.skill_loader = SkillLoader(
+            self.skill_toolbox,
+            os.path.join(PROJECT_ROOT, self.config.skill_toolbox.skills_dir),
+        )
+        self.monster = MonsterAgent(
+            self.config.monster,
+            self.llm_client,
+            self.skill_toolbox,
+            max_iterations=self.config.monster.max_iterations,
+        )
+        self._register_monster_posture_providers()
+        self._inject_skill_env()
+        self.skill_loader.load_all()
+
+    # ── v2: 小怪兽姿态 provider 注册 ──
+
+    def _register_monster_posture_providers(self) -> None:
+        """注册 12 器官 posture provider（同步函数，5s 缓存）。"""
+        m = self.monster
+        m.register_posture_provider("prefrontal", self._posture_prefrontal)
+        m.register_posture_provider("left_brain", self._posture_left_brain)
+        m.register_posture_provider("right_brain", self._posture_right_brain)
+        m.register_posture_provider("left_hand", self._posture_left_hand)
+        m.register_posture_provider("right_hand", self._posture_right_hand)
+        m.register_posture_provider("medic", self._posture_medic)
+        m.register_posture_provider("self_heal", self._posture_self_heal)
+        m.register_posture_provider("notifier", self._posture_notifier)
+        m.register_posture_provider("alarm", self._posture_alarm)
+        m.register_posture_provider("memory", self._posture_memory)
+        m.register_posture_provider("whitelist", self._posture_whitelist)
+        m.register_posture_provider("skillbox", self._posture_skillbox)
+
+    def _posture_prefrontal(self) -> Dict[str, Any]:
+        return {
+            "running": self._running,
+            "uptime_sec": round(time.time() - self._start_time, 1) if self._running else 0,
+            "meltdown": self._meltdown,
+            "llm_mode": "mock" if self.llm_client.mock_mode else "real",
+            "monster_mode": self.monster.get_status().get("mode"),
+        }
+
+    def _posture_left_brain(self) -> Dict[str, Any]:
+        return self._safe(lambda: self.left_brain.get_stats(), {})
+
+    def _posture_right_brain(self) -> Dict[str, Any]:
+        return self._safe(lambda: self.right_brain.get_stats(), {})
+
+    def _posture_left_hand(self) -> Dict[str, Any]:
+        return {
+            "blacklist_count": len(self._safe(lambda: self.ip_isolation.get_blacklist(), [])),
+            "blocked_ips": list(self._safe(lambda: self.ip_isolation.get_blacklist(), []))[:50],
+            "mode": "simulated",
+        }
+
+    def _posture_right_hand(self) -> Dict[str, Any]:
+        return {
+            "firewall_mode": "simulated" if not self._skill_firewall.real_exec else "real",
+            "blocked_count": len(self._skill_blocked_ips),
+            "blocked_ips": sorted(self._skill_blocked_ips)[:50],
+        }
+
+    def _posture_medic(self) -> Dict[str, Any]:
+        health = self._safe(lambda: self.medic_agent.get_health_status(), {})
+        breaker = self._safe(lambda: self.medic_agent.get_circuit_breaker_status(),
+                             {"is_open": False, "reason": ""})
+        agents = {}
+        for name, record in health.items():
+            agents[name] = record.status.value if hasattr(record, "status") else "unknown"
+        return {
+            "agents": agents,
+            "breaker": breaker,
+            "medic_log_count": len(self._safe(lambda: self.medic_agent.get_medic_log(), [])),
+        }
+
+    def _posture_self_heal(self) -> Dict[str, Any]:
+        health = self._safe(lambda: self.medic_agent.get_health_status(), {})
+        degraded = [n for n, r in health.items()
+                    if hasattr(r, "status") and r.status.value not in ("healthy", "ok")]
+        return {"degraded_count": len(degraded), "degraded": degraded[:20]}
+
+    def _posture_notifier(self) -> Dict[str, Any]:
+        return {"status": "ready", "channel": "notifier"}
+
+    def _posture_alarm(self) -> Dict[str, Any]:
+        return self._safe(lambda: self.alarm_nose.get_status(), {})
+
+    def _posture_memory(self) -> Dict[str, Any]:
+        return {
+            "hot_store": {
+                "size": self._safe(lambda: self.hot_store.size(), 0),
+                "hit_rate": round(self._safe(lambda: self.hot_store.hit_rate(), 0.0), 3),
+            },
+            "cold_store": {
+                "hit_rate": round(self._safe(lambda: self.cold_store.hit_rate(), 0.0), 3),
+            },
+        }
+
+    def _posture_whitelist(self) -> Dict[str, Any]:
+        return {"protected_ips": list(self._skill_protected_ips())}
+
+    def _posture_skillbox(self) -> Dict[str, Any]:
+        return self.skill_toolbox.get_status()
+
+    def _skill_protected_ips(self) -> set:
+        """技能执行受保护地址：回环 + 隔离策略白名单（尽力读取）。"""
+        ips = {"127.0.0.1", "::1", "0.0.0.0", "localhost"}
+        try:
+            cfg = self.ip_isolation._load_isolation_config()
+            for item in cfg.get("protected_ips", []) or []:
+                ips.add(item.get("ip", ""))
+        except Exception:
+            pass
+        return ips
+
+    def _inject_skill_env(self) -> None:
+        """注入技能执行环境（manager / bus / firewall / simulator / monster）。"""
+        set_skill_env(
+            manager=self,
+            bus=self.bus,
+            firewall=self._skill_firewall,
+            simulator=self.simulator,
+            monster=self.monster,
+            protected_ips=sorted(self._skill_protected_ips()),
+        )
+
+    def get_recent_events(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """返回最近事件（供怪兽态势/威胁查询技能使用）。"""
+        global _event_history
+        events = []
+        for e in _event_history[-limit:]:
+            ts = e.get("timestamp", 0)
+            payload = e.get("payload", {})
+            events.append({
+                "ts": datetime.fromtimestamp(ts).strftime("%H:%M:%S") if ts else "",
+                "stage": e.get("type", "event"),
+                "source": payload.get("source_organ", e.get("source", "unknown")),
+                "label": e.get("description", e.get("category", e.get("type", ""))),
+                "severity": e.get("severity", ""),
+                "detail": payload,
+            })
+        return events
+
+    def get_monster_status(self) -> Dict[str, Any]:
+        """怪兽 + 技能工具箱聚合状态（前端面板用）。"""
+        return {
+            "monster": self.monster.get_status(),
+            "toolbox": self.skill_toolbox.get_stats(),
+            "posture_providers": len(self.monster._posture_providers),
         }
 
     async def start(self) -> None:
@@ -1752,6 +1909,189 @@ def _get_fsm():
     if m is None:
         return None
     return getattr(m, 'fsm', None)
+
+
+# ── v2: 小怪兽 MonsterAgent API ──
+
+@app.post("/api/monster/chat")
+async def monster_chat(request: Request):
+    """小怪兽对话接口（mock 确定性决策 / 真实 ReAct 循环）。"""
+    token_ok = await _check_auth(request)
+    if not token_ok:
+        raise HTTPException(status_code=401, detail="未授权")
+    m = _get_manager()
+    if m is None or m.monster is None:
+        raise HTTPException(status_code=503, detail="MonsterAgent 未初始化")
+    body = await request.json()
+    message = (body.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="message 不能为空")
+    result = await m.monster.chat(message, caller="user")
+    return {"status": "ok", "result": result}
+
+
+@app.post("/api/monster/confirm")
+async def monster_confirm(request: Request):
+    """高危技能确认/取消。"""
+    token_ok = await _check_auth(request)
+    if not token_ok:
+        raise HTTPException(status_code=401, detail="未授权")
+    m = _get_manager()
+    if m is None or m.skill_toolbox is None:
+        raise HTTPException(status_code=503, detail="SkillToolbox 未初始化")
+    body = await request.json()
+    token = (body.get("confirm_token") or "").strip()
+    approved = bool(body.get("approved", True))
+    if not token:
+        raise HTTPException(status_code=400, detail="confirm_token 不能为空")
+    result = await m.skill_toolbox.confirm(token, approved=approved, caller="user")
+    return {"status": "ok", "result": result}
+
+
+@app.get("/api/monster/posture")
+async def monster_posture(force: bool = False):
+    """获取小怪兽全局态势（12 器官）。"""
+    m = _get_manager()
+    if m is None or m.monster is None:
+        raise HTTPException(status_code=503, detail="MonsterAgent 未初始化")
+    posture = m.monster.gather_global_posture(force_refresh=force)
+    return {"status": "ok", "posture": posture}
+
+
+@app.get("/api/monster/skills")
+async def monster_skills(category: str = ""):
+    """技能清单（含启用状态、风险等级、调用统计）。"""
+    m = _get_manager()
+    if m is None or m.skill_toolbox is None:
+        raise HTTPException(status_code=503, detail="SkillToolbox 未初始化")
+    tools = m.skill_toolbox.list_tools(category=category or None)
+    return {
+        "status": "ok",
+        "skills": [
+            {
+                "id": t.tool_id,
+                "name_zh": t.name_zh,
+                "category": t.category,
+                "risk_level": t.risk_level,
+                "enabled": t.enabled,
+                "description": t.description,
+                "call_count": t.call_count,
+                "last_called": t.last_called,
+            }
+            for t in tools
+        ],
+    }
+
+
+@app.post("/api/monster/skills/toggle")
+async def monster_skills_toggle(request: Request):
+    """启用/禁用指定技能。"""
+    token_ok = await _check_auth(request)
+    if not token_ok:
+        raise HTTPException(status_code=401, detail="未授权")
+    m = _get_manager()
+    if m is None or m.skill_toolbox is None:
+        raise HTTPException(status_code=503, detail="SkillToolbox 未初始化")
+    body = await request.json()
+    tool_id = (body.get("tool_id") or "").strip()
+    enabled = bool(body.get("enabled", True))
+    if not tool_id:
+        raise HTTPException(status_code=400, detail="tool_id 不能为空")
+    ok = m.skill_toolbox.enable(tool_id) if enabled else m.skill_toolbox.disable(tool_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"技能 {tool_id} 不存在")
+    return {"status": "ok", "tool_id": tool_id, "enabled": enabled}
+
+
+@app.get("/api/monster/calls")
+async def monster_calls(limit: int = 30):
+    """技能调用审计日志。"""
+    m = _get_manager()
+    if m is None or m.skill_toolbox is None:
+        raise HTTPException(status_code=503, detail="SkillToolbox 未初始化")
+    logs = m.skill_toolbox.get_call_log(limit=limit)
+    return {
+        "status": "ok",
+        "calls": [
+            {
+                "ts": datetime.fromtimestamp(c.get("timestamp", 0)).strftime("%H:%M:%S"),
+                "tool": c.get("tool_id", ""),
+                "caller": c.get("caller", ""),
+                "success": c.get("success", False),
+                "error": c.get("error", ""),
+                "latency_ms": c.get("latency_ms", 0),
+                "result_summary": (c.get("result_summary") or "")[:120],
+            }
+            for c in logs
+        ],
+    }
+
+
+@app.get("/api/monster/status")
+async def monster_status():
+    """怪兽 + 工具箱聚合状态。"""
+    m = _get_manager()
+    if m is None:
+        raise HTTPException(status_code=503, detail="DFU 未初始化")
+    return {"status": "ok", "data": m.get_monster_status()}
+
+
+@app.post("/api/monster/skills/reload")
+async def monster_skills_reload(request: Request):
+    """热重载技能目录（保留内置技能）。"""
+    token_ok = await _check_auth(request)
+    if not token_ok:
+        raise HTTPException(status_code=401, detail="未授权")
+    m = _get_manager()
+    if m is None or m.skill_loader is None:
+        raise HTTPException(status_code=503, detail="SkillLoader 未初始化")
+    result = m.skill_loader.reload()
+    return {"status": "ok", "result": result}
+
+
+@app.post("/api/monster/skills/import")
+async def monster_skills_import(request: Request):
+    """导入外部技能：复制 SKILL.md 文件/目录到技能目录并热重载。"""
+    import shutil
+    token_ok = await _check_auth(request)
+    if not token_ok:
+        raise HTTPException(status_code=401, detail="未授权")
+    m = _get_manager()
+    if m is None or m.skill_loader is None:
+        raise HTTPException(status_code=503, detail="SkillLoader 未初始化")
+
+    body = await request.json()
+    src_path = body.get("path", "").strip()
+    if not src_path:
+        raise HTTPException(status_code=400, detail="缺少 path 参数")
+
+    src = Path(src_path)
+    if not src.exists():
+        raise HTTPException(status_code=400, detail=f"路径不存在: {src_path}")
+
+    # 目标: organs/skills/_builtins/ 下同名目录
+    dest_dir = m.skill_loader.skills_dir / src.name if src.is_dir() else m.skill_loader.skills_dir / src.stem
+
+    try:
+        if src.is_dir():
+            if dest_dir.exists():
+                raise HTTPException(status_code=409, detail=f"技能目录已存在: {dest_dir}")
+            shutil.copytree(str(src), str(dest_dir))
+            imported = f"目录 '{src.name}'"
+        else:
+            if not src.name.upper().startswith("SKILL"):
+                raise HTTPException(status_code=400, detail="仅支持 SKILL.md 或 SKILL 开头的 Markdown 文件")
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(str(src), str(dest_dir / "SKILL.md"))
+            imported = f"文件 '{src.name}'"
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"复制失败: {e}")
+
+    # 热重载
+    reload_result = m.skill_loader.reload()
+    return {"status": "ok", "imported": imported, "dest": str(dest_dir), "reload": reload_result}
 
 
 # ── 演示模式（DFU最后一公里）──
