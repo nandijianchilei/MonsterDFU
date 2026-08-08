@@ -16,9 +16,10 @@
     由代码内部拼接 project.root 得到绝对路径
 """
 
+import json
 import os
-from dataclasses import dataclass, field
-from typing import Any, Dict
+from dataclasses import dataclass, field, replace
+from typing import Any, Dict, Optional
 
 # ── dotenv 加载（可选依赖，未安装时降级为仅读系统环境变量）──
 try:
@@ -160,6 +161,7 @@ def build_config() -> "Config":
 
     # LLM
     llm = LLMConfig(
+        provider=_get_cfg(yaml_data, "llm", "provider", LLMConfig.provider),
         api_base=_get_cfg(yaml_data, "llm", "api_base", LLMConfig.api_base),
         api_key=_get_cfg(yaml_data, "llm", "api_key", LLMConfig.api_key),
         model=_get_cfg(yaml_data, "llm", "model", LLMConfig.model),
@@ -170,6 +172,8 @@ def build_config() -> "Config":
         max_retries=int(_get_cfg(yaml_data, "llm", "max_retries", LLMConfig.max_retries)),
         mock_mode=bool(_get_cfg(yaml_data, "llm", "mock_mode", LLMConfig.mock_mode)),
     )
+    # 用户 UI 配置覆盖层（llm_user.json 优先级最高，避免手改 .env/YAML）
+    llm = _apply_llm_user_overrides(llm)
     # 启动时输出 LLM 配置状态（与 core/llm_client 的 mock 判定保持一致）
     llm_mode = "mock" if (llm.mock_mode or not llm.api_key) else "real"
     print(f"LLM 配置状态: {llm_mode}，模型: {llm.model or '(未设置)'}")
@@ -460,6 +464,8 @@ class InterferenceConfig:
 @dataclass
 class LLMConfig:
     """LLM 调用配置"""
+    # 提供商标识：volcano / openai / deepseek / ollama / custom / mock
+    provider: str = "volcano"
     # 火山引擎 API 地址（OpenAI 兼容格式）
     api_base: str = "https://ark.cn-beijing.volces.com/api/v3"
     # 火山引擎 API Key
@@ -478,6 +484,140 @@ class LLMConfig:
     max_retries: int = 2
     # mock 模式开关（False 走真实 API）
     mock_mode: bool = False
+
+
+# ── 用户 LLM 配置（llm_user.json，UI 设置页写入，优先级最高）──
+
+LLM_USER_CONFIG_PATH = os.path.join(_PROJECT_ROOT, "config", "llm_user.json")
+
+
+def load_llm_user_config() -> Dict[str, Any]:
+    """读取用户通过 UI 写入的 LLM 配置覆盖层。
+
+    返回值：llm_user.json 的完整 dict；文件不存在或损坏时返回空 dict。
+    """
+    try:
+        if not os.path.exists(LLM_USER_CONFIG_PATH):
+            return {}
+        with open(LLM_USER_CONFIG_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_llm_user_config(data: Dict[str, Any]) -> bool:
+    """将用户 LLM 配置写入 llm_user.json（原子写入 + 自动备份）。"""
+    try:
+        os.makedirs(os.path.dirname(LLM_USER_CONFIG_PATH), exist_ok=True)
+        # 已有旧文件则先备份
+        if os.path.exists(LLM_USER_CONFIG_PATH):
+            bak = LLM_USER_CONFIG_PATH + ".bak"
+            try:
+                with open(LLM_USER_CONFIG_PATH, "r", encoding="utf-8") as fsrc, open(bak, "w", encoding="utf-8") as fdst:
+                    fdst.write(fsrc.read())
+            except Exception:
+                pass
+        tmp = LLM_USER_CONFIG_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, LLM_USER_CONFIG_PATH)
+        return True
+    except Exception:
+        return False
+
+
+def _apply_llm_user_overrides(llm: "LLMConfig") -> "LLMConfig":
+    """用 llm_user.json 覆盖 LLMConfig 字段（优先级最高，UI 设置页写入）。"""
+    user_cfg = load_llm_user_config()
+    if not user_cfg:
+        return llm
+    # 仅覆盖合法字段，避免脏数据污染
+    for key in ("provider", "api_base", "api_key", "model", "backup_model",
+                "temperature", "max_tokens", "timeout", "max_retries", "mock_mode"):
+        if key not in user_cfg or user_cfg[key] is None:
+            continue
+        # 空 api_key 不覆盖：保留 YAML/.env 原始值，防止 UI 清空误伤
+        if key == "api_key" and not str(user_cfg[key]).strip():
+            continue
+        try:
+            if isinstance(getattr(LLMConfig, key), bool):
+                setattr(llm, key, bool(user_cfg[key]))
+            elif isinstance(getattr(LLMConfig, key), (int, float)):
+                setattr(llm, key, type(getattr(LLMConfig, key))(user_cfg[key]))
+            else:
+                setattr(llm, key, str(user_cfg[key]))
+        except (TypeError, ValueError):
+            continue
+    return llm
+
+
+def get_organ_llm_override(organ_key: str) -> Optional[Dict[str, Any]]:
+    """读取指定器官的独立 LLM 覆盖配置（llm_user.json 的 organ_overrides 字段）。
+
+    返回覆盖 dict（可能为空 dict 表示未配置）；organ_overrides 缺失/非法时返回 None。
+    """
+    user_cfg = load_llm_user_config()
+    if not user_cfg:
+        return None
+    overrides = user_cfg.get("organ_overrides")
+    if not isinstance(overrides, dict):
+        return None
+    ov = overrides.get(organ_key)
+    if not isinstance(ov, dict):
+        return None
+    return ov
+
+
+def build_organ_llm_config(organ_key: str, base_llm: "LLMConfig") -> Optional["LLMConfig"]:
+    """按器官独立覆盖配置构建器官级 LLMConfig。
+
+    逻辑：
+    - 未配置覆盖 / use_global=True / useGlobalKey=True → 返回 None（调用方回退全局客户端）
+    - 配置了 vendor/baseUrl/model/apiKey 等字段 → 基于 base_llm 浅复制并覆盖生成独立配置
+    """
+    ov = get_organ_llm_override(organ_key)
+    if not ov:
+        return None
+    # 前端字段命名兼容：snake_case（接口文档）与 camelCase（monster.html 保存）两套均支持
+    use_global = ov.get("use_global", ov.get("useGlobalKey", False))
+    if use_global:
+        return None
+    # 存在任一实质覆盖字段才生成独立配置
+    has_field = any(ov.get(k) for k in (
+        "provider", "vendor", "api_base", "baseUrl", "api_key", "apiKey",
+        "model", "backup_model", "temperature", "mock_mode",
+    ))
+    if not has_field:
+        return None
+    # 浅复制 base_llm，仅覆盖器官独立字段
+    new_llm = replace(base_llm)
+    provider = ov.get("provider") or ov.get("vendor")
+    if provider:
+        new_llm.provider = str(provider)
+    api_base = ov.get("api_base") or ov.get("baseUrl")
+    if api_base:
+        new_llm.api_base = str(api_base)
+    api_key = ov.get("api_key") or ov.get("apiKey")
+    if api_key:
+        new_llm.api_key = str(api_key)
+    model = ov.get("model")
+    if model:
+        new_llm.model = str(model)
+    backup_model = ov.get("backup_model")
+    if backup_model:
+        new_llm.backup_model = str(backup_model)
+    if ov.get("temperature") is not None:
+        try:
+            new_llm.temperature = float(ov["temperature"])
+        except (TypeError, ValueError):
+            pass
+    if ov.get("mock_mode") is not None:
+        try:
+            new_llm.mock_mode = bool(ov["mock_mode"])
+        except (TypeError, ValueError):
+            pass
+    return new_llm
 
 
 @dataclass

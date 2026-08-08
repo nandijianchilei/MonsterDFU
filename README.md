@@ -39,11 +39,11 @@
 | ⚡ **Dynamic Countermeasures** | 5-level FSM escalation (L0→L4): Monitor → Soft block → Hard block → Offensive → Network isolation. |
 | 🔄 **自适应进化** | 攻击模式聚类 → 自动生成防御规则。随着时间的推移，系统会变得更加智能。 |
 | 🔌 **插件架构** | 开放的接口支持自定义检测传感器和应对措施执行器。 |
-| 🖥️ **Real-Time Dashboard** | Live attack map, defense timeline, stats panel. SSE-powered. |
+| 🖥️ **Real-Time Dashboard** | Live attack map, defense timeline, stats panel. Front-end demo (offline demo; no backend SSE). |
 | 🫁 **Alarm Nose (L4 Alert Loop)** | 4-level automatic alert escalation (L1 log → L2 confirm → L3 block → L4 isolate) with countdown timers, human acknowledgement/cancel, and optional enforced isolation. |
 | 🍯 **Honeypot Integration** | Ingest attack events reported by external honeypots and feed them into the DFU detect → decide → respond pipeline. |
 | 🎬 **Demo Mode** | Pre-built attack scenarios (C2 beacon, data exfiltration, mixed APT) replayable over SSE to showcase the full defense chain. |
-| 🧬 **Organ Telemetry** | Real-time metrics for 12 defense organs (prefrontal, left/right brain, left/right hand, repair hand, self-heal, report mouth, alarm nose, memory, whitelist, skill box). |
+| 🧬 **Organ Telemetry** | Real-time metrics for 13 defense organs (prefrontal, left/right brain, left/right hand, repair hand, self-heal, report mouth, alarm nose, memory, whitelist, skill box, medic). |
 
 ---
 
@@ -104,12 +104,14 @@ open http://127.0.0.1:8000/monster
 └──────┘  └─────┘  └─────┘   └───────┘  └──────┘
 ```
 
+> **编排说明**：当前为**单机多进程 / 本地编排**架构（FastAPI 主进程 + 异步 worker），事件总线为进程内内存总线；未接入 RabbitMQ 等外部消息中间件，`cluster/rabbitmq_bus.py` 仅为历史遗留占位（已被废弃 worker 引用），不参与运行时数据通路。
+
 ### Key Modules
 
 - **Alarm Nose (报警鼻, `organs/alarm_nose.py`)** — a 4-level automatic alert organ that grades threat alerts / FSM states / organ health signals into L1 (log, natural decay) → L2 (notify + human confirm + countdown) → L3 (close ports + urgent notify + countdown) → L4 (firewall full-block, soft-isolation signal + countdown, enforced on timeout). L4 reuses the FSM soft-isolation mechanism (no physical NIC changes); AlarmNose only publishes trigger signals and never modifies FSM state directly.
 - **Honeypot (`/api/honeypot/event`)** — accepts attack events reported by external honeypots (web scan, SSH/FTP brute force, port scans, etc.), maps honeypot categories to DFU threat categories, and publishes them into the DFU pipeline as `threat_alert` messages for detection → decision → response.
 - **Demo Mode (`/api/demo/*`)** — `c2_beacon`, `data_exfil` and `mixed_attack` presets inject pre-built attack event sequences through the EventChainRecorder; the full attack → defense process is streamed in real time over SSE.
-- **Organ Data (`/api/dfu/organs/data`)** — returns live metrics for 12 defense organs: prefrontal (situational awareness), left-hand (traffic monitor), left-brain (detection), right-brain (analysis), right-hand (action), repair-hand, self-heal (MedicAgent), report-mouth (reporting), alarm-nose (alerts), memory (knowledge router + hot/cold store), whitelist (IP whitelist), skill-box (defense skills).
+- **Organ Data (`/api/dfu/organs/data`)** — returns live metrics for 13 defense organs: prefrontal (situational awareness), left-hand (traffic monitor), left-brain (detection), right-brain (analysis), right-hand (action), repair-hand (medic), self-heal (MedicAgent), report-mouth (reporting), alarm-nose (alerts), memory (knowledge router + hot/cold store), whitelist (IP whitelist), skill-box (defense skills).
 
 ---
 
@@ -135,6 +137,9 @@ All configuration is handled through environment variables:
 # Change API token
 export DFU_AUTH_API_TOKEN="your-secure-token-here"
 
+# Bootstrap key for first access to GET /api/token (optional; random if unset)
+export DFU_BOOTSTRAP_TOKEN="your-bootstrap-key-here"
+
 # Set LLM API key (optional, mock mode by default)
 export DFU_LLM_API_KEY="your-api-key"
 
@@ -149,7 +154,7 @@ python web_server.py
 
 ## API Reference
 
-All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth** require an API token — obtain it from `GET /api/token` and send it as the `X-API-Token` header (or use `GET /api/token` once to read the current token).
+All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth** require an API token — obtain it from `GET /api/token` (with the `X-Bootstrap-Token` header or `?bootstrap=<key>` for first-access protection) and send it as the `Authorization: Bearer <token>` header.
 
 ### Web UI (HTML)
 
@@ -157,7 +162,7 @@ All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth**
 |----------|--------|------|-------------|
 | `/` | GET | — | Landing page |
 | `/monster` | GET | — | MonsterDFU single-file SPA management panel |
-| `/live` | GET | — | Live demo attack big-screen (SSE-powered) |
+| `/live` | GET | — | Live demo attack big-screen (front-end demo / offline demo; local mock scenarios, no backend SSE) |
 | `/compare` | GET | — | Comparison demo page (no DFU vs with DFU) |
 
 ### Health & Probes
@@ -175,7 +180,7 @@ All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth**
 | `/api/dfu/status` | GET | — | DFU runtime status: `running` / `uptime` / `start_time` / `components` |
 | `/api/dfu/start` | POST | — | Start the DFU core (idempotent) |
 | `/api/dfu/stop` | POST | — | Stop the DFU core (idempotent) |
-| `/api/dfu/organs/data` | GET | — | One-shot live data for all 12 defense organs; `running=false` when the system is not started |
+| `/api/dfu/organs/data` | GET | — | One-shot live data for all 13 defense organs; `running=false` when the system is not started |
 | `/api/status` | GET | — | System status incl. token usage |
 | `/api/stats` | GET | — | 当前防御统计数据 |
 | `/api/attack` | POST | ✅ |运行攻击场景；请求体 `{"scenario": "c2_beacon"|"data_exfil"|"port_scan"|"brute_force"|"mixed_apt"|"all"}` |
@@ -244,7 +249,7 @@ All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth**
 
 |Endpoint|Method|Auth|Description|
 |----------|--------|------|-------------|
-| `/api/token` | GET | — | Return the current web token; the frontend fetches it here and carries it on subsequent `/api/*` requests |
+| `/api/token` | GET | Bootstrap | Return the current web token; requires `X-Bootstrap-Token` header or `?bootstrap=<key>` (matches `DFU_BOOTSTRAP_TOKEN`, random if unset). The frontend fetches it here and carries it on subsequent `/api/*` requests |
 
 ---
 
@@ -272,7 +277,9 @@ dfu-defense/
 │ └── benchmark_report.md # 最新基准测试报告
 ├── static/
 │ ├── index.html # 管理控制台
-│ └── live.html # 实时演示仪表板
+│ ├── monster.html # 小怪兽单文件 SPA 管理面板（/monster）
+│ ├── live.html # 实时演示仪表板（/live）
+│ └── compare.html # 对比演示页（/compare，无 DFU vs 有 DFU）
 ├── docker-compose.yml # 生产环境部署
 ├── Dockerfile # 多阶段构建
 └── README.md # 此文件```

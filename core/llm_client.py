@@ -14,8 +14,25 @@ import threading
 import time
 from typing import Any, Dict, List
 
-from config import LLMConfig
+from config import LLMConfig, build_organ_llm_config
 from utils.logger import get_logger
+
+
+def create_organ_llm_client(
+    organ_key: str,
+    base_config: LLMConfig,
+    fallback_client: "LLMClient | None" = None,
+) -> "LLMClient | None":
+    """按器官独立覆盖配置创建器官级 LLMClient。
+
+    逻辑：
+    - 未配置覆盖 / use_global=True → 返回 fallback_client（全局客户端，可能为 None）
+    - 配置了 vendor/baseUrl/model/apiKey 等 → 生成独立 LLMClient 实例
+    """
+    organ_cfg = build_organ_llm_config(organ_key, base_config)
+    if organ_cfg is None:
+        return fallback_client
+    return LLMClient(organ_cfg)
 
 
 class LLMClient:
@@ -35,6 +52,7 @@ class LLMClient:
         self._mock_mode = config.mock_mode or not config.api_key
         self._call_count = 0
         self._fail_count = 0
+        self._degraded = False  # 最近一次真实调用失败降级标记（返回体带 degraded: true）
         self._call_log: List[Dict[str, Any]] = []
         self._current_model = config.model  # 跟踪当前使用的模型
         self._backup_used = False
@@ -78,6 +96,55 @@ class LLMClient:
             return
         self._mock_mode = enabled
         self.logger.info(f"模式切换: {'mock' if enabled else '真实LLM'}")
+
+    def reconfigure(self, new_config) -> None:
+        """热更新 LLM 配置（UI 设置页保存后调用，无需重启服务）。
+
+        保留已累计的调用统计，重置模型回退状态；新配置为空 key 时保持 mock。
+        """
+        self.config = new_config
+        self._mock_mode = new_config.mock_mode or not new_config.api_key
+        self._current_model = new_config.model
+        self._backup_used = False
+        if self._mock_mode:
+            self.logger.info("[LLM-MOCK] 配置已热更新：Mock 模式（无 API key）")
+        else:
+            self.logger.info(
+                f"[LLM] 配置已热更新：真实模式 | API: {new_config.api_base} | "
+                f"主模型: {new_config.model} | 备用模型: {new_config.backup_model}"
+            )
+
+    @staticmethod
+    async def test_connection(api_base: str, api_key: str, model: str, timeout: int = 15) -> dict:
+        """用给定参数发一条最小 chat 请求测试连通性。
+
+        返回 {"ok": bool, "msg": str, "latency_ms": float}。
+        """
+        import aiohttp
+        url = f"{api_base.rstrip('/')}/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        }
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": "ping"}],
+            "max_tokens": 5,
+        }
+        t0 = time.time()
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+                async with session.post(url, json=payload, headers=headers) as resp:
+                    latency = (time.time() - t0) * 1000
+                    if resp.status == 200:
+                        return {"ok": True, "msg": "连通性测试通过", "latency_ms": round(latency, 1)}
+                    else:
+                        err_text = await resp.text()
+                        return {"ok": False, "msg": f"HTTP {resp.status}: {err_text[:200]}", "latency_ms": round(latency, 1)}
+        except asyncio.TimeoutError:
+            return {"ok": False, "msg": "请求超时（15s）", "latency_ms": 0}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)[:200], "latency_ms": 0}
 
     def _build_payload(
         self, system_prompt: str, user_prompt: str, temperature: float = 0.3, json_mode: bool = False
@@ -226,16 +293,23 @@ class LLMClient:
     async def chat(
         self, system_prompt: str, user_prompt: str, temperature: float = 0.3
     ) -> str:
-        """对话接口。mock 模式下用内置逻辑生成模拟输出。"""
+        """对话接口。mock 模式下用内置逻辑生成模拟输出。
+
+        契约：返回类型始终为 str（保持不变）。调用方必须在调用后检查
+        ``self._degraded``：若为 True，表示本次结果已降级为 mock 输出，
+        不得当作真实 LLM 研判对外展示（需自行标注 degraded）。
+        """
         self._call_count += 1
         if self._mock_mode:
             result = self._mock_chat(system_prompt, user_prompt)
             return result
         try:
             result = await self._real_chat(system_prompt, user_prompt, temperature)
+            self._degraded = False
             return result
         except Exception as e:
             self._fail_count += 1
+            self._degraded = True
             self.logger.error(f"[LLM-ERROR] API 调用失败，降级到 mock: {e}")
             result = self._mock_chat(system_prompt, user_prompt)
             return result
@@ -250,11 +324,14 @@ class LLMClient:
             return result
         try:
             result = await self._real_chat_json(system_prompt, user_prompt)
+            self._degraded = False
             return result
         except Exception as e:
             self._fail_count += 1
+            self._degraded = True
             self.logger.error(f"[LLM-ERROR] JSON API 调用失败，降级到 mock: {e}")
             result = self._mock_chat_json(system_prompt, user_prompt)
+            result["degraded"] = True  # 降级返回体必须显式标注
             return result
 
     # ==================== Token 统计 ====================
@@ -850,8 +927,9 @@ class LLMClient:
             return message
         except Exception as e:
             self._fail_count += 1
+            self._degraded = True
             self.logger.error(f"[LLM-ERROR] chat_with_tools 调用失败，降级到 mock 决策: {e}")
-            return {"content": "", "tool_calls": None, "finish_reason": "fallback"}
+            return {"content": "", "tool_calls": None, "finish_reason": "fallback", "degraded": True}
 
     async def _call_api_once_full(
         self, payload: Dict[str, Any]

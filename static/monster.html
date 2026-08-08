@@ -5,37 +5,59 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MonsterDFU · 小怪兽安全中枢</title>
 <style>
-/* ============ 主题变量 ============ */
+/* ============ 主题变量（Phase 2: 防御系统语义色 + 高密度） ============ */
 :root{
-  --primary:#3b82f6;
-  --primary-weak:rgba(59,130,246,.12);
-  --bg:#f0f6ff;
+  --primary:#2563eb;
+  --primary-weak:rgba(37,99,235,.10);
+  --primary-strong:#1d4ed8;
+  --bg:#eef2f7;
   --surface:#ffffff;
-  --surface-2:#e8f1fc;
-  --text:#1e2b3c;
-  --text-2:#5b6b80;
-  --border:#d7e3f5;
-  --shadow:0 2px 12px rgba(30,64,120,.08);
-  --ok:#22c55e; --busy:#3b82f6; --warn:#eab308; --err:#ef4444;
-  --ok-bg:rgba(34,197,94,.14); --busy-bg:rgba(59,130,246,.14);
-  --warn-bg:rgba(234,179,8,.16); --err-bg:rgba(239,68,68,.14);
-  --radius:14px;
-  --sidebar-w:236px;
+  --surface-2:#e7edf6;
+  --surface-3:#f4f7fb;
+  --text:#16202e;
+  --text-2:#56677e;
+  --text-3:#8b9ab0;
+  --border:#d8e2ee;
+  --border-strong:#c2d0e2;
+  --shadow:0 1px 2px rgba(16,32,64,.05),0 4px 14px rgba(16,32,64,.05);
+  --ok:#0e9f6e; --busy:#2563eb; --warn:#d97706; --err:#dc2626; --crit:#991b1b;
+  --lv3:#ea580c; --lv3-bg:rgba(249,115,22,.14);
+  --ok-bg:rgba(14,159,110,.10); --busy-bg:rgba(37,99,235,.10);
+  --warn-bg:rgba(217,119,6,.12); --err-bg:rgba(220,38,38,.10);
+  --radius:10px;
+  --sidebar-w:232px;
+  --dense-gap:10px;
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
 }
 [data-theme="dark"]{
-  --primary:#60a5fa; --primary-weak:rgba(96,165,250,.16);
-  --bg:#0d1520; --surface:#131f30; --surface-2:#1b2a3f;
-  --text:#e6eefb; --text-2:#93a7c4; --border:#24364f; --shadow:0 2px 12px rgba(0,0,0,.35);
+  --primary:#60a5fa; --primary-weak:rgba(96,165,250,.14);
+  --bg:#0c1118; --surface:#111a26; --surface-2:#182434; --surface-3:#1d2c3e;
+  --text:#e8eef7; --text-2:#8fa3bd; --text-3:#5f728c; --border:#223247; --border-strong:#31435c;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --ok:#34d399; --busy:#60a5fa; --warn:#fbbf24; --err:#f87171; --crit:#ef4444;
+  --lv3:#fb923c; --lv3-bg:rgba(251,146,60,.16);
+  --ok-bg:rgba(52,211,153,.12); --busy-bg:rgba(96,165,250,.12);
+  --warn-bg:rgba(251,191,36,.14); --err-bg:rgba(248,113,113,.12);
 }
 [data-theme="mint"]{
-  --primary:#0ea5a4; --primary-weak:rgba(14,165,164,.14);
-  --bg:#eefaf7; --surface:#ffffff; --surface-2:#e2f6f0;
-  --text:#123b36; --text-2:#4e7a74; --border:#cfeae4; --shadow:0 2px 12px rgba(10,90,80,.08);
+  --primary:#0f766e; --primary-weak:rgba(15,118,110,.10);
+  --bg:#edf6f3; --surface:#ffffff; --surface-2:#e2f0eb; --surface-3:#f2f9f6;
+  --text:#0f2e29; --text-2:#47675f; --text-3:#7c9990; --border:#cfe5dd; --border-strong:#b3d6cb;
+  --shadow:0 1px 2px rgba(10,70,55,.05),0 4px 14px rgba(10,70,55,.05);
+  --ok:#0e9f6e; --busy:#0f766e; --warn:#d97706; --err:#dc2626; --crit:#991b1b;
+  --lv3:#ea580c; --lv3-bg:rgba(249,115,22,.14);
+  --ok-bg:rgba(14,159,110,.10); --busy-bg:rgba(15,118,110,.10);
+  --warn-bg:rgba(217,119,6,.12); --err-bg:rgba(220,38,38,.10);
 }
 [data-theme="sunset"]{
-  --primary:#f97316; --primary-weak:rgba(249,115,22,.14);
-  --bg:#fff7ed; --surface:#ffffff; --surface-2:#ffedd5;
-  --text:#3b2417; --text-2:#8a6a52; --border:#f5ddc3; --shadow:0 2px 12px rgba(140,70,20,.08);
+  --primary:#c2410c; --primary-weak:rgba(194,65,12,.10);
+  --bg:#fdf4ee; --surface:#ffffff; --surface-2:#fbe9dc; --surface-3:#fef6f0;
+  --text:#351f12; --text-2:#7d5a44; --text-3:#a98a72; --border:#f3dcc6; --border-strong:#e6c4a6;
+  --shadow:0 1px 2px rgba(90,45,10,.05),0 4px 14px rgba(90,45,10,.05);
+  --ok:#15803d; --busy:#c2410c; --warn:#b45309; --err:#dc2626; --crit:#991b1b;
+  --lv3:#c2410c; --lv3-bg:rgba(194,65,12,.14);
+  --ok-bg:rgba(21,128,61,.10); --busy-bg:rgba(194,65,12,.10);
+  --warn-bg:rgba(180,83,9,.12); --err-bg:rgba(220,38,38,.10);
 }
 /* ============ 基础 ============ */
 *{box-sizing:border-box;margin:0;padding:0}
@@ -69,18 +91,20 @@ a{color:var(--primary);text-decoration:none}
 .side-status{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12px;color:var(--text-2)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg);animation:pulse 2s infinite}
 .dot.off{background:#94a3b8;box-shadow:none;animation:none}
+.dot.warn{background:var(--warn);box-shadow:0 0 0 3px var(--warn-bg);animation:pulse 2s infinite}
+.dot.err{background:var(--err);box-shadow:0 0 0 3px var(--err-bg);animation:pulse 1.2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .side-nav{flex:1;overflow-y:auto;padding:10px 10px 14px}
-.nav-group{font-size:11px;color:var(--text-2);letter-spacing:1px;margin:14px 8px 6px;text-transform:uppercase;opacity:.75}
+.nav-group{font-size:10.5px;color:var(--text-2);letter-spacing:1px;margin:10px 8px 4px;text-transform:uppercase;opacity:.75}
 .nav-item{
-  display:flex;align-items:center;gap:10px;width:100%;min-height:44px;
-  padding:9px 10px;border-radius:10px;color:var(--text-2);
+  display:flex;align-items:center;gap:10px;width:100%;min-height:38px;
+  padding:7px 10px;border-radius:8px;color:var(--text-2);
   transition:background .18s,color .18s,transform .18s;
 }
 .nav-item:hover{background:var(--surface-2);color:var(--text);transform:translateX(2px)}
-.nav-item.active{background:var(--primary-weak);color:var(--primary);font-weight:600}
-.nav-item svg{flex:0 0 18px;width:18px;height:18px}
-.nav-item .nav-label{flex:1;text-align:left;line-height:1.2}
+.nav-item.active{background:var(--primary-weak);color:var(--primary);font-weight:600;box-shadow:inset 3px 0 0 var(--primary)}
+.nav-item svg{flex:0 0 17px;width:17px;height:17px}
+.nav-item .nav-label{flex:1;text-align:left;line-height:1.2;font-size:13px}
 .nav-item .nav-badge{font-size:10px;background:var(--err);color:#fff;border-radius:9px;padding:1px 7px;display:none}
 .nav-item .nav-badge.show{display:inline-block}
 .side-foot{border-top:1px solid var(--border);padding:8px 10px;display:flex;align-items:center;justify-content:space-between}
@@ -95,30 +119,45 @@ a{color:var(--primary);text-decoration:none}
 .lang-toggle .lt-div{color:var(--border);margin:0 2px}
 /* ---- 主区 ---- */
 .main{flex:1;overflow-y:auto;position:relative}
-.page{display:none;padding:22px 26px 40px;max-width:1240px;margin:0 auto}
+.page{display:none;padding:16px 18px 32px;max-width:1560px;margin:0 auto}
 .page.active{display:block;animation:fadeIn .28s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.page-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
-.page-title{font-size:22px;font-weight:700}
-.page-sub{color:var(--text-2);font-size:13px;margin-top:4px}
-/* ============ 通用组件 ============ */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);transition:background .3s,border-color .3s}
-.card-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.page-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.page-title{font-size:20px;font-weight:700;letter-spacing:.3px}
+.page-sub{color:var(--text-2);font-size:12.5px;margin-top:3px}
+/* ============ 通用组件（Phase 2: 紧凑密度） ============ */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);transition:background .3s,border-color .3s}
+.card-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;letter-spacing:.2px}
 .panel-actions{margin-left:auto;display:inline-flex;gap:6px;align-items:center}
 .panel-toggle{width:22px;padding:1px 0;text-align:center;line-height:1.2;font-size:13px}
 .panel-body{overflow:hidden;transition:opacity .2s}
-.grid{display:grid;gap:14px}
+.grid{display:grid;gap:var(--dense-gap)}
 .grid-4{grid-template-columns:repeat(4,1fr)}
 .grid-3{grid-template-columns:repeat(3,1fr)}
 .grid-2{grid-template-columns:repeat(2,1fr)}
 @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.grid-4,.grid-3,.grid-2{grid-template-columns:1fr}.sidebar{display:none}}
-/* 指标卡 */
-.metric{display:flex;flex-direction:column;gap:6px;padding:14px 16px}
-.metric .m-label{font-size:12px;color:var(--text-2)}
-.metric .m-value{font-size:24px;font-weight:700;line-height:1.2}
-.metric .m-hint{font-size:12px;color:var(--text-2)}
+/* 指标卡（Phase 2: 大数字 + tabular-nums） */
+.metric{display:flex;flex-direction:column;gap:4px;padding:10px 12px;min-height:74px;justify-content:center}
+.metric .m-label{font-size:11px;color:var(--text-2);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.metric .m-value{font-size:26px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.metric .m-hint{font-size:11px;color:var(--text-3)}
 .metric .m-value.ok{color:var(--ok)} .metric .m-value.warn{color:var(--warn)} .metric .m-value.err{color:var(--err)} .metric .m-value.busy{color:var(--busy)}
+/* KPI 状态条（Phase 2 新增） */
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--dense-gap);margin-bottom:var(--dense-gap)}
+.kpi{display:flex;flex-direction:column;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;position:relative;overflow:hidden}
+.kpi .k-label{font-size:10.5px;color:var(--text-2);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.kpi .k-value{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi .k-sub{font-size:11px;color:var(--text-3)}
+.kpi .k-bar{position:absolute;left:0;bottom:0;height:2px;background:var(--primary);transition:width .4s ease}
+.kpi.k-ok .k-value{color:var(--ok)} .kpi.k-warn .k-value{color:var(--warn)} .kpi.k-err .k-value{color:var(--err)} .kpi.k-busy .k-value{color:var(--busy)}
+.kpi.k-ok .k-bar{background:var(--ok)} .kpi.k-warn .k-bar{background:var(--warn)} .kpi.k-err .k-bar{background:var(--err)} .kpi.k-busy .k-bar{background:var(--busy)}
+.res-bar{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:4px}
+.res-bar-inner{height:100%;border-radius:999px;background:var(--primary);transition:width .4s ease}
+.res-bar-inner.ok{background:var(--ok)}.res-bar-inner.warn{background:var(--warn)}.res-bar-inner.err{background:var(--err)}
+/* 区块标题（Phase 2 新增：分隔线） */
+.block-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text-2);letter-spacing:.8px;text-transform:uppercase;margin:12px 0 8px}
+.block-title::after{content:"";flex:1;height:1px;background:var(--border)}
 /* 状态灯 */
 .lamp{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 11px}
 .lamp.ok{background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg)}
@@ -132,7 +171,7 @@ a{color:var(--primary);text-decoration:none}
 .switch.on{background:var(--primary)}
 .switch.on::after{transform:translateX(20px)}
 /* 按钮 */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:10px;font-weight:600;transition:transform .15s,opacity .15s,background .2s;user-select:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;border-radius:8px;font-weight:600;font-size:13px;transition:transform .15s,opacity .15s,background .2s;user-select:none}
 .btn:active{transform:scale(.97)}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .btn-primary{background:var(--primary);color:#fff}
@@ -141,20 +180,50 @@ a{color:var(--primary);text-decoration:none}
 .btn-ghost:hover:not(:disabled){color:var(--primary);border-color:var(--primary)}
 .btn-danger{background:var(--err);color:#fff}
 .btn-danger:hover:not(:disabled){filter:brightness(1.06)}
-.btn-sm{min-height:36px;padding:0 12px;font-size:13px}
-.btn-xs{min-height:32px;padding:0 10px;font-size:12px}
-/* 表格 */
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;font-weight:600;color:var(--text-2);padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface-2)}
-td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.btn-sm{min-height:30px;padding:0 10px;font-size:12px}
+.btn-xs{min-height:26px;padding:0 8px;font-size:11px}
+/* 表格（Phase 2: 紧凑行高） */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:700;color:var(--text-2);padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface-2);font-size:11px;letter-spacing:.4px;text-transform:uppercase}
+td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:middle;font-variant-numeric:tabular-nums}
 tr:hover td{background:var(--surface-2)}
-.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px}
+.tbl-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.tbl-toolbar input,.tbl-toolbar select{min-height:30px;padding:4px 10px;font-size:12px;border-radius:7px}
+.tbl-toolbar .spacer{flex:1}
+.tbl-count{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+/* 高危操作台（Phase 3） */
+.highrisk{--accent:var(--err);border-color:color-mix(in srgb,var(--err) 26%,var(--border))}
+.hr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.hr-cell{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-height:104px;display:flex;flex-direction:column}
+.hr-label{font-size:12.5px;font-weight:700;color:var(--text)}
+.hr-desc{font-size:11px;color:var(--text-3);margin:3px 0 10px;line-height:1.5}
+.hr-state{font-size:11px;color:var(--text-3);margin-top:6px;font-variant-numeric:tabular-nums}
+.hr-state.ok{color:var(--ok)}.hr-state.warn{color:var(--warn)}.hr-state.danger{color:var(--err);font-weight:700}
+.hr-big{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2}
+.hr-big.ok{color:var(--ok)}.hr-big.warn{color:var(--warn)}.hr-big.danger{color:var(--err)}
+.hr-toggle{position:relative;width:46px;height:24px;background:var(--border);border:none;border-radius:999px;cursor:pointer;transition:background .18s;flex:0 0 auto}
+.hr-toggle .hr-toggle-thumb{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:left .18s}
+.hr-toggle.on{background:var(--err)}
+.hr-toggle.on.warn{background:var(--warn)}
+.hr-toggle.on .hr-toggle-thumb{left:24px}
+.hr-section{border-top:1px dashed var(--border);padding-top:12px}
+.hr-section .hr-label{margin-bottom:8px}
+#hr-hitl-list .hitl-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--surface-2)}
+#hr-hitl-list .hitl-item:last-child{margin-bottom:0}
+#hr-hitl-list .hitl-id{font-size:10.5px;color:var(--text-3);font-family:ui-monospace,monospace;flex:0 0 auto}
+#hr-hitl-list .hitl-info{flex:1;min-width:0;font-size:12px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hr-hitl-list .hitl-level{margin-right:4px}
 /* 标签 */
-.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
 .tag.lv1{background:var(--ok-bg);color:var(--ok)}
-.tag.lv2{background:var(--warn-bg);color:#b45309}
-.tag.lv3{background:rgba(249,115,22,.16);color:#ea580c}
+.tag.lv2{background:var(--warn-bg);color:var(--warn)}
+.tag.lv3{background:var(--lv3-bg);color:var(--lv3)}
 .tag.lv4{background:var(--err-bg);color:var(--err)}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.tag.err{background:var(--err-bg);color:var(--err)}
+.tag.crit{background:var(--err-bg);color:var(--crit);border:1px solid var(--err)}
 .tag.plain{background:var(--surface-2);color:var(--text-2)}
 /* 空态/错误 */
 .empty{padding:34px 16px;text-align:center;color:var(--text-2)}
@@ -176,20 +245,21 @@ tr:hover td{background:var(--surface-2)}
 .dfu-btn.running .dfu-breathe{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,.22);animation:pulse 1.4s infinite}
 .dfu-notice{display:none;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;background:var(--primary-weak);border:1px solid var(--border);color:var(--text-2);font-size:12.5px;margin-bottom:14px}
 .dfu-notice.show{display:flex}
-/* 状态网格 */
-.org-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+/* 状态网格（Phase 2: 8 列紧凑） */
+.org-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+@media(max-width:1500px){.org-grid{grid-template-columns:repeat(6,1fr)}}
 @media(max-width:1100px){.org-grid{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:720px){.org-grid{grid-template-columns:repeat(2,1fr)}}
 .org-tile{
-  display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:96px;
-  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:80px;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;
   cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;
 }
-.org-tile:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:var(--primary)}
-.org-tile .ot-head{display:flex;align-items:center;gap:8px;width:100%}
-.org-tile .ot-name{font-weight:600;font-size:13px}
-.org-tile .ot-desc{font-size:11px;color:var(--text-2);line-height:1.5;text-align:left}
-.org-tile .ot-stat{margin-left:auto;font-size:11px;color:var(--text-2)}
+.org-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--primary)}
+.org-tile .ot-head{display:flex;align-items:center;gap:7px;width:100%}
+.org-tile .ot-name{font-weight:600;font-size:12.5px}
+.org-tile .ot-desc{font-size:10.5px;color:var(--text-2);line-height:1.45;text-align:left;width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis}
+.org-tile .ot-stat{margin-left:auto;font-size:10.5px;color:var(--text-2)}
 /* 器官卡片（home） */
 .home-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 @media(max-width:1100px){.home-cards{grid-template-columns:repeat(2,1fr)}}
@@ -249,7 +319,28 @@ tr:hover td{background:var(--surface-2)}
 .lr-sub{font-size:12px;color:var(--text-2);margin-top:2px}
 /* 可折叠/小节 */
 .section-gap{margin-top:16px}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:var(--dense-gap);margin-top:16px}
 .hint-text{font-size:12px;color:var(--text-2);margin-top:6px}
+/* 报警鼻操作按钮区 */
+.alarm-actions{display:flex;flex-direction:column;gap:8px}
+.an-btn{min-height:30px;padding:0 14px;font-size:12px;font-weight:600;border:1px solid var(--primary);color:var(--primary);background:transparent;border-radius:8px;cursor:pointer}
+.an-btn:hover:not(:disabled){background:var(--primary-weak)}
+.an-btn:disabled{opacity:.4;cursor:not-allowed}
+.an-btn.an-danger{border-color:var(--warn);color:var(--warn)}
+.an-btn.an-danger:hover:not(:disabled){background:rgba(255,82,82,.12)}
+.an-btn.an-l4{border-color:#e11d48;color:#e11d48;font-weight:700}
+.an-btn.an-l4:hover:not(:disabled){background:rgba(225,29,72,.12)}
+/* 蜜罐上报表单 */
+.hp-report{display:flex;flex-direction:column;gap:8px}
+.hp-status-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+.hp-field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-2)}
+.hp-field input,.hp-field select,.hp-field textarea{background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit}
+.hp-field input:focus,.hp-field select:focus,.hp-field textarea:focus{outline:none;border-color:var(--primary)}
+.status-grid{display:flex;flex-direction:column;gap:6px}
+.status-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.status-row:last-child{border-bottom:none}
+.st-label{color:var(--text-2)}
+.st-val{font-weight:600;font-family:var(--mono);display:flex;align-items:center;gap:6px}
 .toast-wrap{position:fixed;top:18px;right:18px;z-index:999;display:flex;flex-direction:column;gap:8px}
 .toast{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:10px;padding:12px 16px;box-shadow:var(--shadow);font-size:13px;min-width:220px;max-width:360px;animation:slideIn .25s ease}
 .toast.err{border-left-color:var(--err)}
@@ -320,6 +411,128 @@ tr:hover td{background:var(--surface-2)}
 .call-detail{padding:10px 14px;margin-top:6px;background:var(--surface-2);border-radius:10px;font-size:12px;display:none;max-height:200px;overflow-y:auto}
 .call-detail.show{display:block}
 .call-detail pre{white-space:pre-wrap;word-break:break-all;font-family:inherit;margin:0}
+/* ===== 小怪兽形象上传 ===== */
+.monster-stage{
+  position:relative;height:220px;border:2px dashed var(--border);border-radius:18px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:linear-gradient(180deg,var(--primary-weak),transparent 60%);
+  transition:border-color .2s,background .3s;
+}
+.monster-stage.drag-over{border-color:var(--primary);background:var(--primary-weak)}
+.monster-stage .ms-hint{font-size:12px;color:var(--text-2);letter-spacing:1px}
+.monster-stage .ms-img{max-width:100%;max-height:190px;border-radius:12px;object-fit:contain}
+.monster-upload-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:2px}
+.monster-upload-btns .btn{font-size:12px}
+/* 器官 Key 卡片（设置页） */
+.org-key-cards{display:flex;flex-direction:column;gap:12px}
+/* ============ 小怪兽解剖图仪表盘（page-home） ============ */
+.home-monitor-grid{display:grid;grid-template-columns:250px 1fr;gap:16px;align-items:start}
+@media(max-width:1100px){.home-monitor-grid{grid-template-columns:1fr}}
+.anatomy-wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px}
+#monster-canvas-svg{width:200px;height:180px;display:block}
+#monster-canvas-svg .anatomy-part{cursor:pointer}
+#monster-canvas-svg .ap-fill{transition:fill .18s,stroke .18s,opacity .18s}
+#monster-canvas-svg .anatomy-part:hover .ap-fill{filter:brightness(1.14);stroke-width:2}
+#monster-canvas-svg .anatomy-part.selected .ap-fill{stroke:var(--primary);stroke-width:2.4}
+#monster-canvas-svg .anatomy-part.no-data{opacity:.45}
+#monster-canvas-svg .anatomy-part.is-warn .ap-fill{stroke:var(--warn)}
+#monster-canvas-svg .anatomy-part.is-err .ap-fill{stroke:var(--err)}
+#monster-canvas-svg .ap-brain{fill:var(--primary-weak);stroke:var(--border-strong);stroke-width:1.4}
+#monster-canvas-svg .ap-hand{fill:var(--ok-bg);stroke:var(--border-strong);stroke-width:1.4}
+#monster-canvas-svg .ap-face{fill:var(--warn-bg);stroke:var(--border-strong);stroke-width:1.4}
+#monster-canvas-svg .ap-core{fill:var(--surface-2);stroke:var(--border-strong);stroke-width:1.4}
+#monster-canvas-svg .ap-shield{fill:var(--ok-bg);stroke:var(--border-strong);stroke-width:1.4}
+#monster-canvas-svg .ap-tool{fill:var(--busy-bg);stroke:var(--border-strong);stroke-width:1.4}
+#monster-canvas-svg .ap-heart{fill:var(--err-bg);stroke:var(--border-strong);stroke-width:1.4}
+#monster-canvas-svg .ap-body-main{fill:var(--surface-2);stroke:var(--border-strong);stroke-width:1.2}
+#monster-canvas-svg .ap-eyes{fill:var(--text);opacity:.8;pointer-events:none}
+#monster-canvas-svg .part-label{opacity:0;font-size:8.5px;font-weight:700;fill:var(--primary);pointer-events:none;transition:opacity .15s}
+#monster-canvas-svg .anatomy-part.selected .part-label{opacity:1}
+#monster-canvas-svg .anatomy-part:focus{outline:none}
+.avatar-link-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-2);justify-content:center;flex-wrap:wrap}
+.avatar-link-row .al-btn{font-size:11px;color:var(--text-2);text-decoration:underline;padding:2px 3px;border-radius:4px;transition:color .15s}
+.avatar-link-row .al-btn:hover{color:var(--primary)}
+.avatar-link-row .al-sep{opacity:.5}
+.home-panel-card{min-height:340px;border-left:4px solid var(--primary)}
+.hp-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.hp-head .hp-name{font-size:16px;font-weight:700}
+.hp-head .hp-sub{font-size:12px;color:var(--text-2)}
+.hp-head .hp-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hp-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.hp-status.ok{color:var(--ok);background:var(--ok-bg)}
+.hp-status.warn{color:var(--warn);background:var(--warn-bg)}
+.hp-status.err{color:var(--err);background:var(--err-bg)}
+.hp-status.off{color:var(--text-3);background:var(--surface-2)}
+.hp-refresh-at{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.hp-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:1300px){.hp-metrics{grid-template-columns:repeat(2,1fr)}}
+.hp-metric{display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;min-height:66px;justify-content:center}
+.hp-metric .hp-m-label{font-size:10.5px;color:var(--text-2);font-weight:600;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hp-metric .hp-m-value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;word-break:break-all}
+.hp-metric .hp-m-value.ok{color:var(--ok)}
+.hp-metric .hp-m-value.warn{color:var(--warn)}
+.hp-metric .hp-m-value.err{color:var(--err)}
+.hp-metric .hp-m-value.busy{color:var(--busy)}
+.hp-metric .hp-m-value.na{color:var(--text-3);font-weight:600}
+.hp-section-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text-2);letter-spacing:.6px;text-transform:uppercase;margin:12px 0 8px}
+.hp-section-title::after{content:"";flex:1;height:1px;background:var(--border)}
+.hp-detail{overflow:hidden}
+.hp-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.hp-kv .kv-item{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:12px}
+.hp-kv .kv-item .kv-k{color:var(--text-2);font-weight:600;white-space:nowrap}
+.hp-kv .kv-item .kv-v{font-weight:700;text-align:right;word-break:break-all;font-variant-numeric:tabular-nums}
+.plugin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:10px}
+.plugin-card{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
+.plugin-card .pc-top{display:flex;align-items:center;gap:6px;min-width:0}
+.plugin-card .pc-name{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plugin-card .pc-cat{margin-left:auto;font-size:10px;color:var(--text-3);flex:0 0 auto}
+.plugin-card .pc-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-2);flex-wrap:wrap}
+.plugin-card .pc-row .pc-stat{margin-left:auto;font-variant-numeric:tabular-nums}
+.pc-toggle{position:relative;width:34px;height:19px;border-radius:10px;background:var(--border);cursor:pointer;transition:background .2s;flex:0 0 34px;border:none;padding:0}
+.pc-toggle::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.pc-toggle.on{background:var(--ok)}
+.pc-toggle.on::after{transform:translateX(15px)}
+.pc-toggle:active{transform:scale(.95)}
+.chat-toggle-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);background:none;border:none;padding:2px 4px;border-radius:6px;transition:color .15s,background .15s}
+.chat-toggle-btn:hover{color:var(--primary);background:var(--primary-weak)}
+.chat-toggle-arrow{display:inline-block;transition:transform .2s;font-size:12px;color:var(--text-2)}
+#monster-chat-drawer{height:0;opacity:0;overflow:hidden;transition:height .3s ease,opacity .25s}
+#monster-chat-drawer.open{height:400px;opacity:1}
+@media(max-width:720px){#monster-chat-drawer.open{height:320px}}
+.home-empty-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:260px;color:var(--text-2);text-align:center}
+.home-empty-panel .he-icon{font-size:40px;opacity:.5}
+.hp-empty{display:flex;align-items:center;justify-content:center;min-height:64px;padding:12px;border:1px dashed var(--border);border-radius:10px;color:var(--text-3);font-size:12px;text-align:center}
+.hp-chip-list{display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow:auto}
+.hp-chip{padding:3px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-size:11px;font-family:Consolas,Menlo,monospace;color:var(--text);font-variant-numeric:tabular-nums}
+.hp-chip.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
+.hp-table{overflow:auto;max-height:260px;border:1px solid var(--border);border-radius:10px}
+.hp-table table{width:100%;border-collapse:collapse;font-size:12px}
+.hp-table th{position:sticky;top:0;background:var(--surface-2);color:var(--text-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);z-index:1}
+.hp-table td{padding:6px 10px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+.hp-table tr:last-child td{border-bottom:none}
+.hp-table tr:hover td{background:var(--primary-weak)}
+/* 引擎未运行横幅（器官页） */
+.engine-banner{display:none;align-items:center;gap:12px;margin-bottom:14px;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,rgba(245,158,11,.18),rgba(245,158,11,.07));border:1px solid rgba(245,158,11,.6);color:#92400e;font-size:13px;font-weight:600}
+.engine-banner.show{display:flex}
+.engine-banner .eb-icon{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#f59e0b;color:#fff;font-size:13px;font-weight:800;line-height:1}
+.engine-banner .eb-text{flex:1;line-height:1.55}
+.engine-banner .btn{flex:none}
+/* 趋势图空态遮罩 */
+.chart-empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:16px;background:var(--surface-1);color:var(--text-3);font-size:12.5px;z-index:2}
+/* ============ 生产级：器官页表格排序 + 分页 ============ */
+.ot-th{cursor:pointer;user-select:none;transition:color .15s}
+.ot-th:hover{color:var(--primary)}
+.ot-th.ot-sorted{color:var(--primary)}
+.ot-arrow{font-size:9px;margin-left:3px;opacity:.9}
+.organ-table-pager{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:8px 2px 2px;flex-wrap:wrap}
+.ot-page-info{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums;margin-right:auto}
+/* ============ 生产级：趋势图 tooltip ============ */
+.chart-tooltip{position:absolute;z-index:10;padding:4px 8px;border-radius:6px;background:rgba(16,32,64,.85);color:#fff;font-size:11.5px;font-weight:600;pointer-events:none;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);font-variant-numeric:tabular-nums}
+/* ============ 生产级：home 引擎未运行提示条 ============ */
+.hp-engine-stopped{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:10px;background:linear-gradient(135deg,rgba(245,158,11,.18),rgba(245,158,11,.07));border:1px solid rgba(245,158,11,.6);color:#92400e}
+.hp-engine-stopped .hes-icon{flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:12px;font-weight:800;line-height:1}
+.hp-engine-stopped .hes-title{font-weight:700;font-size:12.5px}
+.hp-engine-stopped .hes-desc{font-size:11.5px;opacity:.92;margin-top:2px;line-height:1.5}
 </style>
 </head>
 <body data-theme="blue">
@@ -381,22 +594,25 @@ tr:hover td{background:var(--surface-2)}
         <div><div class="page-title" data-i18n="page.overview">总览</div><div class="page-sub" data-i18n="page.overviewSub">系统实时态势一屏掌握</div></div>
         <span class="demo-tag" id="ov-demo-tag" style="display:none" data-i18n="label.demo">演示数据</span>
         <div style="flex:1"></div>
-        <button class="btn btn-ghost btn-sm" onclick="loadOverview(true)" data-i18n="btn.refresh">刷新</button>
+        <span class="tbl-count" id="ov-last-update">--</span>
+        <button class="btn btn-ghost btn-sm" id="ov-refresh-btn" onclick="loadOverview(true)" data-i18n="btn.refresh">刷新</button>
       </div>
-      <div class="grid grid-4" id="ov-status-bar">
-        <div class="card metric"><span class="m-label" data-i18n="metric.uptime">运行时长</span><span class="m-value" id="ov-uptime">--</span><span class="m-hint" data-i18n="metric.uptimeHint">自服务启动起</span></div>
-        <div class="card metric"><span class="m-label" data-i18n="metric.attacks">在线攻击数</span><span class="m-value" id="ov-attacks">--</span><span class="m-hint" data-i18n="metric.attacksHint">当前活跃威胁</span></div>
-        <div class="card metric"><span class="m-label" data-i18n="metric.maxLevel">最高告警等级</span><span class="m-value" id="ov-maxlevel">--</span><span class="m-hint" data-i18n="metric.maxLevelHint">L1-L4 四级色阶</span></div>
-        <div class="card metric"><span class="m-label" data-i18n="metric.health">自愈自检结果</span><span class="m-value" id="ov-health">--</span><span class="m-hint" data-i18n="metric.healthHint">最近一次自检</span></div>
+      <div class="kpi-strip" id="ov-status-bar">
+        <div class="kpi"><span class="k-label" data-i18n="metric.uptime">运行时长</span><span class="k-value" id="ov-uptime">--</span><span class="k-sub" data-i18n="metric.uptimeHint">自服务启动起</span><span class="k-bar" style="width:0%"></span></div>
+        <div class="kpi k-busy"><span class="k-label" data-i18n="metric.attacks">在线攻击数</span><span class="k-value" id="ov-attacks">--</span><span class="k-sub" data-i18n="metric.attacksHint">当前活跃威胁</span><span class="k-bar" style="width:0%"></span></div>
+        <div class="kpi"><span class="k-label" data-i18n="metric.maxLevel">最高告警等级</span><span class="k-value" id="ov-maxlevel">--</span><span class="k-sub" data-i18n="metric.maxLevelHint">L1-L4 四级色阶</span><span class="k-bar" style="width:0%"></span></div>
+        <div class="kpi"><span class="k-label" data-i18n="metric.health">自愈自检结果</span><span class="k-value" id="ov-health">--</span><span class="k-sub" data-i18n="metric.healthHint">最近一次自检</span><span class="k-bar" style="width:0%"></span></div>
+        <div class="kpi"><span class="k-label" data-i18n="metric.cpu">CPU 负载</span><span class="k-value" id="ov-cpu">--</span><span class="k-sub">resource monitor</span><span class="k-bar" id="ov-cpu-bar" style="width:0%"></span></div>
+        <div class="kpi"><span class="k-label" data-i18n="metric.mem">内存占用</span><span class="k-value" id="ov-mem">--</span><span class="k-sub" id="ov-mem-sub">--</span><span class="k-bar" id="ov-mem-bar" style="width:0%"></span></div>
       </div>
-      <div class="grid grid-2 section-gap">
+      <div class="grid grid-2">
         <div class="card">
           <div class="card-title"><span data-i18n="chart.traffic">实时流量</span> <span class="hint-text" data-i18n="chart.trafficHint">最近 60 秒</span></div>
-          <div class="chart-box" style="height:220px"><canvas id="ov-traffic-chart"></canvas><div class="chart-empty" id="ov-traffic-empty" data-i18n="chart.noData">暂无流量数据</div></div>
+          <div class="chart-box" style="height:150px"><canvas id="ov-traffic-chart"></canvas><div class="chart-empty" id="ov-traffic-empty" data-i18n="chart.noData">暂无流量数据</div></div>
         </div>
         <div class="card">
           <div class="card-title"><span data-i18n="chart.conn">活跃连接</span> <span class="hint-text" data-i18n="chart.connHint">最近 60 秒</span></div>
-          <div class="chart-box" style="height:220px"><canvas id="ov-conn-chart"></canvas><div class="chart-empty" id="ov-conn-empty" data-i18n="chart.noConnData">暂无连接数据</div></div>
+          <div class="chart-box" style="height:150px"><canvas id="ov-conn-chart"></canvas><div class="chart-empty" id="ov-conn-empty" data-i18n="chart.noConnData">暂无连接数据</div></div>
         </div>
       </div>
       <div class="card section-gap">
@@ -408,20 +624,54 @@ tr:hover td{background:var(--surface-2)}
         <div id="ov-alarm-list"></div>
       </div>
 
+      <!-- 高危操作台 -->
+      <div class="card section-gap highrisk">
+        <div class="card-title"><span data-i18n="hr.title">高危操作台</span> <span class="hint-text" data-i18n="hr.hint">人工在环 · 熔断控制 · L4 确认</span>
+          <span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadHighRiskOps()" data-i18n="btn.refresh">刷新</button></span>
+        </div>
+        <div class="hr-grid">
+          <div class="hr-cell hr-switch-cell">
+            <div class="hr-label" data-i18n="hr.killSwitch">Kill-Switch 全局熔断</div>
+            <div class="hr-desc" data-i18n="hr.killSwitchDesc">开启后熔断所有自动处置，仅保留告警与人工通道</div>
+            <button class="hr-toggle" id="hr-kill-switch" onclick="toggleKillSwitch()"><span class="hr-toggle-track"></span><span class="hr-toggle-thumb"></span></button>
+            <div class="hr-state" id="hr-kill-state">--</div>
+          </div>
+          <div class="hr-cell hr-switch-cell">
+            <div class="hr-label" data-i18n="hr.meltdown">Meltdown 熔断降级</div>
+            <div class="hr-desc" data-i18n="hr.meltdownDesc">走 FSM 降级链路，逐级收敛自动响应</div>
+            <button class="hr-toggle" id="hr-meltdown" onclick="toggleMeltdown()"><span class="hr-toggle-track"></span><span class="hr-toggle-thumb"></span></button>
+            <div class="hr-state" id="hr-meltdown-state">--</div>
+          </div>
+          <div class="hr-cell">
+            <div class="hr-label" data-i18n="hr.l4Status">L4 隔离状态</div>
+            <div class="hr-desc" data-i18n="hr.l4StatusDesc">当前是否处于 L4 隔离处置</div>
+            <div class="hr-big" id="hr-l4-state">--</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn btn-danger btn-xs" onclick="confirmL4()" data-i18n="hr.confirmL4">确认 L4</button>
+              <button class="btn btn-ghost btn-xs" onclick="rejectL4()" data-i18n="hr.rejectL4">拒绝 L4</button>
+            </div>
+          </div>
+        </div>
+        <div class="hr-section" style="margin-top:14px">
+          <div class="hr-label" data-i18n="hr.hitlPending">HITL 待人工确认队列</div>
+          <div id="hr-hitl-list"><div class="empty">--</div></div>
+        </div>
+      </div>
+
       <!-- 新增器官能力展示区 -->
       <div class="grid grid-2 section-gap">
         <div class="card" data-panel="forensic">
-          <div class="card-title"><span data-i18n="chart.forensic">取证时间线</span> <span class="hint-text" id="ov-forensic-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="折叠">▾</button></span></div>
+          <div class="card-title"><span data-i18n="chart.forensic">取证时间线</span> <span class="hint-text" id="ov-forensic-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="exportEnhCsv('forensic')" data-i18n="export.btn">导出 CSV</button><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="折叠">▾</button></span></div>
           <div class="panel-body"><div id="ov-forensic-list"></div></div>
         </div>
         <div class="card" data-panel="ports">
-          <div class="card-title"><span data-i18n="chart.portScan">端口扫描</span> <span class="hint-text" id="ov-ports-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
+          <div class="card-title"><span data-i18n="chart.portScan">端口扫描</span> <span class="hint-text" id="ov-ports-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="exportEnhCsv('ports')" data-i18n="export.btn">导出 CSV</button><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
           <div class="panel-body" style="display:none"><div id="ov-ports-list"></div></div>
         </div>
       </div>
       <div class="grid grid-2 section-gap">
         <div class="card" data-panel="outbound">
-          <div class="card-title"><span data-i18n="chart.outbound">出站连接</span> <span class="hint-text" id="ov-outbound-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
+          <div class="card-title"><span data-i18n="chart.outbound">出站连接</span> <span class="hint-text" id="ov-outbound-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="exportEnhCsv('outbound')" data-i18n="export.btn">导出 CSV</button><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
           <div class="panel-body" style="display:none"><div id="ov-outbound-list"></div></div>
         </div>
         <div class="card" data-panel="resource">
@@ -430,7 +680,7 @@ tr:hover td{background:var(--surface-2)}
         </div>
       </div>
       <div class="card section-gap" data-panel="audit">
-        <div class="card-title"><span data-i18n="chart.audit">日志审计</span> <span class="hint-text" id="ov-audit-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
+        <div class="card-title"><span data-i18n="chart.audit">日志审计</span> <span class="hint-text" id="ov-audit-src">Data Source: API</span><span class="panel-actions"><button class="btn btn-ghost btn-sm" onclick="exportEnhCsv('audit')" data-i18n="export.btn">导出 CSV</button><button class="btn btn-ghost btn-sm" onclick="loadEnhanced()" data-i18n="btn.refresh">刷新</button><button class="btn btn-ghost btn-sm panel-toggle" onclick="togglePanel(this)" title="展开">▸</button></span></div>
         <div class="panel-body" style="display:none"><div id="ov-audit-list"></div></div>
       </div>
     </section>
@@ -439,27 +689,103 @@ tr:hover td{background:var(--surface-2)}
     <section class="page" id="page-home">
       <div class="page-head">
         <div><div class="page-title" data-i18n="page.monster">小怪兽</div><div class="page-sub" data-i18n="page.monsterSub">和 Monster 对话，掌控每一只器官</div></div>
+        <span class="mode-lamp demo" id="home-mode-lamp"><span class="ml-dot"></span><span>Demo</span></span>
+        <span style="flex:1"></span>
+        <button class="btn btn-ghost btn-sm" id="home-refresh-btn" onclick="loadHomeMonitor(true)" data-i18n="home.refresh">刷新数据</button>
       </div>
-      <div class="monster-stage" id="monster-stage">
-        <svg id="monster-svg-default" width="120" height="110" viewBox="0 0 120 110" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="60" cy="82" rx="46" ry="22" fill="var(--primary-weak)" stroke="var(--primary)" stroke-width="2"/>
-          <path d="M60 22 C 34 22 18 44 18 62 L 18 66 C 18 70 22 72 24 68 C 26 64 30 62 34 62 L 34 78 C 34 84 40 86 44 84 C 47 82 48 80 48 78 L 50 78 C 52 88 68 88 70 78 L 72 78 C 72 80 73 82 76 84 C 80 86 86 84 86 78 L 86 62 C 90 62 94 64 96 68 C 98 72 102 70 102 66 L 102 62 C 102 44 86 22 60 22 Z" fill="var(--surface)" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round"/>
-          <circle cx="44" cy="52" r="6" fill="var(--text)"/><circle cx="76" cy="52" r="6" fill="var(--text)"/>
-          <circle cx="46" cy="50" r="2" fill="#fff"/><circle cx="78" cy="50" r="2" fill="#fff"/>
-          <path d="M50 66 Q 60 74 70 66" stroke="var(--primary)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-          <path d="M22 34 L 8 24 M 98 34 L 112 24" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-        <img id="monster-img" class="ms-img" style="display:none" src="" alt="MonsterDFU Avatar">
-        <div class="ms-hint" id="monster-hint" data-i18n="monster.placeholder">点击上传小怪兽形象（拖拽或点击下方按钮）</div>
-        <div class="monster-upload-btns">
-          <button class="btn btn-ghost btn-xs" onclick="document.getElementById('monster-file-input').click()" data-i18n="monster.chooseFile">选择图片</button>
-          <button class="btn btn-ghost btn-xs" id="monster-reset-btn" style="display:none" onclick="resetMonsterImage()" data-i18n="monster.reset">恢复默认</button>
+      <div class="home-monitor-grid">
+        <div class="card home-anatomy-card">
+          <div class="card-title"><span data-i18n="home.anatomyTitle">小怪兽解剖图</span></div>
+          <div class="anatomy-wrap">
+            <svg id="monster-canvas-svg" viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Monster anatomy">
+              <!-- monster 本体兜底汇总（底层） -->
+              <g class="anatomy-part" data-part="monster" onclick="selectMonsterPart('monster')">
+                <path class="ap-fill ap-body-main" d="M100 16 C62 16 52 40 54 58 L44 96 Q38 118 52 126 L56 146 Q58 158 68 156 L70 136 Q80 144 90 150 L88 164 Q90 172 100 172 Q110 172 112 164 L110 150 Q120 144 130 136 L132 156 Q142 158 144 146 L148 126 Q162 118 156 96 L146 58 C148 40 138 16 100 16 Z"/>
+                <text class="part-label" x="100" y="128" text-anchor="middle">MONSTER</text>
+              </g>
+              <!-- 左手（巡逻感知） -->
+              <g class="anatomy-part" data-part="left-hand" onclick="selectMonsterPart('left-hand')">
+                <path class="ap-fill ap-hand" d="M72 92 L40 104 Q30 108 32 114 Q34 120 42 118 L72 106 Z"/>
+                <text class="part-label" x="50" y="126" text-anchor="middle">LEFT</text>
+              </g>
+              <!-- 右手（主动执行） -->
+              <g class="anatomy-part" data-part="right-hand" onclick="selectMonsterPart('right-hand')">
+                <path class="ap-fill ap-hand" d="M128 92 L160 104 Q170 108 168 114 Q166 120 158 118 L128 106 Z"/>
+                <text class="part-label" x="150" y="126" text-anchor="middle">RIGHT</text>
+              </g>
+              <!-- 前额叶 -->
+              <g class="anatomy-part" data-part="prefrontal" onclick="selectMonsterPart('prefrontal')">
+                <path class="ap-fill ap-brain" d="M64 40 Q68 20 100 16 Q132 20 136 40 Q128 46 118 46 L82 46 Q72 46 64 40 Z"/>
+                <text class="part-label" x="100" y="36" text-anchor="middle">PFC</text>
+              </g>
+              <!-- 左脑 -->
+              <g class="anatomy-part" data-part="left-brain" onclick="selectMonsterPart('left-brain')">
+                <path class="ap-fill ap-brain" d="M58 50 Q60 28 80 22 Q86 34 86 48 Q86 64 76 68 Q64 70 60 62 Q58 56 58 50 Z"/>
+                <text class="part-label" x="72" y="50" text-anchor="middle">LB</text>
+              </g>
+              <!-- 右脑 -->
+              <g class="anatomy-part" data-part="right-brain" onclick="selectMonsterPart('right-brain')">
+                <path class="ap-fill ap-brain" d="M142 50 Q140 28 120 22 Q114 34 114 48 Q114 64 124 68 Q136 70 140 62 Q142 56 142 50 Z"/>
+                <text class="part-label" x="128" y="50" text-anchor="middle">RB</text>
+              </g>
+              <!-- 眼睛（装饰） -->
+              <circle class="ap-eyes" cx="83" cy="46" r="3.6"/><circle class="ap-eyes" cx="117" cy="46" r="3.6"/>
+              <!-- 报警鼻 -->
+              <g class="anatomy-part" data-part="alarm-nose" onclick="selectMonsterPart('alarm-nose')">
+                <path class="ap-fill ap-face" d="M100 48 L91 62 Q100 66 109 62 Z"/>
+                <text class="part-label" x="100" y="58" text-anchor="middle">ALM</text>
+              </g>
+              <!-- 汇报嘴 -->
+              <g class="anatomy-part" data-part="report-mouth" onclick="selectMonsterPart('report-mouth')">
+                <ellipse class="ap-fill ap-face" cx="100" cy="82" rx="17" ry="7"/>
+                <text class="part-label" x="100" y="85" text-anchor="middle">RPT</text>
+              </g>
+              <!-- 记忆库脑干 -->
+              <g class="anatomy-part" data-part="memory" onclick="selectMonsterPart('memory')">
+                <rect class="ap-fill ap-core" x="92" y="103" width="16" height="15" rx="3"/>
+                <text class="part-label" x="100" y="115" text-anchor="middle">MEM</text>
+              </g>
+              <!-- 自愈单元 -->
+              <g class="anatomy-part" data-part="self-heal" onclick="selectMonsterPart('self-heal')">
+                <path class="ap-fill ap-heart" d="M78 116 C70 116 66 124 70 130 C74 136 78 140 78 140 C78 140 82 136 86 130 C90 124 86 116 78 116 Z"/>
+                <text class="part-label" x="78" y="128" text-anchor="middle">SELF</text>
+              </g>
+              <!-- 备用修复手 -->
+              <g class="anatomy-part" data-part="repair-hand" onclick="selectMonsterPart('repair-hand')">
+                <circle class="ap-fill ap-tool" cx="100" cy="156" r="8"/>
+                <text class="part-label" x="100" y="159" text-anchor="middle">MED</text>
+              </g>
+              <!-- 白名单前置单元 -->
+              <g class="anatomy-part" data-part="whitelist" onclick="selectMonsterPart('whitelist')">
+                <path class="ap-fill ap-shield" d="M50 126 L58 130 L58 140 Q58 150 50 152 Q42 150 42 140 L42 130 Z"/>
+                <text class="part-label" x="50" y="145" text-anchor="middle">WL</text>
+              </g>
+              <!-- Skill工具箱 -->
+              <g class="anatomy-part" data-part="skill-box" onclick="selectMonsterPart('skill-box')">
+                <rect class="ap-fill ap-tool" x="140" y="128" width="18" height="17" rx="3"/>
+                <text class="part-label" x="149" y="140" text-anchor="middle">SK</text>
+              </g>
+            </svg>
+            <img id="monster-img" class="ms-img" style="display:none" src="" alt="MonsterDFU Avatar">
+            <div class="avatar-link-row" id="monster-hint" data-i18n="monster.placeholder">点击上传小怪兽形象（拖拽或点击下方按钮）</div>
+            <div class="avatar-link-row">
+              <button class="al-btn" onclick="document.getElementById('monster-file-input').click()" data-i18n="monster.chooseFile">更换头像</button>
+              <span class="al-sep">·</span>
+              <button class="al-btn" id="monster-reset-btn" style="display:none" onclick="resetMonsterImage()" data-i18n="monster.reset">恢复默认</button>
+            </div>
+            <input type="file" id="monster-file-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="handleMonsterFile(this.files)">
+          </div>
         </div>
-        <input type="file" id="monster-file-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="handleMonsterFile(this.files)">
+        <div class="card home-panel-card" id="home-panel-card">
+          <div id="home-panel-content"><div class="home-empty-panel"><div class="he-icon">👾</div><div data-i18n="home.selectPart">点击左侧解剖图部位，查看实时数据与已安装插件</div></div></div>
+        </div>
       </div>
       <div class="card section-gap">
-        <div class="card-title"><span data-i18n="chat.title">和小怪兽对话</span> <span class="hint-text" data-i18n="chat.hint">Enter 发送 · Shift+Enter 换行</span></div>
-        <div class="chat-area">
+        <div class="card-title">
+          <button class="chat-toggle-btn" onclick="toggleMonsterChat()"><span data-i18n="chat.title">和小怪兽对话</span> <span class="chat-toggle-arrow" id="chat-toggle-arrow">▸</span></button>
+          <span class="hint-text" data-i18n="chat.hint">Enter 发送 · Shift+Enter 换行</span>
+        </div>
+        <div class="chat-area" id="monster-chat-drawer">
           <div class="chat-list" id="chat-list"></div>
           <div class="chat-input-row">
             <textarea id="chat-input" data-i18n-placeholder="chat.placeholder" placeholder="问一问小怪兽当前的防御态势…" rows="1"></textarea>
@@ -491,7 +817,28 @@ tr:hover td{background:var(--surface-2)}
       </div>
       <div class="card">
         <div class="card-title"><span data-i18n="alarm.list">告警列表</span>
-          <button class="btn btn-ghost btn-xs" onclick="markAlarmsHandled()" data-i18n="alarm.markAll">标记已处理</button>
+          <span class="panel-actions">
+            <button class="btn btn-ghost btn-xs" onclick="exportAlarmsCsv()" data-i18n="export.btn">导出 CSV</button>
+            <button class="btn btn-ghost btn-xs" onclick="markAlarmsHandled()" data-i18n="alarm.markAll">标记已处理</button>
+          </span>
+        </div>
+        <div class="tbl-toolbar">
+          <input type="search" id="alarm-search" placeholder="搜索事件 / 源 IP…" oninput="renderAlarmList(alarmCache)" style="width:220px">
+          <select id="alarm-level-filter" onchange="renderAlarmList(alarmCache)">
+            <option value="all" data-i18n="alarm.all">全部等级</option>
+            <option value="1">L1 提示</option>
+            <option value="2">L2 关注</option>
+            <option value="3">L3 严重</option>
+            <option value="4">L4 紧急</option>
+          </select>
+          <select id="alarm-sort" onchange="renderAlarmList(alarmCache)">
+            <option value="time-desc">时间 ↓</option>
+            <option value="time-asc">时间 ↑</option>
+            <option value="level-desc">等级 ↓</option>
+            <option value="level-asc">等级 ↑</option>
+          </select>
+          <div class="spacer"></div>
+          <span class="tbl-count" id="alarm-count">0 items</span>
         </div>
         <div id="alarm-list"></div>
       </div>
@@ -518,6 +865,38 @@ tr:hover td{background:var(--surface-2)}
           <button class="btn btn-primary" style="margin-top:8px" onclick="saveSettings()" data-i18n="btn.save">保存配置</button>
         </div>
       </div>
+      <div class="grid grid-1" style="margin-top:16px">
+        <div class="card">
+          <div class="card-title">LLM 接入 <span class="hint-text" data-i18n="settings.llmSubHint">配置后无需手改 .env / YAML，保存即热更新</span>
+            <span id="llm-mode-light" style="display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:2px 12px;border-radius:20px;font-size:12px;font-weight:600;vertical-align:middle"></span>
+          </div>
+          <div class="form-row" style="margin-bottom:8px">
+            <label data-i18n="settings.llmProvider">API 厂商</label>
+            <select id="set-llm-provider" style="flex:1;min-width:180px" onchange="onLlmProviderChange()"></select>
+          </div>
+          <div class="form-row"><label data-i18n="settings.baseUrl">API Base URL</label><input id="set-llm-base-url" type="text" placeholder="https://…" spellcheck="false"></div>
+          <div class="form-row"><label data-i18n="settings.globalKey">API Key</label><input id="set-llm-api-key" type="password" placeholder="sk-…" spellcheck="false"><span class="hint-text" id="llm-key-mask" style="margin-left:8px"></span></div>
+          <div class="form-row"><label data-i18n="settings.llmModel">主模型</label><input id="set-llm-model" type="text" list="llm-model-list" placeholder="模型名 / 接入点 ID" spellcheck="false"><datalist id="llm-model-list"></datalist></div>
+          <div class="form-row"><label data-i18n="settings.llmBackupModel">备用模型</label><input id="set-llm-backup-model" type="text" placeholder="可选，主模型失败时回退" spellcheck="false"></div>
+          <div class="form-row"><label data-i18n="settings.llmMock">Mock 模式</label><label class="switch" style="margin:0"><input type="checkbox" id="set-llm-mock-mode"><span class="slider"></span></label><span class="hint-text" data-i18n="settings.llmMockHint">开启后不调用真实 API</span></div>
+          <div class="form-row" style="margin-top:10px">
+            <button class="btn btn-ghost" id="llm-test-btn" onclick="testLlmConnection()" data-i18n="settings.llmTest">测试连接</button>
+            <button class="btn btn-primary" style="margin-left:8px" onclick="saveLlmConfig()" data-i18n="settings.llmSave">保存并生效</button>
+            <span class="hint-text" id="llm-test-result" style="margin-left:10px"></span>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-1" style="margin-top:16px">
+        <div class="card">
+          <div class="card-title" data-i18n="settings.organKeys">各器官独立配置</div>
+          <div class="hint-text" style="margin-bottom:12px" data-i18n="settings.organKeysHint">每个器官可独立配置 Key 和模型</div>
+          <div id="organ-key-cards" style="display:flex;flex-direction:column;gap:10px"></div>
+          <div style="margin-top:12px">
+            <button class="btn btn-primary" onclick="saveOrganConfigs()" data-i18n="settings.organSave">保存器官配置</button>
+            <span class="hint-text" id="organ-save-result" style="margin-left:10px"></span>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 </div>
@@ -536,6 +915,7 @@ const I18N = {
     "page.organOverview":"器官一览","page.organOverviewHint":"点击卡片进入对应器官页",
     "metric.uptime":"运行时长","metric.uptimeHint":"自服务启动起","metric.attacks":"在线攻击数","metric.attacksHint":"当前活跃威胁",
     "metric.maxLevel":"最高告警等级","metric.maxLevelHint":"L1-L4 四级色阶","metric.health":"自愈自检结果","metric.healthHint":"最近一次自检",
+    "metric.cpu":"CPU 负载","metric.mem":"内存占用",
     "chart.traffic":"实时流量","chart.trafficHint":"最近 60 秒","chart.conn":"活跃连接","chart.connHint":"最近 60 秒",
     "chart.noData":"暂无流量数据","chart.noConnData":"暂无连接数据","chart.orgHealth":"器官健康状态","chart.orgHealthHint":"点击卡片跳转对应器官",
     "chart.recentAlarms":"最近告警","chart.realtime":"实时","chart.demo":"演示",
@@ -545,21 +925,55 @@ const I18N = {
     "alarm.list":"告警列表","alarm.markAll":"标记已处理","alarm.empty":"当前筛选下暂无告警","alarm.noAlarm":"暂无告警，一切安静","alarm.marked":"已标记为处理","alarm.markedCount":"已标记 {n} 条告警为已处理","alarm.noPending":"当前没有可处理的告警",
     "theme.blue":"淡蓝默认","theme.dark":"深空黑","theme.mint":"薄荷绿","theme.sunset":"暖阳橙",
     "settings.theme":"主题配色","settings.global":"全局模型配置","settings.vendor":"API 厂商","settings.baseUrl":"API Base URL","settings.model":"模型名称","settings.globalKey":"全局 API Key",
-    "settings.dfuTokenHint":"留空则使用演示数据","settings.organKeys":"各器官独立配置","settings.organKeysHint":"每个器官可独立配置 Key 和模型",
+    "settings.dfuTokenHint":"留空则使用演示数据","settings.organKeys":"各器官独立配置","settings.organKeysHint":"每个器官可独立配置 Key 和模型","settings.organSave":"保存器官配置","settings.llmModeReal":"真实模式","settings.llmModeMock":"模拟模式","settings.llmModeUnknown":"状态未知",
     "settings.saved":"配置已保存","settings.useGlobal":"使用全局 Key","settings.vendorLabel":"厂商","settings.modelLabel":"模型",
+    "settings.llmSubHint":"配置后无需手改 .env / YAML，保存即热更新","settings.llmProvider":"API 厂商","settings.llmModel":"主模型","settings.llmBackupModel":"备用模型","settings.llmMock":"Mock 模式","settings.llmMockHint":"开启后不调用真实 API","settings.llmTest":"测试连接","settings.llmSave":"保存并生效",
+    "settings.llmTestOk":"连通成功","settings.llmTestFail":"连接失败","settings.llmTestRunning":"测试中…","settings.llmTestNeed":"请先填写 API Base URL / Key / 模型","settings.llmSaved":"LLM 配置已保存并热更新生效","settings.llmSaveFail":"保存失败：",
     "vendor.custom":"自定义",
     "monster.placeholder":"点击上传小怪兽形象（拖拽或点击下方按钮）","monster.chooseFile":"选择图片","monster.reset":"恢复默认",
     "monster.tooBig":"文件过大（最大 2MB）","monster.unsupported":"不支持的文件类型（支持 PNG/JPG/GIF/WebP）",
     "chat.title":"和小怪兽对话","chat.hint":"Enter 发送 · Shift+Enter 换行","chat.placeholder":"问一问小怪兽当前的防御态势…",
     "chat.thinking":"思考中…","chat.fail":"对话失败：","chat.noReply":"（无回复内容）","chat.greeting":"你好，我是小怪兽 Monster。我可以帮你查看防御态势、攻击事件与各器官运行状态。有什么想问的？",
     "switch.on":"已启用","switch.off":"已停用","export.done":"已导出攻击事件时间线 CSV","export.noData":"暂无可导出的数据",
-    "whitelist.added":"已加入白名单","whitelist.removed":"已移出白名单","whitelist.empty":"白名单为空，新增 IP/域名后自动放行","whitelist.addError":"请输入 IP 或域名",
+    "whitelist.added":"已加入白名单","whitelist.removed":"已移出白名单","whitelist.empty":"白名单为空，新增 IP/域名/账号后自动放行","whitelist.addError":"请输入 IP、域名或账号",
+    "wl.add":"添加","wl.del":"删除","wl.placeholder":"IP / 域名 / 账号","wl.identityTitle":"账号身份维度（登录源 · MFA · 特权 · 最近活动）",
+    "wl.srcPh":"登录源，如 github","wl.privPh":"特权级别，如 Admin","wl.lastAtPh":"最近登录，如 08-07 10:00","wl.lastOpPh":"最近特权操作",
+    "wl.mfaOn":"MFA 已启用","wl.mfaOff":"MFA 未启用","wl.verified":"已验证","wl.off":"未启用","wl.admin":"特权","wl.trustPass":"信任直通",
+    "wl.auditAccounts":"账号条目","wl.auditMfa":"MFA 覆盖率","wl.auditPriv":"特权账号","wl.lastOp":"最近特权操作",
     "memory.searchHint":"输入特征关键词检索攻击特征库","memory.placeholder":"输入特征关键词，如 RDP 爆破","memory.search":"检索","memory.notFound":"未命中，可前往\"新增案例\"沉淀",
     "data.healthy":"正常","data.working":"工作中","data.degraded":"轻微异常","data.fault":"故障","data.unknown":"未知",
     "data.sourceAPI":"数据来源：API","data.sourceDemo":"数据来源：演示数据",
     "export.btn":"导出 CSV",
     "dfu.control":"DFU 核心系统","dfu.start":"启动 DFU","dfu.running":"运行中","dfu.stop":"停止 DFU",
     "dfu.uptime":"已运行 {s}","dfu.demoNotice":"DFU 系统未启动，当前显示演示数据","dfu.stopConfirm":"确定要停止 DFU 吗？停止后各器官将回到演示数据模式。",
+    "hr.title":"高危操作台","hr.hint":"人工在环 · 熔断控制 · L4 确认",
+    "hr.killSwitch":"Kill-Switch 全局熔断","hr.killSwitchDesc":"开启后熔断所有自动处置，仅保留告警与人工通道",
+    "hr.meltdown":"Meltdown 熔断降级","hr.meltdownDesc":"走 FSM 降级链路，逐级收敛自动响应",
+    "hr.l4Status":"L4 隔离状态","hr.l4StatusDesc":"当前是否处于 L4 隔离处置","hr.confirmL4":"确认 L4","hr.rejectL4":"拒绝 L4",
+    "hr.hitlPending":"HITL 待人工确认队列","hr.hitlEmpty":"当前无待确认项",
+    "hr.stateOn":"已开启","hr.stateOff":"已关闭","hr.stateUnknown":"未知","hr.stateActive":"隔离中","hr.stateInactive":"未隔离",
+    "hr.killOnConfirm":"确定开启 Kill-Switch？开启后所有自动处置将被熔断，仅保留告警与人工通道。",
+    "hr.killOnDone":"Kill-Switch 已开启，自动处置已熔断","hr.killOffDone":"Kill-Switch 已关闭，自动处置恢复",
+    "hr.meltdownOnConfirm":"确定开启 Meltdown 熔断降级？","hr.meltdownOnDone":"Meltdown 熔断降级已开启","hr.meltdownOffDone":"Meltdown 熔断降级已关闭",
+    "hr.approved":"已批准放行","hr.denied":"已拒绝","hr.approve":"批准","hr.deny":"拒绝",
+    "hr.l4ConfirmDone":"已确认 L4 隔离处置","hr.l4RejectDone":"已拒绝 L4 隔离处置","hr.loadFail":"高危状态获取失败",
+    "export.btn":"导出 CSV","export.done":"已导出 CSV","export.noData":"暂无数据可导出",
+    "chart.forensic":"取证时间线","chart.portScan":"端口扫描","chart.outbound":"出站连接","chart.resource":"资源监控","chart.audit":"日志审计",
+    "home.refresh":"刷新数据","home.anatomyTitle":"小怪兽解剖图 · 点击部位查看实时数据",
+    "home.selectPart":"点击左侧解剖图部位，查看实时数据与已安装插件","home.panelTitle":"实时数据面板",
+    "home.statusRunning":"运行中","home.statusDegraded":"轻微异常","home.statusFault":"故障","home.statusOffline":"无数据","home.statusMeltdown":"熔断中",
+    "home.refreshAt":"刷新于 {t}","home.updated":"已更新",
+    "home.plugins":"已安装插件","home.pluginsEmpty":"该部位暂无关联插件","home.calls":"技能调用审计","home.callsEmpty":"暂无调用记录",
+    "home.normalOrgans":"正常器官","home.abnormalOrgans":"异常器官","home.totalOrgans":"器官总数","home.overallStatus":"整体状态",
+    "home.detailTitle":"详细数据","home.emptyDetail":"该部位暂无详细数据",
+    "home.monsterBody":"小怪兽本体","home.monsterBodySub":"12 器官聚合状态","home.monsterName":"Monster",
+    "home.enabled":"已启用","home.disabled":"已停用","home.callCount":"调用 {n} 次","home.lastCall":"最近 {t}","home.never":"从未",
+    "home.riskL0":"L0 安全","home.riskL1":"L1 低危","home.riskL2":"L2 中危","home.riskL3":"L3 高危","home.riskL4":"L4 严重",
+    "organ.engineStopped":"引擎未运行","organ.engineStoppedBanner":"DFU 引擎未运行，器官数据不可用。启动引擎后可查看实时数据。","organ.startEngine":"启动引擎",
+    "organ.noData":"暂无数据","organ.noRecords":"暂无记录","organ.noLiveData":"引擎未运行，暂无实时数据","organ.hintLive":"API源","organ.hintStopped":"引擎未运行",
+    "organ.tableCount":"共 {n} 行","organ.tablePage":"第 {x}/{y} 页","organ.prevPage":"上一页","organ.nextPage":"下一页","organ.sortHint":"点击排序",
+    "organ.sampleTip":"第 {n} 次采样: {v}",
+    "home.engineStopped":"引擎未运行","home.engineStoppedHint":"DFU 引擎未运行，实时数据不可用。启动引擎后可查看各部位实时数据。","home.viewOrganPage":"查看完整器官页",
   },
   en: {
     "side.connecting":"Connecting…","side.online":"Running · Live","side.offline":"Backend Offline · Demo",
@@ -569,6 +983,7 @@ const I18N = {
     "page.organOverview":"Organs Overview","page.organOverviewHint":"Click card to navigate to organ page",
     "metric.uptime":"Uptime","metric.uptimeHint":"Since service start","metric.attacks":"Active Attacks","metric.attacksHint":"Ongoing threats",
     "metric.maxLevel":"Max Alert Level","metric.maxLevelHint":"L1-L4 4-color scale","metric.health":"Self-Heal Result","metric.healthHint":"Latest self-check",
+    "metric.cpu":"CPU Load","metric.mem":"Memory",
     "chart.traffic":"Real-time Traffic","chart.trafficHint":"Last 60s","chart.conn":"Active Connections","chart.connHint":"Last 60s",
     "chart.noData":"No traffic data","chart.noConnData":"No connection data","chart.orgHealth":"Organ Health Status","chart.orgHealthHint":"Click tile to navigate to organ",
     "chart.recentAlarms":"Recent Alarms","chart.realtime":"Live","chart.demo":"Demo",
@@ -578,21 +993,55 @@ const I18N = {
     "alarm.list":"Alert List","alarm.markAll":"Mark Handled","alarm.empty":"No alerts under current filter","alarm.noAlarm":"No alerts, all clear","alarm.marked":"Marked as handled","alarm.markedCount":"{n} alerts marked as handled","alarm.noPending":"No pending alerts",
     "theme.blue":"Blue Default","theme.dark":"Deep Space","theme.mint":"Mint Green","theme.sunset":"Sunset Orange",
     "settings.theme":"Theme Colors","settings.global":"Global Model Config","settings.vendor":"API Vendor","settings.baseUrl":"API Base URL","settings.model":"Model Name","settings.globalKey":"Global API Key",
-    "settings.dfuTokenHint":"Leave blank for demo data","settings.organKeys":"Per-Organ Config","settings.organKeysHint":"Each organ can have its own Key and model",
+    "settings.dfuTokenHint":"Leave blank for demo data","settings.organKeys":"Per-Organ Config","settings.organKeysHint":"Each organ can have its own Key and model","settings.organSave":"Save Organ Config","settings.llmModeReal":"Real Mode","settings.llmModeMock":"Mock Mode","settings.llmModeUnknown":"Unknown",
     "settings.saved":"Config saved","settings.useGlobal":"Use Global Key","settings.vendorLabel":"Vendor","settings.modelLabel":"Model",
+    "settings.llmSubHint":"No need to edit .env / YAML; saved config hot-reloads","settings.llmProvider":"API Provider","settings.llmModel":"Primary Model","settings.llmBackupModel":"Backup Model","settings.llmMock":"Mock Mode","settings.llmMockHint":"No real API calls when enabled","settings.llmTest":"Test Connection","settings.llmSave":"Save & Apply",
+    "settings.llmTestOk":"Connection OK","settings.llmTestFail":"Connection failed","settings.llmTestRunning":"Testing…","settings.llmTestNeed":"Please fill API Base URL / Key / Model first","settings.llmSaved":"LLM config saved & hot-reloaded","settings.llmSaveFail":"Save failed: ",
     "vendor.custom":"Custom",
     "monster.placeholder":"Click to upload a monster avatar (drag & drop or click below)","monster.chooseFile":"Choose Image","monster.reset":"Reset to Default",
     "monster.tooBig":"File too large (max 2MB)","monster.unsupported":"Unsupported file type (PNG/JPG/GIF/WebP only)",
     "chat.title":"Chat with Monster","chat.hint":"Enter to send · Shift+Enter for newline","chat.placeholder":"Ask Monster about current defense posture…",
     "chat.thinking":"Thinking…","chat.fail":"Chat failed: ","chat.noReply":"(No response)","chat.greeting":"Hi, I'm Monster. I can help you check defense posture, attack events, and organ status. What would you like to know?",
     "switch.on":"Enabled","switch.off":"Disabled","export.done":"Attack timeline CSV exported","export.noData":"No data to export",
-    "whitelist.added":"Added to whitelist","whitelist.removed":"Removed from whitelist","whitelist.empty":"Whitelist is empty. Add IP/domain to auto-allow","whitelist.addError":"Please enter IP or domain",
+    "whitelist.added":"Added to whitelist","whitelist.removed":"Removed from whitelist","whitelist.empty":"Whitelist is empty. Add IP/domain/account to auto-allow","whitelist.addError":"Please enter IP, domain or account",
+    "wl.add":"Add","wl.del":"Delete","wl.placeholder":"IP / Domain / Account","wl.identityTitle":"Account identity (source · MFA · privilege · recent activity)",
+    "wl.srcPh":"Login source, e.g. github","wl.privPh":"Privilege level, e.g. Admin","wl.lastAtPh":"Last login, e.g. 08-07 10:00","wl.lastOpPh":"Last privileged op",
+    "wl.mfaOn":"MFA Enabled","wl.mfaOff":"MFA Disabled","wl.verified":"Verified","wl.off":"Off","wl.admin":"Priv","wl.trustPass":"Trust Passthrough",
+    "wl.auditAccounts":"Accounts","wl.auditMfa":"MFA Coverage","wl.auditPriv":"Priv Accounts","wl.lastOp":"Last Priv Op",
     "memory.searchHint":"Enter feature keyword to search attack signature library","memory.placeholder":"Enter keyword, e.g. RDP brute-force","memory.search":"Search","memory.notFound":"No match. You can add to \"Add Case\"",
     "data.healthy":"Healthy","data.working":"Working","data.degraded":"Degraded","data.fault":"Fault","data.unknown":"Unknown",
     "data.sourceAPI":"Source: API","data.sourceDemo":"Source: Demo Data",
     "export.btn":"Export CSV",
     "dfu.control":"DFU Core System","dfu.start":"Start DFU","dfu.running":"Running","dfu.stop":"Stop DFU",
     "dfu.uptime":"Uptime {s}","dfu.demoNotice":"DFU is not running — showing demo data","dfu.stopConfirm":"Stop DFU? Organs will fall back to demo data.",
+    "hr.title":"High-Risk Ops","hr.hint":"Human-in-the-loop · Circuit breaker · L4 confirm",
+    "hr.killSwitch":"Kill-Switch","hr.killSwitchDesc":"Trip all auto-handling, keep alerts & HITL only",
+    "hr.meltdown":"Meltdown","hr.meltdownDesc":"FSM degrade chain, scale down auto response",
+    "hr.l4Status":"L4 Isolation","hr.l4StatusDesc":"Current L4 isolation state","hr.confirmL4":"Confirm L4","hr.rejectL4":"Reject L4",
+    "hr.hitlPending":"HITL Pending Queue","hr.hitlEmpty":"Nothing pending",
+    "hr.stateOn":"ON","hr.stateOff":"OFF","hr.stateUnknown":"Unknown","hr.stateActive":"Isolating","hr.stateInactive":"Inactive",
+    "hr.killOnConfirm":"Enable Kill-Switch? All auto-handling will be tripped, alerts & HITL only.",
+    "hr.killOnDone":"Kill-Switch enabled, auto-handling tripped","hr.killOffDone":"Kill-Switch disabled, auto-handling restored",
+    "hr.meltdownOnConfirm":"Enable Meltdown degrade?","hr.meltdownOnDone":"Meltdown enabled","hr.meltdownOffDone":"Meltdown disabled",
+    "hr.approved":"Approved","hr.denied":"Denied","hr.approve":"Approve","hr.deny":"Deny",
+    "hr.l4ConfirmDone":"L4 isolation confirmed","hr.l4RejectDone":"L4 isolation rejected","hr.loadFail":"Failed to load high-risk state",
+    "export.btn":"Export CSV","export.done":"CSV exported","export.noData":"No data to export",
+    "chart.forensic":"Forensic Timeline","chart.portScan":"Port Scan","chart.outbound":"Outbound Connections","chart.resource":"Resource Monitor","chart.audit":"Audit Log",
+    "home.refresh":"Refresh","home.anatomyTitle":"Monster Anatomy · Click a part",
+    "home.selectPart":"Click an anatomy part on the left to view live data & installed plugins","home.panelTitle":"Live Data Panel",
+    "home.statusRunning":"Running","home.statusDegraded":"Degraded","home.statusFault":"Fault","home.statusOffline":"No Data","home.statusMeltdown":"Meltdown",
+    "home.refreshAt":"Refreshed {t}","home.updated":"Updated",
+    "home.plugins":"Installed Plugins","home.pluginsEmpty":"No plugins associated with this part","home.calls":"Skill Call Audit","home.callsEmpty":"No call records",
+    "home.normalOrgans":"Healthy Organs","home.abnormalOrgans":"Abnormal Organs","home.totalOrgans":"Total Organs","home.overallStatus":"Overall Status",
+    "home.detailTitle":"Details","home.emptyDetail":"No detail data for this part",
+    "home.monsterBody":"Monster Body","home.monsterBodySub":"12-organ aggregate","home.monsterName":"Monster",
+    "home.enabled":"Enabled","home.disabled":"Disabled","home.callCount":"Called {n}x","home.lastCall":"Last {t}","home.never":"Never",
+    "home.riskL0":"L0 Safe","home.riskL1":"L1 Low","home.riskL2":"L2 Medium","home.riskL3":"L3 High","home.riskL4":"L4 Critical",
+    "organ.engineStopped":"Engine Stopped","organ.engineStoppedBanner":"DFU engine is not running — live organ data is unavailable. Start the engine to view real-time data.","organ.startEngine":"Start Engine",
+    "organ.noData":"No data yet","organ.noRecords":"No records","organ.noLiveData":"Engine stopped, no live data","organ.hintLive":"API source","organ.hintStopped":"Engine stopped",
+    "organ.tableCount":"{n} rows","organ.tablePage":"Page {x}/{y}","organ.prevPage":"Prev","organ.nextPage":"Next","organ.sortHint":"Click to sort",
+    "organ.sampleTip":"Sample {n}: {v}",
+    "home.engineStopped":"Engine Not Running","home.engineStoppedHint":"DFU engine is not running, live data unavailable. Start the engine to view real-time data.","home.viewOrganPage":"Open Organ Page",
   }
 };
 let currentLang = "zh";
@@ -718,9 +1167,14 @@ function fmtTime(ts){
   return d.toLocaleString(currentLang==="en"?"en-US":"zh-CN", {month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit"});
 }
 function fmtDur(sec){
-  sec = Math.max(0, Math.floor(sec || 0));
-  const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = sec%60;
-  if(currentLang==="en") return (h>0 ? h+"h " : "") + (m>0 ? m+"m " : "") + s+"s";
+  if(sec==null || isNaN(sec)) return "--";
+  sec = Math.max(0, Math.floor(sec));
+  const d = Math.floor(sec/86400), h = Math.floor(sec%86400/3600), m = Math.floor(sec%3600/60), s = sec%60;
+  if(currentLang==="en"){
+    if(d>0) return d+"d "+h+"h";
+    return (h>0 ? h+"h " : "") + (m>0 ? m+"m " : "") + s+"s";
+  }
+  if(d>0) return d+"天 "+h+"小时";
   return (h>0 ? h+"小时" : "") + (m>0 ? m+"分" : "") + s+"秒";
 }
 const LEVEL_META = {1:["L1","lv1"],2:["L2","lv2"],3:["L3","lv3"],4:["L4","lv4"]};
@@ -728,11 +1182,30 @@ function levelTag(level){ const m = LEVEL_META[level] || LEVEL_META[1]; return `
 
 /* ---------- API 封装 ---------- */
 let _dfuApiToken = null;
+function getBootstrapKey(){
+  // 优先级：URL 参数 ?bootstrap= > localStorage > 空
+  try{
+    const fromUrl = new URLSearchParams(location.search).get("bootstrap");
+    if(fromUrl) return fromUrl.trim();
+  }catch(e){}
+  try{
+    const stored = localStorage.getItem("dfu_bootstrap_token");
+    if(stored) return stored.trim();
+  }catch(e){}
+  return "";
+}
 async function ensureApiToken(){
   if(_dfuApiToken) return _dfuApiToken;
   try{
-    const r = await fetch("/api/token", {headers:{"Accept":"application/json"}});
+    const headers = {"Accept":"application/json"};
+    const bk = getBootstrapKey();
+    if(bk) headers["X-Bootstrap-Token"] = bk;
+    const r = await fetch("/api/token", {headers});
     if(r.ok){ const d = await r.json(); _dfuApiToken = d.token || null; }
+    else if(r.status === 401){
+      // 首访保护未通过：提示用户配置 Bootstrap Key
+      console.warn("[Auth] /api/token 需要 Bootstrap Key：请以 ?bootstrap=<key> 访问，或设置 localStorage.dfu_bootstrap_token");
+    }
   }catch(e){ _dfuApiToken = null; }
   return _dfuApiToken;
 }
@@ -850,37 +1323,316 @@ async function toggleDfu(){
   if(document.getElementById("page-overview").classList.contains("active")) loadOverview(true);
   const actOrg = $$(".page.active")[0];
   if(actOrg && actOrg.id && actOrg.id.startsWith("page-organ-")){
+    // 引擎启动/停止后即时强刷：先同步 posture 缓存，再立即重渲染器官页，不等 5s 轮询
+    try{ await fetchMonsterPosture(true); }catch(e){}
     loadOrganData(actOrg.id.replace("page-organ-",""), true);
   }
 }
 async function ensureDfuData(){
-  if(!dfuStatus.running){
-    dfuOrgansCache = null; dfuOrgansTs = 0;
-    return;
+  // Phase 1: 不再依赖 /api/dfu/organs/data（引擎停止时返回空）；
+  // 器官数据完全从 monsterPostureCache 读取
+  if(!window.monsterPostureCache){
+    try{ await fetchMonsterPosture(); }catch(e){}
   }
+}
+/* Phase 1: 将 posture ID (left_hand) 映射为前端 organ ID (left-hand) */
+const _POSTURE_KEY_MAP = {
+  "left-hand":"left_hand","right-hand":"right_hand","left-brain":"left_brain",
+  "right-brain":"right_brain","self-heal":"self_heal","repair-hand":"medic",
+  "report-mouth":"report_mouth","alarm-nose":"alarm","skill-box":"skillbox"
+};
+function _pk(organId){ return _POSTURE_KEY_MAP[organId] || organId; }
+// 动态指标位定义：引擎未运行时，动态位（实时计数类）显示 "--"，静态位（配置/模式/等级类）照常显示 posture 真实值
+const DYNAMIC_METRIC = {
+  "prefrontal":[0,1,2],
+  "left-hand":[0,1],
+  "left-brain":[0,2],
+  "right-brain":[0,1,2],
+  "right-hand":[0,1],
+  "repair-hand":[1,2],
+  "self-heal":[0,1,2],
+  "report-mouth":[0,1],
+  "alarm-nose":[0,1],
+  "memory":[0,1,2],
+  "whitelist":[2],
+  "skill-box":[2]
+};
+/* ================== 报警鼻专用数据源（GET /api/alarm-nose/status） ================== */
+let __alarmNoseStatusCache = null;
+let __alarmNoseStatusTs = 0;
+async function fetchAlarmNoseStatus(force){
   const now = Date.now();
-  if(dfuOrgansCache && now - dfuOrgansTs < 3000) return;
+  if(!force && __alarmNoseStatusCache && (now - __alarmNoseStatusTs) < 3000) return __alarmNoseStatusCache;
+  // 引擎未运行：不请求接口，保持未运行横幅语义，不显示假数据
+  if(!dfuStatus || !dfuStatus.running){ __alarmNoseStatusCache = null; return null; }
   try{
-    dfuOrgansCache = await apiGet("/api/dfu/organs/data");
-    dfuOrgansTs = Date.now();
-  }catch(e){}
+    const data = await apiGet("/api/alarm-nose/status");
+    __alarmNoseStatusCache = data || null;
+    __alarmNoseStatusTs = Date.now();
+  }catch(e){ __alarmNoseStatusCache = null; }
+  return __alarmNoseStatusCache;
+}
+/* 告警处置按钮区：引擎运行且存在告警时可用；无告警禁用；confirm-l4 仅 L4 状态可点 */
+function updateAlarmActions(){
+  const wrap = document.getElementById("alarm-actions-box");
+  if(!wrap) return;
+  const live = !!dfuStatus.running;
+  const st = __alarmNoseStatusCache || {};
+  const level = String(st.level || "");
+  const hasAlarm = live && level !== "" && level !== "L0" && level !== "L0-normal";
+  const inL4 = level === "L4-isolate";
+  const btnAck = `<button class="btn btn-sm an-btn" id="an-ack" onclick="alarmNoseAction('ack')" ${hasAlarm?"":"disabled"}>确认告警</button>`;
+  const btnCancel = `<button class="btn btn-sm an-btn an-danger" id="an-cancel" onclick="alarmNoseAction('cancel')" ${hasAlarm?"":"disabled"}>取消告警</button>`;
+  const btnL4 = `<button class="btn btn-sm an-btn an-l4" id="an-l4" onclick="alarmNoseAction('confirm-l4')" ${inL4?"":"disabled"}>强制 L4</button>`;
+  wrap.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${btnAck}${btnCancel}${btnL4}` +
+    `<span class="hint-text" style="margin-left:auto">当前等级：${esc(st.level_label || st.level || "--")}${hasAlarm ? " · 倒计时 " + (st.countdown_remaining_secs||0) + "s" : ""}</span></div>`;
+}
+async function alarmNoseAction(action){
+  const live = !!dfuStatus.running;
+  if(!live){ toast(t("organ.engineStopped"), "err"); return; }
+  const map = { ack:"/api/alarm-nose/ack", cancel:"/api/alarm-nose/cancel", "confirm-l4":"/api/alarm-nose/confirm-l4" };
+  const url = map[action];
+  if(!url) return;
+  const label = action === "ack" ? "确认告警" : action === "cancel" ? "取消告警" : "强制 L4";
+  try{
+    await ensureApiToken();
+    const resp = await fetch(url, {method:"POST", headers:apiHeaders({"Content-Type":"application/json","Accept":"application/json"}), body:"{}"});
+    let data = null;
+    try{ data = await resp.json(); }catch(e){}
+    if(!resp.ok){
+      // confirm-l4 非 L4 状态时后端返回 400，透传后端 message/detail
+      toast(label + " 失败：" + ((data && (data.message || data.detail)) || ("HTTP " + resp.status)), "err");
+      return;
+    }
+    const ok = !!(data && data.success !== false && data.status !== "error");
+    toast(ok ? ((data && data.message) || (label + " 成功")) : ((data && data.message) || (label + " 失败")), ok ? "ok" : "err");
+  }catch(e){
+    toast(label + " 失败：" + (e && e.message ? e.message : e), "err");
+  }
+  await fetchAlarmNoseStatus(true);
+  loadOrganData("alarm-nose", true);
+}
+/* ================== 蜜罐事件上报面板（POST /api/honeypot/event） ================== */
+const _HP_CATEGORIES = ["web_scan","web_attack","ssh_brute","ftp_brute","smtp_scan","rdp_scan","db_scan","ssl_scan","tls_scan","port_knock","unknown_probe"];
+const _HP_SEVERITIES = ["low","medium","high","severe"];
+let __hpDraft = { category:"", severity:"", src_ip:"", src_port:"", payload:"" };
+function renderHoneypotReport(organId, idx){
+  const box = document.getElementById("hp-report-" + organId + "-" + idx);
+  if(!box) return;
+  const live = !!dfuStatus.running;
+  const d = __hpDraft;
+  const cats = _HP_CATEGORIES.map(c=>`<option value="${c}"${d.category===c?" selected":""}>${c}</option>`).join("");
+  const sevs = _HP_SEVERITIES.map(s=>`<option value="${s}"${d.severity===s?" selected":""}>${s}</option>`).join("");
+  box.innerHTML =
+    `<div class="hp-status-row"><span class="dot ${live?"ok":"off"}"></span><span>${live ? "API 源已连接，可上报" : esc(t("organ.engineStopped")) + "，上报不可用"}</span></div>` +
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">` +
+      `<label class="hp-field"><span>类别 Category</span><select id="hp-category">${cats}</select></label>` +
+      `<label class="hp-field"><span>严重级 Severity</span><select id="hp-severity">${sevs}</select></label>` +
+      `<label class="hp-field"><span>源 IP</span><input id="hp-src-ip" placeholder="如 203.0.113.7" value="${esc(d.src_ip)}" /></label>` +
+      `<label class="hp-field"><span>源端口</span><input id="hp-src-port" type="number" min="0" max="65535" placeholder="如 4444" value="${esc(d.src_port)}" /></label>` +
+      `<label class="hp-field" style="grid-column:1/-1"><span>Payload 预览</span><textarea id="hp-payload" rows="2" placeholder="攻击载荷预览文本（可选）">${esc(d.payload)}</textarea></label>` +
+    `</div>` +
+    `<div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">` +
+      `<button class="btn btn-primary btn-sm" id="hp-submit" onclick="submitHoneypotEvent()" ${live?"":"disabled"}>上报事件</button>` +
+      `<span class="hint-text">事件将注入 DFU 检测 → 决策 → 处置管道</span>` +
+    `</div>`;
+  // 保存草稿：5s 轮询重渲染不丢失用户输入
+  box.oninput = function(){
+    __hpDraft = {
+      category: (document.getElementById("hp-category")||{}).value || "",
+      severity: (document.getElementById("hp-severity")||{}).value || "",
+      src_ip: (document.getElementById("hp-src-ip")||{}).value || "",
+      src_port: (document.getElementById("hp-src-port")||{}).value || "",
+      payload: (document.getElementById("hp-payload")||{}).value || ""
+    };
+  };
+}
+async function submitHoneypotEvent(){
+  const live = !!dfuStatus.running;
+  if(!live){ toast(t("organ.engineStopped"), "err"); return; }
+  const category = document.getElementById("hp-category").value;
+  const severity = document.getElementById("hp-severity").value;
+  const src_ip = document.getElementById("hp-src-ip").value.trim();
+  const src_port = document.getElementById("hp-src-port").value.trim();
+  const payload = document.getElementById("hp-payload").value.trim();
+  if(!src_ip){ toast("请填写源 IP", "err"); return; }
+  try{
+    const r = await apiPost("/api/honeypot/event", {
+      category: category,
+      severity: severity,
+      src_ip: src_ip,
+      src_port: src_port ? Number(src_port) : 0,
+      payload_preview: payload
+    });
+    const ok = !!(r && r.success !== false);
+    toast(ok ? ("蜜罐事件已上报" + (r && r.alert_id ? "（alert_id: " + r.alert_id + "）" : "")) : ((r && r.message) || "上报失败"), ok ? "ok" : "err");
+    if(ok){
+      __hpDraft = { category: category, severity: severity, src_ip:"", src_port:"", payload:"" };
+      loadOrganData("alarm-nose", true);
+    }
+  }catch(e){
+    toast("上报失败：" + (e && e.message ? e.message : e), "err");
+  }
 }
 function getOrganData(organId){
-  // 优先从 MonsterAgent 实时态势缓存获取
-  const postCache = window.monsterPostureCache;
-  if(postCache && postCache[organId]){
-    const pd = postCache[organId];
-    // 将 MonsterAgent 态势字段映射为前端统一结构
-    const metrics = pd.metrics || pd.values || [];
-    const tableRows = pd.details || pd.rows || [];
-    const list = pd.list || [];
-    return { metrics, tableRows, list };
+  const post = window.monsterPostureCache;
+  if(!post) return window.DEMO_ORGAN_DATA[organId] || {};
+  const pk = _pk(organId);
+  const pd = post[pk] || post[organId];
+  if(!pd) return window.DEMO_ORGAN_DATA[organId] || {};
+  // ── 按器官映射 posture 字段为 metrics / tableRows / list ──
+  var metrics=[], tableRows=[], list=[];
+  switch(organId){
+    case "prefrontal":
+      metrics = [pd.running?1:0, pd.uptime_sec||0, pd.meltdown?1:0];
+      list = [
+        {t:"LLM Mode", s:pd.llm_mode||"--"},
+        {t:"Monster Mode", s:pd.monster_mode||"--"},
+        {t:"Status", s:pd.running?"Running":"Stopped"},
+        {t:"Meltdown", s:pd.meltdown?"YES - CRITICAL":"No"}
+      ];
+      break;
+    case "left-brain":
+      var sev = pd.alerts_by_severity||{};
+      metrics = [pd.total_alerts||0, pd.total_compute_units||0, pd.schema_blocks||0];
+      tableRows = [
+        ["Alerts(L/M/H/S)", sev.low||0, sev.medium||0, sev.high||0, sev.severe||0],
+        ["Schema", "blocks:"+(pd.schema_blocks||0), "passes:"+(pd.schema_passes||0), "gate denies:"+(pd.gate_denies||0), "reviews:"+(pd.gate_reviews||0)],
+        ["LLM/Fallback", "LLM:"+(pd.llm_count||0), "Fallback:"+(pd.fallback_count||0), "", ""]
+      ];
+      list = [
+        {t:"Decision Engine", s:pd.total_alerts?"Active ("+pd.total_alerts+" processed)":"Idle"},
+        {t:"Gate Mode", s:pd.gate_reviews?"Review":"Auto"},
+        {t:"LLM Count", s:pd.llm_count||0},
+        {t:"Fallback Count", s:pd.fallback_count||0}
+      ];
+      break;
+    case "right-brain":
+      var cat = pd.analyses_by_category||{};
+      metrics = [pd.total_alerts||0, pd.avg_confidence||0, pd.schema_blocks||0];
+      tableRows = [
+        ["Category", "DDoS:"+(cat.ddos||0), "PortScan:"+(cat.port_scan||0), "Brute:"+(cat.brute_force||0), "Vuln:"+(cat.vuln||0)],
+        ["Schema", "blocks:"+(pd.schema_blocks||0), "passes:"+(pd.schema_passes||0), "gate denies:"+(pd.gate_denies||0), "reviews:"+(pd.gate_reviews||0)]
+      ];
+      list = [
+        {t:"Analysis Engine", s:pd.total_alerts?"Active":"Idle"},
+        {t:"Avg Confidence", s:(pd.avg_confidence||0).toFixed(2)},
+        {t:"LLM Count", s:pd.llm_count||0},
+        {t:"Fallback Count", s:pd.fallback_count||0},
+        {t:"DDoS", s:cat.ddos||0},
+        {t:"Port Scan", s:cat.port_scan||0},
+        {t:"Brute Force", s:cat.brute_force||0},
+        {t:"Vuln", s:cat.vuln||0}
+      ];
+      break;
+    case "left-hand":
+      var ips = pd.blocked_ips||[];
+      metrics = [pd.blacklist_count||0, ips.length, 0];
+      tableRows = ips.slice(0,10).map(function(ip,i){
+        return [new Date().toLocaleTimeString(), "TCP", ip, "Blocked"];
+      });
+      list = [
+        {t:"Mode", s:pd.mode||"--"},
+        {t:"Blacklist", s:(pd.blacklist_count||0)+" entries"},
+        {t:"Blocked IPs", s:ips.length+" active"}
+      ];
+      break;
+    case "right-hand":
+      var fwips = pd.blocked_ips||[];
+      metrics = [pd.blocked_count||0, fwips.length, pd.firewall_mode==="active"?1:0];
+      tableRows = fwips.slice(0,10).map(function(ip,i){
+        return ["#"+(i+1), "BLOCK", "Done", "0.3s"];
+      });
+      list = [
+        {t:"Firewall Mode", s:pd.firewall_mode||"--"},
+        {t:"Blocked", s:(pd.blocked_count||0)+" total"}
+      ];
+      break;
+    case "repair-hand":
+      var agents = pd.agents||{};
+      var agentList = Object.keys(agents);
+      metrics = ["Medic", agentList.length, pd.medic_log_count||0];
+      tableRows = agentList.map(function(k){ return [k, "Repair Hand", agents[k]||"--"]; });
+      list = [
+        {t:"Breaker", s:pd.breaker&&pd.breaker.is_open?"OPEN:"+pd.breaker.reason:"Closed"},
+        {t:"Agents", s:agentList.length+" running"},
+        {t:"Medic Logs", s:(pd.medic_log_count||0)+" entries"}
+      ];
+      break;
+    case "self-heal":
+      metrics = [pd.degraded_count?"Degraded":"Healthy", pd.degraded_count?1:0, pd.degraded_count||0];
+      tableRows = (pd.degraded||[]).map(function(d){ return [new Date().toISOString().split("T")[0], d, "Fail"]; });
+      list = [
+        {t:"Status", s:pd.degraded_count?"Degraded ("+pd.degraded_count+" items)":"All Healthy"},
+        {t:"Degraded", s:pd.degraded_count?pd.degraded.join(", "):"None"}
+      ];
+      break;
+    case "report-mouth":
+      var rmEvents = pd.recent_events||[];
+      metrics = [pd.total_events||0, rmEvents.length, pd.persistence?1:0];
+      tableRows = rmEvents.slice(0,20).map(function(ev){
+        return [ev.time||"--", ev.category||"--", ev.severity||"--", ev.source_ip||"--", ev.description||""];
+      });
+      list = [
+        {t:"Persistence", s:pd.persistence?"Connected":"Disconnected"},
+        {t:"Event Count", s:(pd.total_events||0)+" total"},
+        {t:"Last Event", s:pd.last_event_time||"--"}
+      ];
+      break;
+    case "alarm-nose":
+      // P0: 优先使用 /api/alarm-nose/status 专用接口数据（由 fetchAlarmNoseStatus 填充），回退 posture 缓存
+      var nose = __alarmNoseStatusCache || pd || {};
+      metrics = [nose.alert_count||0, nose.countdown_remaining_secs||0, nose.level_label||nose.level||"L0"];
+      var hist = nose.history||[];
+      tableRows = hist.slice(0,20).map(function(h){
+        return [h.timestamp||h.time||"", h.level||"", h.detail||h.trigger||h.reason||""];
+      });
+      list = [
+        {t:"Level", s:nose.level_label||nose.level||"L0-normal"},
+        {t:"Trigger", s:nose.trigger||"None"},
+        {t:"Ack Required", s:nose.ack_required?"YES":"No"},
+        {t:"Countdown", s:(nose.countdown_remaining_secs||0)+"s / "+(nose.countdown_total_secs||0)+"s"},
+        {t:"L4 IPs", s:(nose.fsm_l4_ips||[]).join(", ") || "None"},
+        {t:"Last Action", s:nose.last_action_summary||"--"}
+      ];
+      break;
+    case "memory":
+      metrics = [pd.hot_store?pd.hot_store.size:0, pd.hot_store?pd.hot_store.hit_rate:0, pd.cold_store?pd.cold_store.hit_rate:0];
+      tableRows = [];
+      list = [
+        {t:"Hot Store", s:"size:"+(pd.hot_store?pd.hot_store.size:0)+", hit_rate:"+((pd.hot_store?pd.hot_store.hit_rate:0)*100).toFixed(1)+"%"},
+        {t:"Cold Store", s:"hit_rate:"+((pd.cold_store?pd.cold_store.hit_rate:0)*100).toFixed(1)+"%"}
+      ];
+      break;
+    case "whitelist":
+      // 身份化审计行（时间/账号或来源/类型/MFA 四列）：优先消费后端下发审计行，缺省回退 protected_ips
+      var wlRows = (pd && (pd.auditRows || pd.tableRows)) || [];
+      if(!Array.isArray(wlRows) || wlRows.length === 0){
+        var wlips = pd.protected_ips||[];
+        wlRows = wlips.slice(0,20).map(function(ip){ return [new Date().toISOString().split("T")[0], ip, "Protected", "n/a"]; });
+        metrics = [wlips.length, 0, 0];
+        list = [{t:"Protected IPs", s:wlips.join(", ")||"None"}];
+      } else {
+        metrics = [wlRows.length, 0, 0];
+        list = [{t:"Identity Audit", s:wlRows.length+" row(s) (time / account-or-source / type / MFA)"}];
+      }
+      tableRows = wlRows.slice(0,20).map(function(r){
+        if(Array.isArray(r)) return [r[0]||"", r[1]||"", r[2]||"", r[3]||""];
+        return ["", String(r), "Protected", "n/a"];
+      });
+      break;
+    case "skill-box":
+      metrics = [pd.total_tools||0, pd.enabled||0, pd.total_calls||0];
+      tableRows = [];
+      list = [
+        {t:"Tools", s:(pd.enabled||0)+"/"+(pd.total_tools||0)+" enabled"},
+        {t:"Total Calls", s:pd.total_calls||0}
+      ];
+      break;
+    default:
+      return window.DEMO_ORGAN_DATA[organId] || {};
   }
-  const cache = dfuOrgansCache && dfuOrgansCache.organs ? dfuOrgansCache.organs : dfuOrgansCache;
-  if(dfuStatus.running && cache && cache[organId]){
-    return cache[organId];
-  }
-  return window.DEMO_ORGAN_DATA[organId] || {};
+  return { metrics:metrics, tableRows:tableRows, list:list };
 }
 /* ================== MonsterAgent 实时态势轮询 ================== */
 const MONSTER_API_BASE = (function(){
@@ -888,14 +1640,20 @@ const MONSTER_API_BASE = (function(){
 })();
 window.monsterPostureCache = null;
 let __monsterPostureTimer = null;
-async function fetchMonsterPosture(){
+let __monsterPostureTs = 0;
+async function fetchMonsterPosture(force){
+  const now = Date.now();
+  if(!force && window.monsterPostureCache && (now - __monsterPostureTs) < 5000) return window.monsterPostureCache;
   try{
+    await ensureApiToken();
     const resp = await fetch(MONSTER_API_BASE + "/api/monster/posture", {
-      headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(8000)
+      headers: apiHeaders({"Accept":"application/json"}), signal: AbortSignal.timeout(8000)
     });
     if(resp.ok){
       const data = await resp.json();
-      window.monsterPostureCache = data;
+      // 后端返回 {status, posture:{...}}，直接缓存 posture 字典供 getOrganData 使用
+      window.monsterPostureCache = (data && data.posture) || data;
+      __monsterPostureTs = Date.now();
       // 更新当前活跃器官页的模式指示灯
       updateModeLamps();
       // 自动刷新当前活跃器官页
@@ -907,6 +1665,7 @@ async function fetchMonsterPosture(){
   }catch(e){
     // MonsterAgent 不可达，静默使用 demo 数据
   }
+  return window.monsterPostureCache || null;
 }
 function updateModeLamps(){
   const hasPosture = !!window.monsterPostureCache;
@@ -927,6 +1686,41 @@ function initMonsterPosture(){
   if(__monsterPostureTimer) clearInterval(__monsterPostureTimer);
   __monsterPostureTimer = setInterval(fetchMonsterPosture, 30000);
 }
+/* ================== Phase 1: SSE 实时事件流 ================== */
+let __sseSource = null, __sseReconnectTimer = null;
+function initSSEStream(){
+  if(__sseSource){ try{ __sseSource.close(); }catch(e){} }
+  ensureApiToken().then(function(){
+    if(!_dfuApiToken) return;
+    // P0: SSE URL 不携带 token（后端 /api/events/stream 不校验 token，token 进 URL 会泄露进日志/历史）
+    var url = MONSTER_API_BASE + "/api/events/stream";
+    __sseSource = new EventSource(url);
+    __sseSource.onmessage = function(e){
+      try{
+        var ev = JSON.parse(e.data);
+        if(ev.type === "posture_update" && ev.data){
+          window.monsterPostureCache = (ev.data && ev.data.posture) || ev.data;
+          updateModeLamps();
+          updateOverviewMetrics();
+        } else if(ev.type === "metric_update"){
+          updateOverviewMetrics();
+        }
+      }catch(ex){}
+    };
+    __sseSource.onerror = function(){
+      __sseSource.close(); __sseSource = null;
+      if(__sseReconnectTimer) clearTimeout(__sseReconnectTimer);
+      __sseReconnectTimer = setTimeout(initSSEStream, 10000);
+    };
+  }).catch(function(){
+    if(__sseReconnectTimer) clearTimeout(__sseReconnectTimer);
+    __sseReconnectTimer = setTimeout(initSSEStream, 10000);
+  });
+}
+function stopSSEStream(){
+  if(__sseSource){ try{ __sseSource.close(); }catch(e){} __sseSource = null; }
+  if(__sseReconnectTimer){ clearTimeout(__sseReconnectTimer); __sseReconnectTimer = null; }
+}
 function initDfuControl(){
   refreshDfuStatus();
   if(dfuTimer) clearInterval(dfuTimer);
@@ -940,6 +1734,23 @@ function initDfuControl(){
   }, 3000);
 }
 
+/* ================== 器官页实时轮询（5s，与 overview/home 既有 timer 独立） ================== */
+let __organPollTimer = null;
+let __organPollId = null;
+function startOrganPolling(organId){
+  stopOrganPolling();
+  __organPollId = organId;
+  __organPollTimer = setInterval(function(){
+    fetchMonsterPosture(false).then(function(){
+      if(__organPollId) loadOrganData(__organPollId, false);
+    }).catch(function(){});
+  }, 5000);
+}
+function stopOrganPolling(){
+  if(__organPollTimer){ clearInterval(__organPollTimer); __organPollTimer = null; }
+  __organPollId = null;
+}
+
 /* ================== 导航与路由 ================== */
 function navigate(page){
   $$(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.page === page));
@@ -949,8 +1760,21 @@ function navigate(page){
   window.scrollTo({top:0});
   if(page === "overview") loadOverview();
   if(page === "alarms") loadAlarms();
+  if(page === "home") loadHomeMonitor();
   if(page === "settings") initSettings();
-  if(page.startsWith("organ:")){ renderOrganPage(page.split(":")[1]); }
+  if(page.startsWith("organ:")){
+    const organId = page.split(":")[1];
+    renderOrganPage(organId);
+    startOrganPolling(organId);
+    // 深链/跳转后自动定位到对应器官页并滚动到视图
+    setTimeout(()=>{
+      const sec = document.getElementById("page-organ-"+organId);
+      if(sec) sec.scrollIntoView({behavior:"smooth", block:"start"});
+    }, 50);
+  }else{
+    // 离开器官页：停止器官轮询，避免与 overview/home 的 timer 并发
+    stopOrganPolling();
+  }
   // 首次进入 skill-box 时加载技能管理面板
   if(page === "organ:skill-box" && !skillCache.loaded){ initSkillPanel(); }
 }
@@ -983,12 +1807,54 @@ function loadSettings(){
   }catch(e){}
   return defaultSettings();
 }
+let __organOverrides = null; // 后端持久化的器官独立 LLM 覆盖（null=未加载）
 function getOrganConfig(organId){
-  const s = loadSettings();
   const def = { useGlobalKey:true, apiKey:"", vendor:"custom", baseUrl:"", model:"" };
+  const src = (__organOverrides && __organOverrides[organId]) ? __organOverrides[organId] : null;
+  if(src) return Object.assign({}, def, src);
+  const s = loadSettings();
   return (s.organConfigs && s.organConfigs[organId]) ? Object.assign({}, def, s.organConfigs[organId]) : def;
 }
 function setOrganConfig(organId, cfg){ /* used by saveSettings */ }
+function initOrganLlmConfig(){
+  apiGet("/api/config/llm/organs").then(res => {
+    if(res && res.status === "ok" && res.organ_overrides){
+      __organOverrides = res.organ_overrides;
+      renderOrganKeyCards();
+    }
+  }).catch(()=>{ /* 服务不可用时保留 localStorage 配置 */ });
+}
+async function saveOrganConfigs(){
+  const hint = document.getElementById("organ-save-result");
+  const overrides = {};
+  ORGANS.forEach(o => {
+    const useGlobal = document.getElementById("org-use-global-"+o.id).classList.contains("on");
+    const keyEl = document.getElementById("org-key-"+o.id);
+    const vendorEl = document.getElementById("org-vendor-"+o.id);
+    const baseEl = document.getElementById("org-base-url-"+o.id);
+    const modelEl = document.getElementById("org-model-"+o.id);
+    const cfg = { useGlobalKey:useGlobal };
+    if(vendorEl) cfg.vendor = vendorEl.value;
+    if(baseEl) cfg.baseUrl = baseEl.value;
+    if(modelEl) cfg.model = modelEl.value;
+    if(keyEl) cfg.apiKey = keyEl.value;
+    overrides[o.id] = cfg;
+  });
+  try{
+    const res = await apiPut("/api/config/llm/organs", { organ_overrides: overrides });
+    if(res && res.status === "ok"){
+      __organOverrides = res.organ_overrides || overrides;
+      // 同步到 localStorage 作为离线兜底
+      const s = loadSettings(); s.organConfigs = __organOverrides; localStorage.setItem(LS_KEY, JSON.stringify(s));
+      if(hint){ hint.textContent = t("settings.llmSaved"); hint.className = "hint-text text-ok"; }
+      toast(t("settings.llmSaved"), "ok");
+    }else{
+      if(hint){ hint.textContent = t("settings.llmSaveFail") + ((res && res.detail) || ""); hint.className = "hint-text text-err"; }
+    }
+  }catch(e){
+    if(hint){ hint.textContent = t("settings.llmSaveFail") + e.message; hint.className = "hint-text text-err"; }
+  }
+}
 
 async function saveSettings(){
   const s = loadSettings();
@@ -1111,6 +1977,136 @@ function initSettings(){
   setLangUI();
   document.getElementById("set-dfu-token").value = s.dfuToken;
   applySettings(s);
+  initLlmSettings();
+}
+
+/* ================== LLM 接入配置 ================== */
+let __llmPresets = null;
+
+function initLlmSettings(){
+  apiGet("/api/config/llm").then(res => {
+    if(!res || res.status !== "ok"){ renderLlmModeLight(null); return; }
+    __llmPresets = res.presets || {};
+    renderLlmProviderSelect(res.config);
+  }).catch(()=>{ renderLlmModeLight(null); /* 服务不可用时静默，设置页其它功能不受影响 */ });
+  initOrganLlmConfig();
+}
+function renderLlmProviderSelect(cfg){
+  const sel = document.getElementById("set-llm-provider");
+  if(!sel || !__llmPresets) return;
+  const keys = Object.keys(__llmPresets);
+  sel.innerHTML = keys.map(k => `<option value="${k}" ${cfg.provider === k ? "selected" : ""}>${__llmPresets[k].name || k}</option>`).join("");
+  applyLlmConfigToForm(cfg);
+}
+function applyLlmConfigToForm(cfg){
+  if(!cfg) return;
+  document.getElementById("set-llm-provider").value = cfg.provider || "custom";
+  document.getElementById("set-llm-base-url").value = cfg.api_base || "";
+  document.getElementById("set-llm-api-key").value = "";
+  const mask = document.getElementById("llm-key-mask");
+  if(mask) mask.textContent = cfg.has_api_key ? "已配置 " + (cfg.api_key || "") : "";
+  document.getElementById("set-llm-model").value = cfg.model || "";
+  document.getElementById("set-llm-backup-model").value = cfg.backup_model || "";
+  document.getElementById("set-llm-mock-mode").checked = !!cfg.mock_mode;
+  fillLlmModelList();
+  const hint = document.getElementById("llm-test-result");
+  if(hint){ hint.textContent = cfg.effective_mode === "mock" ? t("settings.llmMockHint") : ""; }
+  renderLlmModeLight(cfg.effective_mode);
+}
+function renderLlmModeLight(mode){
+  const el = document.getElementById("llm-mode-light");
+  if(!el) return;
+  if(mode === "real"){
+    el.textContent = "● " + t("settings.llmModeReal");
+    el.style.cssText = "display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:2px 12px;border-radius:20px;font-size:12px;font-weight:600;vertical-align:middle;color:#059669;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.4)";
+  }else if(mode === "mock"){
+    el.textContent = "● " + t("settings.llmModeMock");
+    el.style.cssText = "display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:2px 12px;border-radius:20px;font-size:12px;font-weight:600;vertical-align:middle;color:#d97706;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4)";
+  }else{
+    el.textContent = "○ " + t("settings.llmModeUnknown");
+    el.style.cssText = "display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:2px 12px;border-radius:20px;font-size:12px;font-weight:600;vertical-align:middle;color:#6b7280;background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.3)";
+  }
+}
+function onLlmProviderChange(){
+  const sel = document.getElementById("set-llm-provider");
+  const p = __llmPresets && __llmPresets[sel.value];
+  if(!p) return;
+  if(p.base_url) document.getElementById("set-llm-base-url").value = p.base_url;
+  if(p.models && p.models.length){
+    const cur = document.getElementById("set-llm-model").value;
+    if(!cur || p.models.indexOf(cur) < 0) document.getElementById("set-llm-model").value = p.models[0] || "";
+  }
+  fillLlmModelList();
+}
+function fillLlmModelList(){
+  const dl = document.getElementById("llm-model-list");
+  const sel = document.getElementById("set-llm-provider");
+  if(!dl || !sel) return;
+  const p = __llmPresets && __llmPresets[sel.value];
+  dl.innerHTML = (p && p.models || []).map(m => `<option value="${m}"></option>`).join("");
+}
+function collectLlmForm(){
+  const v = id => document.getElementById(id) ? document.getElementById(id).value.trim() : "";
+  return {
+    provider: v("set-llm-provider"),
+    api_base: v("set-llm-base-url"),
+    api_key: document.getElementById("set-llm-api-key") ? document.getElementById("set-llm-api-key").value.trim() : "",
+    model: v("set-llm-model"),
+    backup_model: v("set-llm-backup-model"),
+    mock_mode: document.getElementById("set-llm-mock-mode") ? document.getElementById("set-llm-mock-mode").checked : false,
+  };
+}
+async function testLlmConnection(){
+  const btn = document.getElementById("llm-test-btn");
+  const hint = document.getElementById("llm-test-result");
+  const body = collectLlmForm();
+  if(body.mock_mode || body.provider === "mock"){
+    if(hint){ hint.textContent = t("settings.llmTestOk") + " · 0ms（Mock 模式无需真实 API）"; hint.className = "hint-text text-ok"; }
+    return;
+  }
+  if(!body.api_base || !body.api_key || !body.model){
+    if(hint) hint.textContent = t("settings.llmTestNeed");
+    return;
+  }
+  if(btn) btn.disabled = true;
+  if(hint) hint.textContent = t("settings.llmTestRunning");
+  try{
+    const res = await apiPost("/api/llm/test", body);
+    if(hint){
+      hint.textContent = (res && res.ok) ? (t("settings.llmTestOk") + " · " + (res.latency_ms || 0) + "ms") : (t("settings.llmTestFail") + ": " + ((res && res.msg) || ""));
+      hint.className = "hint-text " + (res && res.ok ? "text-ok" : "text-err");
+    }
+  }catch(e){
+    if(hint){ hint.textContent = t("settings.llmTestFail") + ": " + e.message; hint.className = "hint-text text-err"; }
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+async function saveLlmConfig(){
+  const hint = document.getElementById("llm-test-result");
+  try{
+    const res = await apiPut("/api/config/llm", collectLlmForm());
+    if(res && res.status === "ok"){
+      if(hint){ hint.textContent = t("settings.llmSaved"); hint.className = "hint-text text-ok"; }
+      applyLlmConfigToForm(res.config);
+    }else{
+      if(hint){ hint.textContent = t("settings.llmSaveFail") + ((res && res.detail) || ""); hint.className = "hint-text text-err"; }
+    }
+  }catch(e){
+    if(hint){ hint.textContent = t("settings.llmSaveFail") + e.message; hint.className = "hint-text text-err"; }
+  }
+}
+async function apiPut(url, body){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), 5000);
+  try{
+    await ensureApiToken();
+    let r = await fetch(url, {method:"PUT", headers:apiHeaders({"Content-Type":"application/json","Accept":"application/json"}), body:JSON.stringify(body||{})});
+    if(r.status === 401){ _dfuApiToken = null; await ensureApiToken(); r = await fetch(url, {method:"PUT", headers:apiHeaders({"Content-Type":"application/json","Accept":"application/json"}), body:JSON.stringify(body||{})}); }
+    clearTimeout(timer);
+    if(!r.ok) return {status:"error", detail:"HTTP " + r.status};
+    return await r.json();
+  } catch(e){ clearTimeout(timer); return {status:"error", detail:e.message}; }
 }
 function initThemeButtons(){
   $$(".theme-opt").forEach(t => t.addEventListener("click", ()=>{
@@ -1142,43 +2138,65 @@ function genDemoTraffic(){
 }
 async function fetchOverview(){
   demoFlag.overview = false;
-  let status=null, stats=null, metrics=null, events=null;
-  try{ status = await apiGet("/api/status"); }catch(e){ demoFlag.overview = true; }
-  try{ stats = await apiGet("/api/stats"); }catch(e){ demoFlag.overview = true; }
-  try{ metrics = await apiGet("/api/metrics"); }catch(e){ demoFlag.overview = true; }
-  try{ events = await apiGet("/api/events?limit=20"); }catch(e){ demoFlag.overview = true; }
-  try{ dfuStatus = await apiGet("/api/dfu/status"); }catch(e){ dfuStatus = { running:false, uptime:0, start_time:null, components:{} }; }
-  window.__dfuRunning = !!dfuStatus.running;
-  return { status, stats, metrics, events };
+  try{
+    dfuStatus = await apiGet("/api/dfu/status");
+    if(!dfuStatus) dfuStatus = { running:false, uptime:0, start_time:null, components:{} };
+  }catch(e){ demoFlag.overview = true; }
+  try{ await fetchMonsterPosture(); }catch(e){ demoFlag.overview = true; }
+  window.__dfuRunning = !!(dfuStatus && dfuStatus.running);
+  return { status:dfuStatus, posture:window.monsterPostureCache };
 }
-function loadOverview(force=false){
+async function loadOverview(force=false){
+  const rbtn = document.getElementById("ov-refresh-btn");
+  if(rbtn && force){ rbtn.disabled = true; rbtn.textContent = "..."; }
+  const done = () => { if(rbtn && force){ rbtn.disabled = false; rbtn.textContent = t("btn.refresh"); } };
   if(force) clearInterval(ovTimer);
-  fetchOverview().then(d => {
-    const { status, stats, metrics, events } = d;
+  fetchOverview().then(async d => {
+    const { status, posture } = d;
     const demo = demoFlag.overview;
+    const post = posture || {};
+    const alarm = post.alarm || {};
+    const leftBrain = post.left_brain || {};
+    const selfHeal = post.self_heal || {};
+    const leftHand = post.left_hand || {};
     document.getElementById("ov-demo-tag").style.display = demo ? "inline-flex" : "none";
     document.getElementById("ov-demo-tag").textContent = t("label.demo");
 
-    const uptime = (status && status.uptime) || (metrics && metrics.uptime) || (demo ? 86400 : 0);
+    const uptime = (status && status.uptime) || (demo ? 86400 : 0);
     document.getElementById("ov-uptime").textContent = uptime ? fmtDur(uptime) : "--";
-    const attacks = (stats && (stats.active_attacks ?? stats.activeAttacks)) ?? (demo ? 2 : 0);
-    document.getElementById("ov-attacks").textContent = attacks ?? "--";
-    let maxLevel = 0;
-    if(events && Array.isArray(events)) events.forEach(e => { const l = Number(e.level || e.risk_level || 0); if(l>maxLevel) maxLevel=l; });
-    if(demo && !maxLevel) maxLevel = 2;
-    document.getElementById("ov-maxlevel").textContent = maxLevel ? "L"+maxLevel : "L1";
-    document.getElementById("ov-maxlevel").className = "m-value " + (maxLevel>=4?"err":maxLevel>=3?"warn":maxLevel>=2?"warn":"ok");
-    const heal = (status && status.self_heal) || (metrics && metrics.self_heal) || (demo ? "自愈正常" : "--");
-    const healStr = typeof heal === "object" ? (heal.status || heal.result || JSON.stringify(heal)) : heal;
-    document.getElementById("ov-health").textContent = healStr || "--";
-    const healthy = String(healStr).includes("正常") || String(healStr).includes("ok");
-    document.getElementById("ov-health").className = "m-value " + (healthy ? "ok" : String(healStr).includes("异常") ? "err" : "");
+    const attacks = (leftBrain.total_alerts || 0) + (leftHand.blacklist_count || 0) || (demo ? 2 : 0);
+    document.getElementById("ov-attacks").textContent = attacks || "--";
+    const maxLevel = parseInt((alarm.level||"").replace("L","")) || (demo ? 2 : 0);
+    document.getElementById("ov-maxlevel").textContent = maxLevel ? "L"+maxLevel : "L0";
+    document.getElementById("ov-maxlevel").className = "k-value " + (maxLevel>=4?"err":maxLevel>=3?"warn":maxLevel>=2?"warn":"ok");
+    const degraded = selfHeal.degraded_count || 0;
+    const healStr = degraded ? degraded+" degraded" : (demo ? "自愈正常" : "All Healthy");
+    document.getElementById("ov-health").textContent = healStr;
+    document.getElementById("ov-health").className = "k-value " + (degraded?"err":"ok");
+    // CPU / 内存（优先资源监控真实值，回退演示）
+    let cpu = null, mem = null, memDetail = "--";
+    try{
+      const res = await apiGet("/api/resources");
+      if(res && res.resource){
+        cpu = res.resource.cpu_percent; mem = res.resource.mem_percent;
+        if(res.resource.mem_used_gb != null && res.resource.mem_total_gb != null) memDetail = `${res.resource.mem_used_gb} / ${res.resource.mem_total_gb} GB`;
+      }
+    }catch(e){ cpu = mem = null; }
+    if(cpu == null){ cpu = demo ? 23.5 : 0; }
+    if(mem == null){ mem = demo ? 61.2 : 0; }
+    const cpuEl = document.getElementById("ov-cpu");
+    cpuEl.textContent = cpu ? Number(cpu).toFixed(0)+"%" : "--";
+    cpuEl.className = "k-value " + (cpu>=80?"err":cpu>=60?"warn":"ok");
+    document.getElementById("ov-cpu-bar").style.width = Math.min(100, Math.max(0, Number(cpu)||0)) + "%";
+    const memEl = document.getElementById("ov-mem");
+    memEl.textContent = mem ? Number(mem).toFixed(0)+"%" : "--";
+    memEl.className = "k-value " + (mem>=85?"err":mem>=70?"warn":"ok");
+    document.getElementById("ov-mem-bar").style.width = Math.min(100, Math.max(0, Number(mem)||0)) + "%";
+    document.getElementById("ov-mem-sub").textContent = memDetail;
+    const luEl = document.getElementById("ov-last-update");
+    if(luEl) luEl.textContent = new Date().toLocaleTimeString("zh-CN", {hour12:false});
 
-    const point = genDemoTraffic();
-    if(metrics && typeof metrics.traffic_rate === "number"){
-      point.incoming = metrics.traffic_rate; point.outgoing = (metrics.traffic_rate||0)*0.6;
-    }
-    if(metrics && typeof metrics.active_connections === "number") point.conn = metrics.active_connections;
+    const point = { ts:Date.now(), incoming:(leftBrain.total_alerts||0), outgoing:(leftBrain.schema_passes||0), conn:(leftBrain.total_compute_units||0) };
     ovData.traffic.push({ts:point.ts, in:point.incoming, out:point.outgoing});
     ovData.conn.push({ts:point.ts, v:point.conn});
     if(ovData.traffic.length > 60) ovData.traffic.shift();
@@ -1186,10 +2204,12 @@ function loadOverview(force=false){
     drawLineChart("ov-traffic-chart", ovData.traffic.map(p=>p.in), "in", demo);
     drawLineChart("ov-conn-chart", ovData.conn.map(p=>p.v), "v", demo);
 
-    renderOrgGrid(status, metrics, demo, dfuStatus);
-    renderRecentAlarms(events, demo);
-    updateSidebarStatus(demo, events);
+    renderOrgGrid(posture, dfuStatus);
+    renderRecentAlarms((alarm.history||[]).slice(0,20), demo);
+    updateSidebarStatus(demo, alarm);
     loadEnhanced();
+    loadHighRiskOps();
+    done();
     if(!ovTimer){
       ovTimer = setInterval(()=>loadOverview(), 5000);
     }
@@ -1197,28 +2217,131 @@ function loadOverview(force=false){
     document.getElementById("ov-demo-tag").style.display = "inline-flex";
     updateSidebarStatus(true, null);
     loadEnhanced();
+    done();
     if(!ovTimer) ovTimer = setInterval(()=>loadOverview(), 5000);
   });
 }
-function updateSidebarStatus(demo, events){
+/* ================== Phase 3: 高危操作台 ================== */
+let __hrCache = { kill:false, meltdown:false, l4:[], hitl:[] };
+async function apiPost(url, body){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), 5000);
+  try{
+    await ensureApiToken();
+    let r = await fetch(url, {method:"POST", headers:apiHeaders({"Content-Type":"application/json","Accept":"application/json"}), body:JSON.stringify(body||{})});
+    if(r.status === 401){ _dfuApiToken = null; await ensureApiToken(); r = await fetch(url, {method:"POST", headers:apiHeaders({"Content-Type":"application/json","Accept":"application/json"}), body:JSON.stringify(body||{})}); }
+    clearTimeout(timer);
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } catch(e){ clearTimeout(timer); throw e; }
+}
+async function loadHighRiskOps(){
+  const el = id => document.getElementById(id);
+  try{ const ks = await apiGet("/api/kill-switch"); __hrCache.kill = !!(ks && ks.kill_switch); }catch(e){ __hrCache.kill = false; }
+  const post = window.monsterPostureCache || {};
+  __hrCache.meltdown = !!(post.prefrontal && post.prefrontal.meltdown);
+  try{ const l4 = await apiGet("/api/l4/status"); __hrCache.l4 = (l4 && Array.isArray(l4.l4_active)) ? l4.l4_active : []; }catch(e){ __hrCache.l4 = []; }
+  try{ const h = await apiGet("/api/hitl/pending"); __hrCache.hitl = (h && Array.isArray(h.pending)) ? h.pending : []; }catch(e){ __hrCache.hitl = []; }
+  // kill-switch
+  const ksBtn = el("hr-kill-switch");
+  if(ksBtn){ ksBtn.classList.toggle("on", __hrCache.kill); }
+  const ksState = el("hr-kill-state");
+  if(ksState){ ksState.textContent = __hrCache.kill ? t("hr.stateOn") + " · " + t("hr.killOnDone") : t("hr.stateOff"); ksState.className = "hr-state " + (__hrCache.kill ? "danger" : "ok"); }
+  // meltdown
+  const mdBtn = el("hr-meltdown");
+  if(mdBtn){ mdBtn.classList.toggle("on", __hrCache.meltdown); mdBtn.classList.toggle("warn", __hrCache.meltdown); }
+  const mdState = el("hr-meltdown-state");
+  if(mdState){ mdState.textContent = __hrCache.meltdown ? t("hr.stateOn") + " · " + t("hr.meltdownOnDone") : t("hr.stateOff"); mdState.className = "hr-state " + (__hrCache.meltdown ? "warn" : "ok"); }
+  // L4 状态
+  const l4El = el("hr-l4-state");
+  if(l4El){
+    const active = __hrCache.l4.length > 0;
+    l4El.textContent = active ? t("hr.stateActive") + " ×" + __hrCache.l4.length : t("hr.stateInactive");
+    l4El.className = "hr-big " + (active ? "danger" : "ok");
+  }
+  // HITL 队列
+  const hlEl = el("hr-hitl-list");
+  if(hlEl){
+    if(!__hrCache.hitl.length){ hlEl.innerHTML = '<div class="empty">' + t("hr.hitlEmpty") + '</div>'; }
+    else {
+      hlEl.innerHTML = __hrCache.hitl.map(item => {
+        const action = item.action || item.original_action || "";
+        const target = item.target_ip || item.ip || item.source_ip || item.target || "";
+        const reason = item.reason || item.reason_text || "";
+        const info = [action, target, reason].filter(Boolean).join(" → ");
+        return `<div class="hitl-item">
+          <span class="hitl-level tag ${(item.level||item.risk_level)>=4?'lv4':(item.level||item.risk_level)>=3?'lv3':'lv2'}">${item.level||item.risk_level||'L?'}</span>
+          <span class="hitl-id">${item.id||''}</span>
+          <span class="hitl-info" title="${info.replace(/"/g,'&quot;')}">${info||'--'}</span>
+          <button class="btn btn-danger btn-xs" onclick="approveHitl('${item.id||''}')">${t("hr.approve")}</button>
+          <button class="btn btn-ghost btn-xs" onclick="denyHitl('${item.id||''}')">${t("hr.deny")}</button>
+        </div>`;
+      }).join("");
+    }
+  }
+}
+async function toggleKillSwitch(){
+  const next = !__hrCache.kill;
+  if(next && !confirm(t("hr.killOnConfirm"))) return;
+  try{
+    const r = await apiPost("/api/kill-switch", {on: next});
+    __hrCache.kill = !!(r && r.kill_switch !== undefined ? r.kill_switch : next);
+    toast(next ? t("hr.killOnDone") : t("hr.killOffDone"), next ? "err" : "ok");
+  }catch(e){ toast(t("hr.loadFail"), "err"); }
+  loadHighRiskOps();
+}
+async function toggleMeltdown(){
+  const next = !__hrCache.meltdown;
+  if(next && !confirm(t("hr.meltdownOnConfirm"))) return;
+  try{
+    const r = await apiPost(next ? "/api/meltdown/on" : "/api/meltdown/off");
+    __hrCache.meltdown = next;
+    toast(next ? t("hr.meltdownOnDone") : t("hr.meltdownOffDone"), next ? "warn" : "ok");
+    fetchMonsterPosture();
+  }catch(e){ toast(t("hr.loadFail"), "err"); }
+  loadHighRiskOps();
+}
+async function approveHitl(id){
+  try{ await apiPost("/api/hitl/approve", {id: id}); toast(t("hr.approved"), "ok"); }
+  catch(e){ toast(t("hr.loadFail"), "err"); }
+  loadHighRiskOps();
+}
+async function denyHitl(id){
+  try{ await apiPost("/api/hitl/deny", {id: id}); toast(t("hr.denied"), "warn"); }
+  catch(e){ toast(t("hr.loadFail"), "err"); }
+  loadHighRiskOps();
+}
+async function confirmL4(){
+  if(!__hrCache.l4.length){ toast(t("hr.stateInactive"), "warn"); return; }
+  const ip = __hrCache.l4[0].ip || __hrCache.l4[0].source_ip;
+  if(!ip){ toast(t("hr.loadFail"), "err"); return; }
+  try{ await apiPost("/api/l4/confirm", {source_ip: ip}); toast(t("hr.l4ConfirmDone"), "ok"); }
+  catch(e){ toast(t("hr.loadFail"), "err"); }
+  loadHighRiskOps();
+}
+async function rejectL4(){
+  if(!__hrCache.l4.length){ toast(t("hr.stateInactive"), "warn"); return; }
+  const ip = __hrCache.l4[0].ip || __hrCache.l4[0].source_ip;
+  if(!ip){ toast(t("hr.loadFail"), "err"); return; }
+  try{ await apiPost("/api/l4/reject", {source_ip: ip}); toast(t("hr.l4RejectDone"), "warn"); }
+  catch(e){ toast(t("hr.loadFail"), "err"); }
+  loadHighRiskOps();
+}
+function updateSidebarStatus(demo, alarm){
   const dot = document.getElementById("side-dot"), txt = document.getElementById("side-status-text");
   if(demo){ dot.classList.remove("off"); txt.textContent = t("side.offline"); return; }
   dot.classList.remove("off"); txt.textContent = t("side.online");
-  let maxL = 0;
-  if(events && Array.isArray(events)) events.forEach(e=>{ const l=Number(e.level||e.risk_level||0); if(l>maxL) maxL=l; });
+  let maxL = alarm ? parseInt((alarm.level||"").replace("L",""))||0 : 0;
   const badge = document.getElementById("alarm-badge");
   if(maxL>=3){ badge.textContent = maxL; badge.classList.add("show"); } else { badge.classList.remove("show"); }
 }
-function renderOrgGrid(status, metrics, demo, dfuStatus){
+function renderOrgGrid(posture, dfuStatus){
   const grid = document.getElementById("ov-org-grid");
-  const statusMap = {};
-  if(status && status.organs) Object.keys(status.organs).forEach(k => statusMap[k] = status.organs[k]);
-  if(dfuStatus && dfuStatus.components){
-    Object.keys(dfuStatus.components).forEach(k => statusMap[normalizeComponentKey(k)] = dfuStatus.components[k]);
-  }
+  const post = posture || {};
+  const demo = !post || !Object.keys(post).length;
   grid.innerHTML = ORGANS.map(o => {
-    const raw = statusMap[o.id] || statusMap[o.name] || (metrics && metrics.organs && metrics.organs[o.id]) || (demo ? "ok" : "off");
-    const lamp = normalizeLamp(raw);
+    const pk = _pk(o.id); const pd = post[pk] || {};
+    const lamp = pd.running ? "ok" : (demo ? "ok" : (pd.degraded_count ? "warn" : "off"));
     const label = {ok:t("data.healthy"), busy:t("data.working"), warn:t("data.degraded"), err:t("data.fault"), off:t("data.unknown")}[lamp];
     return `<button class="org-tile" onclick="navigate('organ:${o.id}')">
       <div class="ot-head"><span class="lamp ${lamp}"></span><span class="ot-name">${organName(o)}</span><span class="ot-stat">${label}</span></div>
@@ -1231,10 +2354,10 @@ function renderRecentAlarms(events, demo){
   const srcEl = document.getElementById("ov-alarm-src");
   if(srcEl) srcEl.textContent = demo ? t("data.sourceDemo") : t("data.sourceAPI");
   let list = Array.isArray(events) ? events.map(ev => ({
-    time: ev.ts || ev.timestamp || Date.now()/1000,
+    time: ev.ts || ev.timestamp || ev.time || Date.now()/1000,
     level: ev.level || ev.risk_level || (demo ? 2 : 1),
-    title: ev.attack_type || ev.title || ev.event_type || "Attack Event",
-    detail: ev.detail || ev.description || ev.src_ip || "",
+    title: ev.attack_type || ev.title || ev.event_type || ev.trigger || "Attack Event",
+    detail: ev.detail || ev.description || ev.src_ip || ev.reason || "",
   })) : [];
   if(demo && !list.length){
     list = [ {time:Date.now()/1000-40, level:2, title:"Port scan probe", detail:"192.168.1.23 → 445/tcp"},
@@ -1305,7 +2428,7 @@ function renderResource(data, demo){
   const cpu = r.cpu_percent == null ? "--" : Number(r.cpu_percent).toFixed(1)+"%";
   const mem = r.mem_percent == null ? "--" : Number(r.mem_percent).toFixed(1)+"%";
   const memDetail = (r.mem_used_gb != null && r.mem_total_gb != null) ? `${r.mem_used_gb} / ${r.mem_total_gb} GB` : "--";
-  const bar = (v) => `<div class="res-bar"><div class="res-bar-inner" style="width:${Math.min(100,Math.max(0,Number(v)||0)).toFixed(1)}%"></div></div>`;
+  const bar = (v) => { const pct = Math.min(100,Math.max(0,Number(v)||0)); const cls = pct>=85?"err":pct>=70?"warn":"ok"; return `<div class="res-bar"><div class="res-bar-inner ${cls}" style="width:${pct.toFixed(1)}%"></div></div>`; };
   box.innerHTML = `
     <div class="metric" style="margin-bottom:10px"><span class="m-label">CPU</span><span class="m-value" style="font-size:1.2em">${cpu}</span><div style="margin-top:6px">${r.cpu_percent==null?"":bar(r.cpu_percent)}</div></div>
     <div class="metric"><span class="m-label">内存</span><span class="m-value" style="font-size:1.2em">${mem}</span><span class="m-hint">${memDetail}</span><div style="margin-top:6px">${r.mem_percent==null?"":bar(r.mem_percent)}</div></div>
@@ -1342,6 +2465,7 @@ async function loadEnhanced(){
   try{ outbound = await apiGet("/api/outbound/connections"); }catch(e){ demo = true; }
   try{ resource = await apiGet("/api/resources"); }catch(e){ demo = true; }
   try{ audit = await apiGet("/api/audit/events?limit=30"); }catch(e){ demo = true; }
+  window.__enhCache = { forensic: forensic, ports: ports, outbound: outbound, resource: resource, audit: audit };
   renderForensicTimeline(forensic, demo);
   renderPortScan(ports, demo);
   renderOutbound(outbound, demo);
@@ -1349,12 +2473,127 @@ async function loadEnhanced(){
   renderAuditEvents(audit, demo);
   if(!enhTimer) enhTimer = setInterval(loadEnhanced, 8000);
 }
+function exportEnhCsv(kind){
+  const c = window.__enhCache || {};
+  let rows = [], headers = [];
+  if(kind === "forensic"){
+    headers = ["timestamp","source_ip","attack_type","action","severity"];
+    rows = (c.forensic && Array.isArray(c.forensic.timeline)) ? c.forensic.timeline : [];
+  } else if(kind === "ports"){
+    headers = ["port","service","high_risk"];
+    rows = (c.ports && Array.isArray(c.ports.ports)) ? c.ports.ports : [];
+  } else if(kind === "outbound"){
+    headers = ["process","remote_ip","remote_port","suspicious"];
+    rows = (c.outbound && Array.isArray(c.outbound.connections)) ? c.outbound.connections : [];
+  } else if(kind === "audit"){
+    headers = ["timestamp","event_id","source_log","description"];
+    rows = (c.audit && Array.isArray(c.audit.events)) ? c.audit.events : [];
+  }
+  if(!rows.length){ toast(t("export.noData"), "warn"); return; }
+  const esc = v => { const s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  const csv = "\uFEFF" + [headers.join(",")].concat(rows.map(r => headers.map(h => esc(r[h])).join(","))).join("\r\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = kind + "_" + new Date().toISOString().slice(0,19).replace(/[:T]/g,"-") + ".csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(t("export.done"), "ok");
+}
 
 /* ================== 折线图（canvas 手绘） ================== */
+function getOrganLineSeries(organId, key){
+  // 生产级：不再使用 demoSeries 假序列，改为从真实 posture 采样
+  // 采样历史持久化到 sessionStorage（key: monsterdfu.organSeries.<organId>），跨页面切换保留真实曲线
+  const live = typeof dfuStatus !== "undefined" && !!dfuStatus.running;
+  const cache = window.monsterPostureCache;
+  const pk = _pk(organId);
+  const pd = (cache && (cache[pk] || cache[organId])) || null;
+  // 引擎未运行或无数据：返回空数组（保留已持久化历史，禁止画假数据线）
+  if(!live || !pd){
+    return { data: [], key };
+  }
+  // 按器官选择 1-2 个主指标（当前值 + 历史构成曲线）
+  const metricPick = {
+    "prefrontal":["total_alerts","blocked_count"],
+    "left-hand":["alert_count","blocked_count"],
+    "right-hand":["blocked_count","alert_count"],
+    "left-brain":["total_alerts","schema_blocks"],
+    "right-brain":["total_alerts","schema_blocks"],
+    "alarm-nose":["alert_count","countdown_remaining_secs"],
+    "self-heal":["degraded_count","alert_count"],
+    "memory":["hot_store.hit_rate","cold_store.hit_rate"],
+    "whitelist":["protected_count","alert_count"],
+    "skill-box":["total_calls","total_tools"],
+    "repair-hand":["medic_log_count","alert_count"],
+    "report-mouth":["total_events","recent_events"]
+  };
+  const picks = metricPick[organId] || ["total_alerts","alert_count"];
+  const readPath = function(obj, p){
+    const v = p.split(".").reduce(function(o,k){ return (o && o[k] !== undefined) ? o[k] : null; }, obj);
+    // 兼容数组字段（如 report_mouth.recent_events）：以数组长度作为数值指标
+    if(Array.isArray(v)) return v.length;
+    return v;
+  };
+  const cur = readPath(pd, picks[0]);
+  if(cur === null || cur === undefined){
+    return { data: [], key };
+  }
+  // 进入器官页时优先从 sessionStorage 恢复历史，再追加当前采样
+  const sKey = "monsterdfu.organSeries." + organId;
+  let hist = [];
+  try{
+    const raw = sessionStorage.getItem(sKey);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.values) && parsed.ts && (Date.now() - parsed.ts) < 15*60*1000){
+        hist = parsed.values.filter(function(x){ return typeof x === "number" && isFinite(x); }).slice(-20);
+      }
+    }
+  }catch(e){ hist = []; }
+  const v = Number(cur) || 0;
+  hist.push(v);
+  while(hist.length > 20) hist.shift();
+  try{
+    sessionStorage.setItem(sKey, JSON.stringify({ ts: Date.now(), values: hist }));
+  }catch(e){}
+  return { data: hist.slice(), key };
+}
+function renderStatusPlaceholder(){
+  return `<div class="status-row"><span class="st-label">--</span><span class="st-val">--</span></div>`;
+}
+function renderOrganStatus(organId, boxEl){
+  const cache = window.monsterPostureCache;
+  const pk = _pk(organId);
+  const pd = (cache && (cache[pk] || cache[organId])) || null;
+  const items = [];
+  if(pd){
+    items.push(["状态", pd.running ? "Running" : "Stopped", pd.running ? "ok" : "err"]);
+    if(pd.alert_count !== undefined) items.push(["告警数", pd.alert_count, pd.alert_count > 0 ? "warn" : "ok"]);
+    if(pd.level_label !== undefined || pd.level !== undefined) items.push(["等级", pd.level_label || ("L"+pd.level), "warn"]);
+    if(pd.degraded_count !== undefined) items.push(["降级", pd.degraded_count, pd.degraded_count > 0 ? "warn" : "ok"]);
+    if(pd.last_heartbeat !== undefined) items.push(["心跳", pd.last_heartbeat, "ok"]);
+  }
+  if(!items.length){
+    items.push(["状态", t("organ.engineStopped"), "off"]);
+    items.push(["等级", "--", "off"]);
+    items.push(["运行", "--", "off"]);
+  }
+  boxEl.innerHTML = items.map(it=>`
+    <div class="status-row">
+      <span class="st-label">${esc(it[0])}</span>
+      <span class="st-val"><span class="dot ${it[2]}"></span>${esc(String(it[1]))}</span>
+    </div>`).join("");
+}
 function drawLineChart(canvasId, data, key, demo){
   const canvas = document.getElementById(canvasId);
-  const emptyEl = document.getElementById(canvasId.replace("chart","") + "empty");
-  if(!canvas || !data.length){ if(emptyEl) emptyEl.style.display = "flex"; return; }
+  const emptyEl = document.getElementById(canvasId.replace(/^organ-line-/, "organ-line-empty-"));
+  if(!canvas || !data.length){
+    // 空态：显示"引擎未运行，暂无实时数据"遮罩，禁止画假数据线
+    if(emptyEl){ emptyEl.style.display = "flex"; emptyEl.textContent = t("organ.noLiveData"); }
+    if(canvas && canvas.__chartTip) canvas.__chartTip.style.display = "none";
+    return;
+  }
   if(emptyEl) emptyEl.style.display = "none";
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -1366,6 +2605,8 @@ function drawLineChart(canvasId, data, key, demo){
   const max = Math.max(...data) * 1.2 || 1, min = 0;
   const x = i => padL + (W - padL - padR) * (data.length === 1 ? 1 : i / (data.length - 1));
   const y = v => padT + (H - padT - padB) * (1 - (v - min) / (max - min));
+  // Y 轴刻度精度：按数值量级自适应小数位（<10 保留 1 位小数，>=10 取整），避免小数值全显示 0
+  const fmtTick = v => (Math.abs(v) < 10 ? Number(v).toFixed(1) : Math.round(v));
   ctx.clearRect(0, 0, W, H);
   ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue("--border").trim() || "#d7e3f5";
   ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--text-2").trim() || "#5b6b80";
@@ -1374,7 +2615,7 @@ function drawLineChart(canvasId, data, key, demo){
   for(let g=0; g<=gridN; g++){
     const gy = padT + (H-padT-padB) * g/gridN;
     ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(W-padR, gy); ctx.stroke();
-    ctx.fillText(Math.round(max - (max-min)*g/gridN), 4, gy+3);
+    ctx.fillText(fmtTick(max - (max-min)*g/gridN), 4, gy+3);
   }
   const color = getComputedStyle(document.body).getPropertyValue("--primary").trim() || "#3b82f6";
   ctx.beginPath(); data.forEach((v,i)=> i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));
@@ -1383,10 +2624,67 @@ function drawLineChart(canvasId, data, key, demo){
   const grad = ctx.createLinearGradient(0, padT, 0, H-padB);
   grad.addColorStop(0, color + "44"); grad.addColorStop(1, color + "05");
   ctx.fillStyle = grad; ctx.fill();
+  // 数据点：点数 <= 24 全部绘制小圆点（半径 2，与线同色，hover 命中半径放大）；> 24 仅保留最后一点高亮
+  if(data.length <= 24){
+    data.forEach((v,i)=>{
+      ctx.beginPath(); ctx.arc(x(i), y(v), 2, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
+    });
+  }
+  // 最后一点高亮
   ctx.beginPath(); ctx.arc(x(data.length-1), y(data[data.length-1]), 3.5, 0, Math.PI*2);
   ctx.fillStyle = color; ctx.fill();
   ctx.font = "10px sans-serif"; ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--text-2").trim() || "#5b6b80";
   ctx.fillText(demo ? t("chart.demo") : t("chart.realtime"), padL, H - 6);
+  // ---- hover tooltip：命中最近数据点，浮层绝对定位在 chart-box 内，跟随鼠标且不越界 ----
+  const box = canvas.parentElement;
+  if(!box) return;
+  if(!canvas.__chartTooltipBound){
+    const tip = document.createElement("div");
+    tip.className = "chart-tooltip";
+    tip.style.display = "none";
+    box.appendChild(tip);
+    canvas.__chartTip = tip;
+    canvas.__chartPoints = [];
+    canvas.addEventListener("mousemove", function(ev){
+      const tipEl = canvas.__chartTip;
+      const pts = canvas.__chartPoints;
+      if(!tipEl || !pts || !pts.length) return;
+      const boxRect = box.getBoundingClientRect();
+      const mx = ev.clientX - boxRect.left, my = ev.clientY - boxRect.top;
+      let best = -1, bestD = Infinity;
+      for(let i=0;i<pts.length;i++){
+        const dx = pts[i].x - mx, dy = pts[i].y - my;
+        const d = dx*dx + dy*dy;
+        if(d < bestD){ bestD = d; best = i; }
+      }
+      const hitR = (best >= 0 ? pts[best].r : 0) + 8;
+      if(best < 0 || Math.sqrt(bestD) > hitR){ tipEl.style.display = "none"; return; }
+      const pt = pts[best];
+      tipEl.textContent = tf("organ.sampleTip", {n: best+1, v: fmtTick(pt.v)});
+      tipEl.style.display = "block";
+      // 定位：默认显示在数据点上方，超出 chart-box 边界时钳制/翻转
+      const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+      let tx = pt.x - tw/2, ty = pt.y - th - 10;
+      if(tx < 2) tx = 2;
+      if(tx + tw > W - 2) tx = W - tw - 2;
+      if(ty < 2) ty = pt.y + 12;
+      if(ty + th > H - 2) ty = H - th - 2;
+      tipEl.style.left = Math.max(2, tx) + "px";
+      tipEl.style.top = Math.max(2, ty) + "px";
+    });
+    canvas.addEventListener("mouseleave", function(){
+      const tipEl = canvas.__chartTip;
+      if(tipEl) tipEl.style.display = "none";
+    });
+    canvas.__chartTooltipBound = true;
+  }
+  const pts = canvas.__chartPoints;
+  if(pts){
+    pts.length = 0;
+    data.forEach((v,i)=>{
+      pts.push({x: x(i), y: y(v), v: v, r: (data.length <= 24 ? 2 : (i === data.length-1 ? 3.5 : 2))});
+    });
+  }
 }
 
 /* ================== 12 器官页面 ================== */
@@ -1395,30 +2693,36 @@ function drawLineChart(canvasId, data, key, demo){
   const defs = {
     prefrontal:{ charts:[
       { title_zh:"实时流量", title_en:"Real-time Traffic", type:"line", key:"prefrontal" },
+      { title_zh:"态势指标", title_en:"Posture Metrics", type:"status" },
       { title_zh:"端口/IP 连接列表", title_en:"Port/IP Connection List", type:"table", cols_zh:["类型","地址","状态","操作"], cols_en:["Type","Address","Status","Action"] }
     ]},
     "left-hand":{ charts:[
       { title_zh:"抓包预览", title_en:"Capture Preview", type:"table", cols_zh:["时间","协议","源","目的"], cols_en:["Time","Protocol","Src","Dst"] },
-      { title_zh:"巡逻策略", title_en:"Patrol Policy", type:"list" }
+      { title_zh:"巡逻策略", title_en:"Patrol Policy", type:"list" },
+      { title_zh:"探测告警趋势", title_en:"Probe Alert Trend", type:"line", key:"left-hand" }
     ]},
     "left-brain":{ charts:[
       { title_zh:"决策方案列表", title_en:"Decision Plan List", type:"table", cols_zh:["方案","目标","状态","耗时"], cols_en:["Plan","Target","Status","Time"] },
-      { title_zh:"下发指令", title_en:"Dispatched Commands", type:"list" }
+      { title_zh:"下发指令", title_en:"Dispatched Commands", type:"list" },
+      { title_zh:"推理耗时趋势", title_en:"Inference Latency", type:"line", key:"left-brain" }
     ]},
     "right-brain":{ charts:[
       { title_zh:"干扰方案", title_en:"Deception Plan", type:"table", cols_zh:["方案","目标","状态","耗时"], cols_en:["Plan","Target","Status","Time"] },
-      { title_zh:"锁定指令", title_en:"Lock Commands", type:"list" }
+      { title_zh:"锁定指令", title_en:"Lock Commands", type:"list" },
+      { title_zh:"干扰效果趋势", title_en:"Deception Effect Trend", type:"line", key:"right-brain" }
     ]},
     "right-hand":{ charts:[
       { title_zh:"任务队列", title_en:"Task Queue", type:"table", cols_zh:["任务","动作","状态","耗时"], cols_en:["Task","Action","Status","Time"] },
-      { title_zh:"已执行动作", title_en:"Executed Actions", type:"list" }
+      { title_zh:"已执行动作", title_en:"Executed Actions", type:"list" },
+      { title_zh:"成功率趋势", title_en:"Success Rate Trend", type:"line", key:"right-hand" }
     ]},
     "repair-hand":{ charts:[
       { title_zh:"角色状态", title_en:"Role Status", type:"list" },
-      { title_zh:"辅助任务列表", title_en:"Aux Task List", type:"table", cols_zh:["任务","承接方","状态"], cols_en:["Task","Assignee","Status"] }
+      { title_zh:"辅助任务列表", title_en:"Aux Task List", type:"table", cols_zh:["任务","承接方","状态"], cols_en:["Task","Assignee","Status"] },
+      { title_zh:"接管记录", title_en:"Takeover Log", type:"list" }
     ]},
     "self-heal":{ charts:[
-      { title_zh:"心跳状态", title_en:"Heartbeat Status", type:"list" },
+      { title_zh:"心跳状态", title_en:"Heartbeat Status", type:"status" },
       { title_zh:"自检报告 / 异常重启记录", title_en:"Self-Check / Restart Log", type:"table", cols_zh:["时间","项目","结果"], cols_en:["Time","Item","Result"] }
     ]},
     "report-mouth":{ charts:[
@@ -1426,6 +2730,8 @@ function drawLineChart(canvasId, data, key, demo){
       { title_zh:"导出", title_en:"Export", type:"export" }
     ]},
     "alarm-nose":{ charts:[
+      { title_zh:"告警处置操作", title_en:"Alert Actions", type:"alarm-actions" },
+      { title_zh:"蜜罐事件上报", title_en:"Honeypot Report", type:"honeypot-report" },
       { title_zh:"当前告警列表", title_en:"Current Alert List", type:"table", cols_zh:["时间","等级","告警内容"], cols_en:["Time","Level","Content"] },
       { title_zh:"四级告警历史", title_en:"L4 Alert History", type:"list" }
     ]},
@@ -1435,7 +2741,7 @@ function drawLineChart(canvasId, data, key, demo){
     ]},
     whitelist:{ charts:[
       { title_zh:"白名单管理", title_en:"Whitelist Management", type:"whitelist" },
-      { title_zh:"最近命中", title_en:"Recent Hits", type:"table", cols_zh:["时间","来源","类型"], cols_en:["Time","Source","Type"] }
+      { title_zh:"最近命中", title_en:"Recent Hits", type:"table", cols_zh:["时间","账号/来源","类型","MFA"], cols_en:["Time","Account/Source","Type","MFA"] }
     ]},
     "skill-box":{ charts:[
       { title_zh:"技能管理面板", title_en:"Skill Management Panel", type:"skill-panel" }
@@ -1451,18 +2757,18 @@ function drawLineChart(canvasId, data, key, demo){
 })();
 (function(){
   window.DEMO_ORGAN_DATA = {
-    prefrontal:{ metrics:[128, 86, 12], tableRows:[["Port","80/tcp","Listening","-"],["IP","192.168.1.10","Active","-"],["IP","10.0.0.55","Suspicious","Blocked"]], list:[{t:"Firewall",s:"Enabled, 42 rules"},{t:"Defense Mode",s:"Auto"}] },
-    "left-hand":{ metrics:[24, 3, 12.4], tableRows:[["10:22:01","TCP","192.168.1.23","445"],["10:21:57","UDP","10.0.0.7","53"]], list:[{t:"Patrol Policy",s:"Scan C-segment ports every 60s"},{t:"Deep Scan",s:"High-risk ports only"}] },
-    "left-brain":{ metrics:[18, 42, 213], tableRows:[["Block Src IP","192.168.1.23","Dispatched",0.8],["Rate Limit","10.0.0.0/24","Dispatched",1.1]], list:[{t:"Last Command",s:"BLOCK 192.168.1.23"},{t:"Model",s:"LLM + Rules"}] },
-    "right-brain":{ metrics:[9, 15, 187], tableRows:[["Honeypot Lure","192.168.1.23","Running",1.4],["Conn Throttle","10.0.0.7","Pending",0.9]], list:[{t:"Last Command",s:"DECOY 192.168.1.23"}] },
-    "right-hand":{ metrics:[7, 156, 98.2], tableRows:[["#1042","BLOCK","Done",0.4],["#1043","ISOLATE","Running",1.2]], list:[{t:"Last Action",s:"Block 192.168.1.23:445"}] },
-    "repair-hand":{ metrics:["Patrol", 3, 2], tableRows:[["Port Scan","Repair Hand","Running"]], list:[{t:"Role",s:"Patrol (combat on failover)"},{t:"Takeovers",s:"Last 2 times"}] },
-    "self-heal":{ metrics:["Healthy", "Pass", 0], tableRows:[["07-31 10:00","All Organs","Pass"]], list:[{t:"Heartbeat",s:"1s cycle · OK"},{t:"Checks",s:"12/12 Pass"}] },
-    "report-mouth":{ metrics:[37, 37, "0 Leaks"], tableRows:[["10:00-10:05","Port Scan","Block","Left Hand",2,"No"]], list:[] },
-    "alarm-nose":{ metrics:[5, 12, "Normal"], tableRows:[["10:21","2","Port Scan"]], list:[{t:"Fuse Config",s:"L3=30s / L4=10s"},{t:"Isolation",s:"Off"}] },
-    memory:{ metrics:[1520, 34, 260], tableRows:[["RDP Brute-force","Signature","07-29"]], list:[{t:"Search",s:"Enter keyword to search"}] },
-    whitelist:{ metrics:[18, 9, 233], tableRows:[["07-31 09:00","10.0.0.5","IP"]], list:[{t:"Policy",s:"Matched WL entries pass through"}] },
-    "skill-box":{ metrics:[8, 6, 412], tableRows:[["nmap","Port Scan","On","86"],["tcpdump","Capture","On","120"]], list:[{t:"Last Call",s:"nmap · 09:58"}] },
+    prefrontal:{ metrics:[0,0,"--"], tableRows:[], list:[{t:"Status",s:"无实时数据 - 请启动 DFU 引擎"}] },
+    "left-hand":{ metrics:[0,0,"--"], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    "left-brain":{ metrics:[0,0,0], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    "right-brain":{ metrics:[0,0,0], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    "right-hand":{ metrics:[0,0,0], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    "repair-hand":{ metrics:["--",0,0], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    "self-heal":{ metrics:["--",0,0], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    "report-mouth":{ metrics:[0,0,"--"], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    "alarm-nose":{ metrics:[0,0,"L0"], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    memory:{ metrics:[0,0,0], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    whitelist:{ metrics:[0,0,0], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
+    "skill-box":{ metrics:[0,0,0], tableRows:[], list:[{t:"Status",s:"无实时数据"}] },
   };
 })();
 
@@ -1480,8 +2786,9 @@ function renderOrganPages(){
         <div style="flex:1"></div>
         <button class="btn btn-ghost btn-sm" onclick="loadOrganData('${o.id}', true)" data-i18n="btn.refresh">Refresh</button>
       </div>
+      <div class="engine-banner" id="engine-banner-${o.id}"><span class="eb-icon">!</span><span class="eb-text"></span><button class="btn" onclick="toggleDfu()"></button></div>
       <div class="grid grid-3" id="metrics-${o.id}"></div>
-      <div class="grid grid-2 section-gap" id="charts-${o.id}"></div>
+      <div class="charts-grid section-gap" id="charts-${o.id}"></div>
     </section>`).join("");
   ORGANS.forEach(o => {
     const sw = document.getElementById("sw-"+o.id);
@@ -1495,28 +2802,142 @@ function renderOrganPage(organId){
 }
 async function loadOrganData(organId, force){
   const def = window.ORGAN_PAGE_DEFS[organId];
-  const s = loadSettings();
-  const cfg = getEffectiveConfig(organId);
-  const key = cfg.apiKey;
   const mBox = document.getElementById("metrics-"+organId);
   const live = !!dfuStatus.running;
+  // 引擎未运行横幅：仅 !live 时渲染
+  const bannerEl = document.getElementById("engine-banner-"+organId);
+  if(bannerEl){
+    if(live){
+      bannerEl.classList.remove("show");
+    }else{
+      bannerEl.classList.add("show");
+      const txtEl = bannerEl.querySelector(".eb-text");
+      const btnEl = bannerEl.querySelector(".btn");
+      if(txtEl) txtEl.textContent = t("organ.engineStoppedBanner");
+      if(btnEl){ btnEl.textContent = t("organ.startEngine"); btnEl.style.cssText = "background:#f59e0b;color:#fff;border:none;padding:6px 14px;border-radius:8px;font-weight:700;cursor:pointer"; }
+    }
+  }
   await ensureDfuData();
+  // P0: 报警鼻优先使用 /api/alarm-nose/status 专用接口数据
+  if(organId === "alarm-nose"){ await fetchAlarmNoseStatus(force); }
   const data = getOrganData(organId);
-  const demo = live && dfuOrgansCache && dfuOrgansCache[organId] ? {} : data;
   const metrics = currentLang==="en" ? (def.metrics_en || []) : (def.metrics_zh || []);
+  const dyn = DYNAMIC_METRIC[organId] || [];
   mBox.innerHTML = metrics.map((label,i)=>{
-    let v = "--", hint = t("label.apiUnavailable");
-    if(data.metrics && data.metrics[i] !== undefined){ v = data.metrics[i]; hint = live ? t("data.sourceAPI") : t("label.demoData"); }
-    return `<div class="card metric"><span class="m-label">${label}${!live && hint===t('label.demoData')?'<span class="demo-tag">'+t('label.demo')+'</span>':''}</span><span class="m-value">${v}</span><span class="m-hint">${live ? t("data.sourceAPI") : (key ? t("label.keyConfigured") : t("label.noKey"))}</span></div>`;
+    let v = "--";
+    // 引擎未运行时：动态位（实时计数类）显示 "--"，静态位（配置/模式/等级类）照常显示 posture 真实值
+    if(data.metrics && data.metrics[i] !== undefined && !(!live && dyn.indexOf(i) >= 0)){ v = data.metrics[i]; }
+    // 生产级：不再显示"未配置 API Key"；hint 仅区分 live/未运行
+    const hint = live ? t("organ.hintLive") : t("organ.hintStopped");
+    return `<div class="card metric"><span class="m-label">${label}</span><span class="m-value">${v}</span><span class="m-hint">${hint}</span></div>`;
   }).join("");
   const cBox = document.getElementById("charts-"+organId);
   cBox.innerHTML = (def.charts||[]).map((c,i)=>renderChartCard(organId, c, i)).join("");
+  // 绘制所有 line 图与 status 卡
+  (def.charts||[]).forEach((c,i)=>{
+    if(c.type === "line"){
+      const canvas = document.getElementById(`organ-line-${organId}-${i}`);
+      if(canvas){
+        const series = getOrganLineSeries(organId, c.key || organId);
+        drawLineChart(`organ-line-${organId}-${i}`, series.data, series.key, !live);
+      }
+    }
+    if(c.type === "status"){
+      const boxEl = document.getElementById(`organ-status-${organId}-${i}`);
+      if(boxEl) renderOrganStatus(organId, boxEl);
+    }
+    if(c.type === "table"){
+      renderOrganTable(organId, i, c);
+    }
+    if(c.type === "alarm-actions"){
+      updateAlarmActions();
+    }
+    if(c.type === "honeypot-report"){
+      renderHoneypotReport(organId, i);
+    }
+  });
   updateOrganNotices();
   updateModeLamps();
   // 如果是 skill-box 器官，触发技能管理面板渲染
   if(organId === "skill-box"){ renderSkillPanel(); }
   // 同时更新总览页的指标卡
   updateOverviewMetrics();
+}
+/* ================== 器官页表格：排序 + 分页（organId 独立状态，5s 轮询重渲染不丢失） ================== */
+const organTableState = {};
+const ORGAN_TABLE_PAGE_SIZE = 8;
+function organTableRows(organId){
+  const demo = getOrganData(organId) || {};
+  return (demo.tableRows || []).slice();
+}
+function renderOrganTable(organId, idx, c){
+  const st = organTableState[organId] || (organTableState[organId] = { sortCol:null, sortDir:0, page:1 });
+  const cols = currentLang==="en" ? (c.cols_en || c.cols_zh) : (c.cols_zh || c.cols_en);
+  const tbody = document.getElementById("organ-table-body-" + organId + "-" + idx);
+  const pager = document.getElementById("organ-table-pager-" + organId + "-" + idx);
+  if(!tbody) return;
+  let rows = organTableRows(organId);
+  // 排序：文本/数值智能比较（数值优先转 Number）
+  if(st.sortCol !== null && st.sortDir !== 0){
+    const ci = st.sortCol;
+    rows.sort((a,b)=>{
+      const va = (a[ci] === undefined || a[ci] === null) ? "" : a[ci];
+      const vb = (b[ci] === undefined || b[ci] === null) ? "" : b[ci];
+      const sa = String(va).trim(), sb = String(vb).trim();
+      const na = Number(sa), nb = Number(sb);
+      const useNum = sa !== "" && sb !== "" && !isNaN(na) && !isNaN(nb);
+      let cmp = 0;
+      if(useNum) cmp = na - nb;
+      else cmp = sa.localeCompare(sb, undefined, {numeric:true, sensitivity:"base"});
+      return st.sortDir > 0 ? cmp : -cmp;
+    });
+  }
+  // 分页：每页 8 行；仅剩 1 页时不显示分页控件
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / ORGAN_TABLE_PAGE_SIZE));
+  if(st.page < 1) st.page = 1;
+  if(st.page > totalPages) st.page = totalPages;
+  const pageRows = rows.slice((st.page-1)*ORGAN_TABLE_PAGE_SIZE, st.page*ORGAN_TABLE_PAGE_SIZE);
+  const colsLen = Math.max(1, (cols||[]).length);
+  tbody.innerHTML = total ? pageRows.map(r=>`<tr>${r.map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${colsLen}"><div class="empty">${t("organ.noData")}</div></td></tr>`;
+  if(pager){
+    if(total > ORGAN_TABLE_PAGE_SIZE){
+      pager.innerHTML = `<span class="ot-page-info">${tf("organ.tableCount",{n:total})} · ${tf("organ.tablePage",{x:st.page,y:totalPages})}</span>` +
+        `<button class="btn btn-ghost btn-xs" onclick="organTablePage('${organId}',${idx},-1)"${st.page<=1?" disabled":""}>${t("organ.prevPage")}</button>` +
+        `<button class="btn btn-ghost btn-xs" onclick="organTablePage('${organId}',${idx},1)"${st.page>=totalPages?" disabled":""}>${t("organ.nextPage")}</button>`;
+    } else {
+      pager.innerHTML = "";
+    }
+  }
+  // 表头排序指示（▲/▼ 循环：升序 -> 降序 -> 默认）
+  const ths = tbody.parentElement.querySelectorAll("thead th.ot-th");
+  ths.forEach((th,i)=>{
+    const sorted = st.sortCol === i && st.sortDir !== 0;
+    th.classList.toggle("ot-sorted", sorted);
+    const arrow = th.querySelector(".ot-arrow");
+    if(arrow) arrow.textContent = sorted ? (st.sortDir > 0 ? " ▲" : " ▼") : "";
+  });
+}
+function organTableSort(organId, idx, col){
+  const st = organTableState[organId] || (organTableState[organId] = { sortCol:null, sortDir:0, page:1 });
+  if(st.sortCol === col){
+    st.sortDir = st.sortDir === 1 ? -1 : (st.sortDir === -1 ? 0 : 1);
+  } else {
+    st.sortCol = col; st.sortDir = 1;
+  }
+  st.page = 1;
+  const def = window.ORGAN_PAGE_DEFS && window.ORGAN_PAGE_DEFS[organId];
+  const c = (def && def.charts) ? def.charts[idx] : null;
+  if(c) renderOrganTable(organId, idx, c);
+}
+function organTablePage(organId, idx, delta){
+  const st = organTableState[organId];
+  if(!st) return;
+  st.page += delta;
+  const def = window.ORGAN_PAGE_DEFS && window.ORGAN_PAGE_DEFS[organId];
+  const c = (def && def.charts) ? def.charts[idx] : null;
+  if(c) renderOrganTable(organId, idx, c);
 }
 function renderChartCard(organId, c, idx){
   const demo = getOrganData(organId) || {};
@@ -1525,18 +2946,30 @@ function renderChartCard(organId, c, idx){
   const cols = currentLang==="en" ? (c.cols_en || c.cols_zh) : (c.cols_zh || c.cols_en);
   const head = `<div class="card-title">${title}${live ? "" : `<span class="demo-tag">${t("label.demo")}</span>`}</div>`;
   if(c.type === "line"){
-    return `<div class="card"><div class="card-title">${title}</div><div class="chart-box" style="height:200px"><canvas id="organ-line-${organId}"></canvas></div></div>`;
+    return `<div class="card"><div class="card-title">${title}</div><div class="chart-box" style="height:200px;position:relative"><canvas id="organ-line-${organId}-${idx}"></canvas><div class="chart-empty" id="organ-line-empty-${organId}-${idx}"></div></div></div>`;
+  }
+  if(c.type === "status"){
+    return `<div class="card">${head}<div id="organ-status-${organId}-${idx}" class="status-grid">${renderStatusPlaceholder()}</div></div>`;
+  }
+  if(c.type === "alarm-actions"){
+    return `<div class="card">${head}<div id="alarm-actions-box" class="alarm-actions"></div></div>`;
+  }
+  if(c.type === "honeypot-report"){
+    return `<div class="card">${head}<div id="hp-report-${organId}-${idx}" class="hp-report"></div></div>`;
   }
   if(c.type === "table"){
-    const rows = demo.tableRows || [];
-    const body = rows.length ? rows.map(r=>`<tr>${r.map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`).join("")
-      : `<tr><td colspan="${(cols||[]).length}"><div class="empty">No data yet</div></td></tr>`;
-    return `<div class="card">${head}<div class="tbl-wrap"><table><thead><tr>${(cols||[]).map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+    const st = organTableState[organId] || (organTableState[organId] = { sortCol:null, sortDir:0, page:1 });
+    const ths = (cols||[]).map((x,ci)=>{
+      const sorted = st.sortCol === ci && st.sortDir !== 0;
+      const arrow = sorted ? (st.sortDir > 0 ? " ▲" : " ▼") : "";
+      return `<th class="ot-th${sorted?" ot-sorted":""}" data-col="${ci}" onclick="organTableSort('${organId}',${idx},${ci})" title="${t("organ.sortHint")}">${x}<span class="ot-arrow">${arrow}</span></th>`;
+    }).join("");
+    return `<div class="card">${head}<div class="tbl-wrap"><table><thead><tr>${ths}</tr></thead><tbody id="organ-table-body-${organId}-${idx}"></tbody></table></div><div class="organ-table-pager" id="organ-table-pager-${organId}-${idx}"></div></div>`;
   }
   if(c.type === "list"){
     const items = demo.list || [];
     const body = items.length ? items.map(it=>`<div class="list-row"><span class="lr-main"><div class="lr-title">${esc(it.t)}</div><div class="lr-sub">${esc(it.s||"")}</div></span></div>`).join("")
-      : `<div class="empty">No records</div>`;
+      : `<div class="empty">${t("organ.noRecords")}</div>`;
     return `<div class="card">${head}<div>${body}</div></div>`;
   }
   if(c.type === "export"){
@@ -1546,7 +2979,7 @@ function renderChartCard(organId, c, idx){
     return `<div class="card">${head}<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="memory-search-input" placeholder="${t('memory.placeholder')}" style="flex:1;min-width:200px"><button class="btn btn-primary btn-sm" onclick="searchMemory()">${t('memory.search')}</button></div><div id="memory-search-result" style="margin-top:10px"><div class="empty">${t('memory.searchHint')}</div></div></div>`;
   }
   if(c.type === "whitelist"){
-    return `<div class="card">${head}<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="wl-input" placeholder="IP or Domain" style="flex:1;min-width:180px"><select id="wl-type"><option>IP</option><option>Domain</option></select><button class="btn btn-primary btn-sm" onclick="addWhitelist()">Add</button></div><div id="wl-list" style="margin-top:10px"></div></div>`;
+    return `<div class="card">${head}<div class="wl-audit-stats" id="wl-audit-stats"></div><div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="wl-input" placeholder="${t('wl.placeholder')}" style="flex:1;min-width:180px"><select id="wl-type" onchange="toggleWlIdentityFields()"><option>IP</option><option>Domain</option><option>Account</option></select><button class="btn btn-primary btn-sm" onclick="addWhitelist()">${t("wl.add")}</button></div><div id="wl-identity-fields" style="display:none;flex-wrap:wrap;gap:8px;align-items:center;background:rgba(16,185,129,.06);border:1px dashed rgba(16,185,129,.35);border-radius:8px;padding:8px 10px"><span class="hint-text">${t("wl.identityTitle")}</span><input id="wl-src" placeholder="${t('wl.srcPh')}" style="width:140px"><select id="wl-mfa" style="width:130px"><option value="0">${t("wl.mfaOff")}</option><option value="1">${t("wl.mfaOn")}</option></select><input id="wl-priv" placeholder="${t('wl.privPh')}" style="width:130px"><input id="wl-last-at" placeholder="${t('wl.lastAtPh')}" style="width:150px"><input id="wl-last-op" placeholder="${t('wl.lastOpPh')}" style="width:170px"></div></div><div id="wl-list" style="margin-top:10px"></div></div>`;
   }
   if(c.type === "skill-panel"){
     return `<div class="card">${head}<div id="skill-panel-content"></div></div>`;
@@ -1557,7 +2990,7 @@ function exportTimeline(organId){
   const d = getOrganData(organId) || {};
   const rows = d.tableRows || [];
   if(!rows.length){ toast(t("export.noData"), "err"); return; }
-  const csv = "\uFEFF" + ["Time,Method,Plan,Unit,Level,Leaked"].join(",") + "\n" +
+  const csv = "\uFEFF" + ["Time,Method,Severity,SourceIP,Description"].join(",") + "\n" +
     rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
@@ -1574,20 +3007,74 @@ function searchMemory(){
     ? hits.map(h=>`<div class="list-row"><span class="lr-main"><div class="lr-title">${esc(h)}</div></span><span class="tag plain">Hit</span></div>`).join("")
     : `<div class="empty">${t("memory.notFound")}</div>`;
 }
-let wlStore = JSON.parse(localStorage.getItem("monsterdfu.whitelist") || "[]");
+/* ================== 白名单身份化（IP / Domain / Account 三维） ================== */
+function normalizeWlEntry(w){
+  const base = { v:"", t:"IP", src:"", mfa:false, priv:"", lastAt:"", lastOp:"" };
+  const out = Object.assign({}, base, (w && typeof w === "object") ? w : { v:String(w||"") });
+  out.v = String(out.v || "").trim();
+  if(!["IP","Domain","Account"].includes(out.t)) out.t = "IP";
+  out.mfa = out.mfa === true || out.mfa === "1" || out.mfa === 1 || out.mfa === "true";
+  out.src = String(out.src || ""); out.priv = String(out.priv || "");
+  out.lastAt = String(out.lastAt || ""); out.lastOp = String(out.lastOp || "");
+  return out;
+}
+let wlStore = (JSON.parse(localStorage.getItem("monsterdfu.whitelist") || "[]") || []).map(normalizeWlEntry);
+function toggleWlIdentityFields(){
+  const wrap = document.getElementById("wl-identity-fields");
+  const sel = document.getElementById("wl-type");
+  if(!wrap || !sel) return;
+  const show = sel.value === "Account";
+  wrap.style.display = show ? "flex" : "none";
+}
+function renderWlAuditStats(){
+  const box = document.getElementById("wl-audit-stats");
+  if(!box) return;
+  const accts = wlStore.filter(w => w.t === "Account");
+  const mfaOn = accts.filter(a => a.mfa).length;
+  const priv = accts.filter(a => a.priv && a.priv.toLowerCase() !== "none" && a.priv.toLowerCase() !== "normal").length;
+  const cov = accts.length ? Math.round(mfaOn / accts.length * 100) : 0;
+  box.innerHTML =
+    `<span class="tag plain">${t("wl.auditAccounts")}: ${accts.length}</span>` +
+    `<span class="tag ${cov >= 100 ? "ok" : (cov > 0 ? "warn" : "plain")}">${t("wl.auditMfa")}: ${cov}%</span>` +
+    `<span class="tag ${priv ? "warn" : "plain"}">${t("wl.auditPriv")}: ${priv}</span>`;
+}
+function wlIdentityBadges(w){
+  if(w.t !== "Account"){
+    return `<span class="tag plain">${t("wl.trustPass")}</span>`;
+  }
+  const parts = [];
+  parts.push(w.mfa ? `<span class="tag ok">MFA ${t("wl.verified")}</span>` : `<span class="tag warn">MFA ${t("wl.off")}</span>`);
+  if(w.priv && w.priv.toLowerCase() !== "none" && w.priv.toLowerCase() !== "normal"){
+    parts.push(`<span class="tag err">${t("wl.admin")}: ${esc(w.priv)}</span>`);
+  }
+  if(w.src) parts.push(`<span class="tag plain">${esc(w.src)}</span>`);
+  if(w.lastAt) parts.push(`<span class="tag plain">${esc(w.lastAt)}</span>`);
+  return parts.join(" ");
+}
 function renderWhitelist(){
   const box = document.getElementById("wl-list");
   if(!box) return;
-  box.innerHTML = wlStore.length ? wlStore.map((w,i)=>`<div class="list-row"><span class="lr-main"><div class="lr-title">${esc(w.v)}</div><div class="lr-sub">Type: ${esc(w.t)}</div></span><button class="btn btn-ghost btn-xs" onclick="removeWhitelist(${i})">Delete</button></div>`).join("")
+  renderWlAuditStats();
+  box.innerHTML = wlStore.length ? wlStore.map((w,i)=>`<div class="list-row"><span class="lr-main"><div class="lr-title">${esc(w.v)}</div><div class="lr-sub">Type: ${esc(w.t)}${w.t === "Account" && w.lastOp ? ` · ${t("wl.lastOp")}: ${esc(w.lastOp)}` : ""}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${wlIdentityBadges(w)}</div></span><button class="btn btn-ghost btn-xs" onclick="removeWhitelist(${i})">${t("wl.del")}</button></div>`).join("")
     : `<div class="empty">${t("whitelist.empty")}</div>`;
 }
 function addWhitelist(){
   const v = document.getElementById("wl-input").value.trim();
   const t = document.getElementById("wl-type").value;
   if(!v){ toast(t("whitelist.addError"), "err"); return; }
-  wlStore.push({v, t});
+  const entry = { v, t };
+  if(t === "Account"){
+    entry.src = (document.getElementById("wl-src") || {}).value || "";
+    entry.mfa = (document.getElementById("wl-mfa") || {}).value === "1";
+    entry.priv = (document.getElementById("wl-priv") || {}).value || "";
+    entry.lastAt = (document.getElementById("wl-last-at") || {}).value || "";
+    entry.lastOp = (document.getElementById("wl-last-op") || {}).value || "";
+  }
+  wlStore.push(normalizeWlEntry(entry));
   localStorage.setItem("monsterdfu.whitelist", JSON.stringify(wlStore));
-  renderWhitelist(); document.getElementById("wl-input").value = ""; toast(t("whitelist.added"));
+  renderWhitelist(); document.getElementById("wl-input").value = "";
+  ["wl-src","wl-priv","wl-last-at","wl-last-op"].forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; });
+  toggleWlIdentityFields(); toast(t("whitelist.added"));
 }
 function removeWhitelist(i){
   wlStore.splice(i,1);
@@ -1599,7 +3086,6 @@ function removeWhitelist(i){
 function updateOverviewMetrics(){
   const postCache = window.monsterPostureCache;
   if(!postCache) return;
-  // 从态势数据中取对应器官的 metrics 首项更新总览指标卡
   const mapOv = {
     "ov-uptime": ["prefrontal", 0],
     "ov-attacks": ["alarm-nose", 0],
@@ -1608,13 +3094,20 @@ function updateOverviewMetrics(){
   };
   Object.keys(mapOv).forEach(elId => {
     const [organId, idx] = mapOv[elId];
-    const pd = postCache[organId];
+    const pk = _pk(organId);
+    const pd = postCache[pk] || postCache[organId];
     if(!pd) return;
-    const metrics = pd.metrics || pd.values || [];
-    const val = metrics[idx];
+    var val;
+    switch(organId){
+      case "prefrontal": val = pd.running ? "ON" : "OFF"; break;
+      case "alarm-nose": val = idx===0 ? (pd.alert_count||0) : (pd.level_label||pd.level||"L0"); break;
+      case "self-heal": val = pd.degraded_count ? "Degraded":"Healthy"; break;
+      default: val = "--";
+    }
     if(val !== undefined && val !== null){
       const el = document.getElementById(elId);
       if(el) el.textContent = String(val);
+      el.className = el.className.replace(/^(m-value|k-value)\s*/, "k-value ");
     }
   });
 }
@@ -1883,7 +3376,14 @@ async function sendChat(){
     });
     const data = await resp.json();
     if(!resp.ok){ throw new Error(data.error || ("HTTP " + resp.status)); }
-    const reply = (data.result && data.result.reply) || t("chat.noReply");
+    const result = data.result || {};
+    let reply = result.reply || t("chat.noReply");
+    // 降级标注：真实 LLM 调用失败回退到 mock 时显式提示，避免伪装成真实模型输出
+    if(result.degraded || result.mode === "degraded"){
+      reply += "\n\n[已降级（非真实 LLM）]";
+    } else if(result.mode === "mock"){
+      reply += "\n\n[模拟模式]";
+    }
     botEl.textContent = reply; botEl.classList.remove("loading");
   }catch(e){
     botEl.classList.remove("loading");
@@ -1979,6 +3479,7 @@ function initMonsterUpload(){
 
 /* ================== 告警中心 ================== */
 let alarmLevel = "all";
+let alarmCache = [];
 const DEMO_ALARMS = [
   {time:Date.now()/1000-60, level:2, title:"Port scan probe", src:"192.168.1.23", handled:false},
   {time:Date.now()/1000-300, level:1, title:"Abnormal login attempt", src:"10.0.0.7", handled:false},
@@ -1987,7 +3488,7 @@ const DEMO_ALARMS = [
 ];
 async function loadAlarms(){
   let events = null, demo = false;
-  try{ events = await apiGet("/api/events?limit=100"); }catch(e){ demo = true; }
+  try{ events = await apiGet("/api/events?limit=200"); }catch(e){ demo = true; }
   demoFlag.alarms = demo;
   document.getElementById("al-demo-tag").style.display = demo ? "inline-flex" : "none";
   let alarms = Array.isArray(events) ? events.map(ev => ({
@@ -1998,33 +3499,66 @@ async function loadAlarms(){
     handled: false,
   })) : [];
   if(demo && !alarms.length) alarms = DEMO_ALARMS.slice();
+  alarmCache = alarms;
   renderAlarmList(alarms);
 }
 function renderAlarmList(alarms){
   const box = document.getElementById("alarm-list");
-  const filtered = alarmLevel === "all" ? alarms : alarms.filter(a=>a.level === Number(alarmLevel));
+  const kw = (document.getElementById("alarm-search")?.value || "").trim().toLowerCase();
+  const lv = document.getElementById("alarm-level-filter")?.value || "all";
+  const sort = document.getElementById("alarm-sort")?.value || "time-desc";
+  let filtered = (alarms || alarmCache || []).slice();
+  if(lv !== "all") filtered = filtered.filter(a=>a.level === Number(lv));
+  if(kw) filtered = filtered.filter(a => (a.title||"").toLowerCase().includes(kw) || (a.src||"").toLowerCase().includes(kw));
+  filtered.sort((a,b)=>{
+    if(sort === "time-asc") return (a.time||0) - (b.time||0);
+    if(sort === "time-desc") return (b.time||0) - (a.time||0);
+    if(sort === "level-asc") return (a.level||0) - (b.level||0);
+    if(sort === "level-desc") return (b.level||0) - (a.level||0);
+    return 0;
+  });
+  const cntEl = document.getElementById("alarm-count");
+  if(cntEl) cntEl.textContent = filtered.length + " / " + (alarms||[]).length + " items";
   if(!filtered.length){
     box.innerHTML = `<div class="empty"><div class="e-icon">O</div>${t("alarm.empty")}</div>`;
     return;
   }
-  box.innerHTML = filtered.map(a=>`
-    <div class="list-row">
-      <span class="lr-main">
-        <div class="lr-title">${levelTag(a.level)} ${esc(a.title)}</div>
-        <div class="lr-sub">${fmtTime(a.time)} ${a.src ? "· Source " + esc(a.src) : ""} ${a.handled ? "· Handled" : ""}</div>
-      </span>
-      ${a.handled ? "" : `<button class="btn btn-ghost btn-xs" onclick="markAlarmSingle(this)">${currentLang==="en"?"Mark Handled":"标记已处理"}</button>`}
-    </div>`).join("");
+  box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>${currentLang==="en"?"Time":"时间"}</th><th>${currentLang==="en"?"Level":"等级"}</th><th>${currentLang==="en"?"Event":"事件"}</th><th>${currentLang==="en"?"Source":"源"}</th><th style="width:110px">${currentLang==="en"?"Action":"操作"}</th></tr></thead><tbody>` +
+    filtered.map(a=>`<tr>
+      <td style="white-space:nowrap">${fmtTime(a.time)}</td>
+      <td>${levelTag(a.level)}</td>
+      <td>${esc(a.title)}</td>
+      <td style="white-space:nowrap">${a.src ? esc(a.src) : "--"}</td>
+      <td>${a.handled ? `<span class="tag plain">done</span>` : `<button class="btn btn-ghost btn-xs" onclick="markAlarmSingle(this)">${currentLang==="en"?"Mark":"标记"}</button>`}</td>
+    </tr>`).join("") +
+    `</tbody></table></div>`;
 }
 function markAlarmSingle(btn){
-  const row = btn.closest(".list-row"); if(row) row.remove();
+  const row = btn.closest("tr"); if(row) row.remove();
+  const cntEl = document.getElementById("alarm-count");
+  if(cntEl){ const n = Number(cntEl.textContent.split(" ")[0]); cntEl.textContent = Math.max(0, n-1) + " / " + alarmCache.length + " items"; }
   toast(t("alarm.marked"));
 }
 function markAlarmsHandled(){
-  const rows = $$("#alarm-list .list-row");
+  const rows = $$("#alarm-list tbody tr");
   if(!rows.length){ toast(t("alarm.noPending"), "err"); return; }
   rows.forEach(r=>r.remove());
+  const cntEl = document.getElementById("alarm-count");
+  if(cntEl) cntEl.textContent = "0 / " + alarmCache.length + " items";
   toast(tf("alarm.markedCount",{n:rows.length}));
+}
+function exportAlarmsCsv(){
+  const rows = alarmCache || [];
+  if(!rows.length){ toast(t("alarm.noPending"), "err"); return; }
+  const header = "time,level,title,source\n";
+  const body = rows.map(a => [fmtIso(new Date(a.time*1000).toISOString()), "L"+a.level, (a.title||"").replace(/"/g,'""'), (a.src||"")].join(",")).join("\n");
+  const blob = new Blob(["\ufeff"+header+body], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "dfu_alarms_" + new Date().toISOString().slice(0,10) + ".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(t("export.done"));
 }
 function initAlarmTabs(){
   $$("#alarm-tabs .tab").forEach(t => t.addEventListener("click", ()=>{
@@ -2036,6 +3570,578 @@ function initAlarmTabs(){
 }
 
 /* ================== 启动 ================== */
+/* ================== 小怪兽可视化（身体节点 + 消息流） ================== */
+const MONSTER_NODES = {
+  "prefrontal":  {x:200,y:55,  icon:"brain"},
+  "left-brain":  {x:158,y:95,  icon:"brain"},
+  "right-brain": {x:242,y:95,  icon:"brain"},
+  "alarm-nose":  {x:200,y:128, icon:"nose"},
+  "report-mouth":{x:200,y:158, icon:"mouth"},
+  "memory":      {x:200,y:192, icon:"memory"},
+  "self-heal":   {x:200,y:272, icon:"heart"},
+  "whitelist":   {x:150,y:298, icon:"shield"},
+  "skill-box":   {x:250,y:298, icon:"tool"},
+  "left-hand":   {x:80, y:335, icon:"hand"},
+  "right-hand":  {x:320,y:335, icon:"hand"},
+  "repair-hand": {x:200,y:432, icon:"hand"}
+};
+const MONSTER_LINKS = [
+  ["prefrontal","left-brain"],["prefrontal","right-brain"],
+  ["left-hand","alarm-nose"],["alarm-nose","prefrontal"],
+  ["left-brain","left-hand"],["left-brain","right-hand"],
+  ["right-brain","right-hand"],["whitelist","right-hand"],
+  ["self-heal","memory"],["memory","left-brain"],["memory","right-brain"],
+  ["repair-hand","self-heal"],["skill-box","left-hand"],["skill-box","right-hand"],
+  ["report-mouth","prefrontal"]
+];
+const MONSTER_STATUS_COLORS = { running:"#2ecc71", idle:"#3b82f6", warning:"#f1c40f", error:"#e74c3c", offline:"#6b7280" };
+const MONSTER_DEMO_STATUS = {
+  "prefrontal":"running","left-brain":"running","right-brain":"running",
+  "left-hand":"running","right-hand":"running","repair-hand":"idle",
+  "self-heal":"running","report-mouth":"idle","alarm-nose":"warning",
+  "memory":"running","whitelist":"running","skill-box":"idle"
+};
+function monsterIconSvg(icon,size){
+  let s = (ORG_ICONS[icon] || ORG_ICONS.brain);
+  return s.replace("<svg ", '<svg width="'+size+'" height="'+size+'" ');
+}
+function monsterStatusFor(id){
+  const pk = (typeof _pk === "function") ? _pk(id) : id;
+  const post = window.monsterPostureCache;
+  if(post && (post[pk] || post[id])){
+    const pd = post[pk] || post[id];
+    if(pd && pd.meltdown) return "error";
+    return "running";
+  }
+  return MONSTER_DEMO_STATUS[id] || "idle";
+}
+function renderMonsterCanvas(){
+  const svg = document.getElementById("monster-canvas-svg");
+  if(!svg) return;
+  // ── 首页解剖图模式（page-home 内联 SVG 含 .anatomy-part）：保留静态分区，仅做状态着色 ──
+  if(svg.querySelector(".anatomy-part")){
+    applyHomeAnatomyStatus();
+    if(!window.__homeAnatomyTimer){
+      window.__homeAnatomyTimer = setInterval(()=>{
+        applyHomeAnatomyStatus();
+        if(document.getElementById("page-home") && document.getElementById("page-home").classList.contains("active")){
+          loadHomeMonitor(false, true);
+        }
+      }, 8000);
+    }
+    return;
+  }
+  let html = "";
+  // 身体轮廓（半透明）
+  html += '<path class="body-outline" d="M128 205 Q120 215 122 250 L130 430 Q132 455 160 455 L240 455 Q268 455 270 430 L278 250 Q280 215 272 205 Z"/>';
+  html += '<ellipse class="body-outline" cx="200" cy="110" rx="72" ry="88"/>';
+  html += '<path class="body-outline" d="M132 215 Q92 250 80 335"/>';
+  html += '<path class="body-outline" d="M268 215 Q308 250 320 335"/>';
+  html += '<line class="body-outline" x1="180" y1="188" x2="180" y2="205"/>';
+  html += '<line class="body-outline" x1="220" y1="188" x2="220" y2="205"/>';
+  // 消息流连线
+  MONSTER_LINKS.forEach((pair,i)=>{
+    const a = MONSTER_NODES[pair[0]], b = MONSTER_NODES[pair[1]];
+    if(!a || !b) return;
+    html += '<path class="bus-link flow" id="bus-'+i+'" d="M'+a.x+' '+a.y+' L'+b.x+' '+b.y+'"/>';
+  });
+  // 器官节点
+  ORGANS.forEach((o,idx)=>{
+    const n = MONSTER_NODES[o.id];
+    if(!n) return;
+    const st = MONSTER_DEMO_STATUS[o.id] || "idle";
+    const delay = (idx*0.18).toFixed(2);
+    html += '<g class="organ-node" data-organ="'+o.id+'" tabindex="0" transform="translate('+n.x+','+n.y+')">'
+          +   '<circle class="halo" r="21" style="animation-delay:'+delay+'s"></circle>'
+          +   '<circle class="core" r="13" style="fill:'+MONSTER_STATUS_COLORS[st]+';animation-delay:'+delay+'s"></circle>'
+          +   '<g class="organ-ico" transform="translate(-9,-9)">'+monsterIconSvg(n.icon,18)+'</g>'
+          +   '<text class="organ-label" y="36">'+organName(o)+'</text>'
+          + '</g>';
+  });
+  svg.innerHTML = html;
+  svg.querySelectorAll(".organ-node").forEach(g=>{
+    const id = g.dataset.organ;
+    const go = ()=>{
+      navigate("organ:"+id);
+      svg.querySelectorAll(".organ-node").forEach(x=>x.classList.remove("selected"));
+      g.classList.add("selected");
+    };
+    g.addEventListener("click", go);
+    g.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } });
+  });
+  refreshMonsterStatus();
+  if(!window.__monsterRefreshTimer){
+    window.__monsterRefreshTimer = setInterval(refreshMonsterStatus, 3000);
+  }
+}
+function refreshMonsterStatus(){
+  const svg = document.getElementById("monster-canvas-svg");
+  if(!svg) return;
+  svg.querySelectorAll(".organ-node").forEach(g=>{
+    const id = g.dataset.organ;
+    const st = monsterStatusFor(id);
+    const color = MONSTER_STATUS_COLORS[st];
+    const core = g.querySelector(".core");
+    const halo = g.querySelector(".halo");
+    if(core) core.style.fill = color;
+    if(halo) halo.style.stroke = color;
+    g.classList.toggle("is-error", st==="error");
+    g.classList.toggle("is-warning", st==="warning");
+  });
+}
+/* ================== 首页实时仪表盘：解剖图 + 数据面板 + 插件 ================== */
+const HOME_PK = {
+  "prefrontal":"prefrontal","left-brain":"left_brain","right-brain":"right_brain",
+  "left-hand":"left_hand","right-hand":"right_hand","repair-hand":"medic",
+  "self-heal":"self_heal","report-mouth":"notifier","alarm-nose":"alarm",
+  "memory":"memory","whitelist":"whitelist","skill-box":"skillbox"
+};
+const HOME_SKILL_CATS = {
+  "prefrontal":["dispatch"],"left-brain":["dispatch"],"right-brain":["dispatch"],
+  "left-hand":["recon"],"right-hand":["defense","attack"],"repair-hand":["defense","utility"],
+  "self-heal":["defense","utility"],"report-mouth":["utility","dispatch"],
+  "alarm-nose":["defense"],"memory":["utility"],"whitelist":["defense"],
+  "skill-box":["attack","defense","recon","dispatch","utility"]
+};
+let homeSelectedPart = null;
+let homeSkillsCache = null, homeSkillsTs = 0;
+let homePostureTs = 0;
+let __homeLoadSeq = 0;
+const HOME_RISK_LABEL = {low:"L1", medium:"L2", high:"L3"};
+function homeMeta(zh,en){ return {zh:zh, en:en}; }
+function homeLabel(l){ return (l && (l[currentLang] || l.en)) || "--"; }
+function fmtLastCalled(v){
+  if(v==null || v==="") return t("home.never");
+  if(typeof v === "number") return new Date(v*1000).toLocaleTimeString();
+  return String(v);
+}
+/* 5s TTL 获取 posture（复用 window.monsterPostureCache） */
+async function fetchHomePosture(force){
+  const now = Date.now();
+  if(!force && window.monsterPostureCache && (now - homePostureTs) < 5000) return window.monsterPostureCache;
+  try{
+    await ensureApiToken();
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/posture", {
+      headers: apiHeaders({"Accept":"application/json"}), signal: AbortSignal.timeout(8000)
+    });
+    if(resp.ok){
+      const data = await resp.json();
+      window.monsterPostureCache = (data && data.posture) || data;
+      homePostureTs = Date.now();
+      return window.monsterPostureCache;
+    }
+  }catch(e){}
+  homePostureTs = Date.now();
+  return window.monsterPostureCache || null;
+}
+/* 5s TTL 获取技能清单 */
+async function fetchHomeSkills(force){
+  const now = Date.now();
+  if(!force && homeSkillsCache && (now - homeSkillsTs) < 5000) return homeSkillsCache;
+  try{
+    await ensureApiToken();
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/skills", {
+      headers: apiHeaders({"Accept":"application/json"}), signal: AbortSignal.timeout(8000)
+    });
+    if(resp.ok){
+      const data = await resp.json();
+      homeSkillsCache = (data && Array.isArray(data.skills)) ? data.skills : null;
+      homeSkillsTs = Date.now();
+      return homeSkillsCache;
+    }
+  }catch(e){}
+  homeSkillsTs = Date.now();
+  return homeSkillsCache;
+}
+async function fetchHomeCalls(){
+  try{
+    const data = await apiGet(MONSTER_API_BASE + "/api/monster/calls?limit=20");
+    return (data && Array.isArray(data.calls)) ? data.calls : null;
+  }catch(e){ return null; }
+}
+/* 首页整体加载（posture + skills 并行） */
+async function loadHomeMonitor(force, silent){
+  const page = document.getElementById("page-home");
+  if(!page || !page.classList.contains("active")) return;
+  const seq = ++__homeLoadSeq;
+  if(!silent && window.homeLoading) return;
+  window.homeLoading = true;
+  try{
+    const [posture, skills] = await Promise.all([
+      fetchHomePosture(force).catch(()=>null),
+      fetchHomeSkills(force).catch(()=>null)
+    ]);
+    if(seq !== __homeLoadSeq) return;
+    applyHomeAnatomyStatus(posture);
+    updateModeLamps();
+    if(homeSelectedPart) renderHomePanel(homeSelectedPart, posture, skills);
+  }finally{
+    window.homeLoading = false;
+  }
+}
+/* 解剖图状态着色：无数据灰态 / 异常红描边 / 告警黄描边 */
+function applyHomeAnatomyStatus(posture){
+  const svg = document.getElementById("monster-canvas-svg");
+  if(!svg) return;
+  const post = (posture && posture.posture) ? posture.posture : (posture || {});
+  svg.querySelectorAll(".anatomy-part").forEach(g=>{
+    const part = g.dataset.part;
+    const pd = post[HOME_PK[part]] || post[part];
+    g.classList.remove("no-data","is-err","is-warn");
+    if(!pd || !Object.keys(pd).length){ g.classList.add("no-data"); return; }
+    if(pd.meltdown || pd.running===false || pd.status==="fault") g.classList.add("is-err");
+    else if(pd.degraded_count>0 || pd.ack_required || (pd.countdown_remaining_secs>0)) g.classList.add("is-warn");
+  });
+}
+/* 选中部位 */
+async function selectMonsterPart(partId){
+  homeSelectedPart = partId;
+  const svg = document.getElementById("monster-canvas-svg");
+  if(svg) svg.querySelectorAll(".anatomy-part").forEach(g=>{
+    g.classList.toggle("selected", g.dataset.part === partId);
+  });
+  const posture = await fetchHomePosture(false).catch(()=>null);
+  const skills = await fetchHomeSkills(false).catch(()=>null);
+  renderHomePanel(partId, posture, skills);
+  __homeLoadSeq++; // 取消可能仍在途的旧批次
+}
+/* 面板头部状态灯 */
+function homeStatusFor(partId, pd){
+  if(!pd || !Object.keys(pd).length) return "off";
+  if(pd.meltdown || pd.running===false || pd.status==="fault") return "err";
+  if(pd.degraded_count>0 || pd.ack_required || (pd.countdown_remaining_secs>0)) return "warn";
+  return "ok";
+}
+function homeStatusText(st){
+  return st==="ok"?t("home.statusRunning") : st==="warn"?t("home.statusDegraded") : st==="err"?t("home.statusFault") : t("home.statusOffline");
+}
+/* 指标卡定义（每部位 4 项，fmt/cls 接收完整 posture 数据） */
+const HOME_METRICS = {
+  "prefrontal":[
+    {key:"running", label:homeMeta("运行状态","Status"), fmt:d=>(d.running==null?"--":(d.running?t("home.statusRunning"):"Stopped")), cls:d=>(d.running===false?"err":"ok")},
+    {key:"uptime_sec", label:homeMeta("运行时长","Uptime"), fmt:d=>fmtDur(d.uptime_sec)},
+    {key:"llm_mode", label:homeMeta("LLM模式","LLM Mode"), fmt:d=>(d.llm_mode==null?"--":String(d.llm_mode).toUpperCase())},
+    {key:"meltdown", label:homeMeta("Kill-Switch","Kill-Switch"), fmt:d=>(d.meltdown==null?"--":(d.meltdown?t("home.statusMeltdown"):"OFF")), cls:d=>(d.meltdown?"err":"ok")}
+  ],
+  "left-brain":[
+    {key:"total_alerts", label:homeMeta("累计告警","Alerts"), fmt:d=>(d.total_alerts==null?"--":d.total_alerts)},
+    {key:"total_compute_units", label:homeMeta("计算单元","Compute Units"), fmt:d=>(d.total_compute_units==null?"--":d.total_compute_units)},
+    {key:"llm_count", label:homeMeta("LLM推理","LLM Calls"), fmt:d=>(d.llm_count==null?"--":d.llm_count)},
+    {key:"fallback_count", label:homeMeta("降级回退","Fallbacks"), fmt:d=>(d.fallback_count==null?"--":d.fallback_count)}
+  ],
+  "right-brain":[
+    {key:"total_alerts", label:homeMeta("累计告警","Alerts"), fmt:d=>(d.total_alerts==null?"--":d.total_alerts)},
+    {key:"avg_confidence", label:homeMeta("平均置信度","Avg Confidence"), fmt:d=>(d.avg_confidence==null?"--":Number(d.avg_confidence).toFixed(2))},
+    {key:"schema_blocks", label:homeMeta("架构阻断","Schema Blocks"), fmt:d=>(d.schema_blocks==null?"--":d.schema_blocks)},
+    {key:"schema_passes", label:homeMeta("架构放行","Schema Passes"), fmt:d=>(d.schema_passes==null?"--":d.schema_passes)}
+  ],
+  "left-hand":[
+    {key:"blacklist_count", label:homeMeta("黑名单数","Blacklist"), fmt:d=>(d.blacklist_count==null?"--":d.blacklist_count)},
+    {key:"blocked", label:homeMeta("已封IP数","Blocked IPs"), fmt:d=>(Array.isArray(d.blocked_ips)?d.blocked_ips.length:(d.blocked_count==null?"--":d.blocked_count))},
+    {key:"mode", label:homeMeta("模式","Mode"), fmt:d=>(d.mode==null?"--":String(d.mode))},
+    {key:"status", label:homeMeta("运行状态","Status"), fmt:d=>(d.running===false?"Stopped":t("home.statusRunning")), cls:d=>(d.running===false?"err":"ok")}
+  ],
+  "right-hand":[
+    {key:"blocked_count", label:homeMeta("已封IP数","Blocked IPs"), fmt:d=>(d.blocked_count==null?"--":d.blocked_count)},
+    {key:"blocked", label:homeMeta("封禁列表","Blocked List"), fmt:d=>(Array.isArray(d.blocked_ips)?d.blocked_ips.length:"--")},
+    {key:"firewall_mode", label:homeMeta("防火墙模式","Firewall"), fmt:d=>(d.firewall_mode==null?"--":String(d.firewall_mode))},
+    {key:"status", label:homeMeta("运行状态","Status"), fmt:d=>(d.running===false?"Stopped":t("home.statusRunning")), cls:d=>(d.running===false?"err":"ok")}
+  ],
+  "repair-hand":[
+    {key:"agents_count", label:homeMeta("守护代理","Agents"), fmt:d=>(d.agents==null?"--":Object.keys(d.agents).length)},
+    {key:"medic_log_count", label:homeMeta("医疗日志","Medic Logs"), fmt:d=>(d.medic_log_count==null?"--":d.medic_log_count)},
+    {key:"breaker", label:homeMeta("熔断器","Breaker"), fmt:d=>(d.breaker&&d.breaker.is_open?"OPEN":"Closed"), cls:d=>(d.breaker&&d.breaker.is_open?"err":"ok")},
+    {key:"status", label:homeMeta("运行状态","Status"), fmt:d=>(d.running===false?"Stopped":t("home.statusRunning")), cls:d=>(d.running===false?"err":"ok")}
+  ],
+  "self-heal":[
+    {key:"degraded_count", label:homeMeta("异常组件","Degraded"), fmt:d=>(d.degraded_count==null?"--":d.degraded_count), cls:d=>(d.degraded_count?"warn":"ok")},
+    {key:"degraded", label:homeMeta("异常列表","Degraded List"), fmt:d=>(Array.isArray(d.degraded)?d.degraded.length:"--")},
+    {key:"healthy", label:homeMeta("健康组件","Healthy"), fmt:d=>(d.degraded_count==null?"--":Math.max(0,(d.total_health||0)-(d.degraded_count||0)))},
+    {key:"status", label:homeMeta("自愈状态","Self-Heal"), fmt:d=>(d.degraded_count?t("home.statusDegraded"):t("home.statusRunning")), cls:d=>(d.degraded_count?"warn":"ok")}
+  ],
+  "report-mouth":[
+    {key:"status", label:homeMeta("通道状态","Channel Status"), fmt:d=>(d.status==null?"--":String(d.status)), cls:d=>(d.status==="ready"||d.status==="ok"?"ok":"warn")},
+    {key:"channel", label:homeMeta("通道","Channel"), fmt:d=>(d.channel==null?"--":String(d.channel))},
+    {key:"events", label:homeMeta("事件数","Events"), fmt:d=>(d.events_count==null?"--":d.events_count)},
+    {key:"running", label:homeMeta("运行状态","Status"), fmt:d=>(d.running===false?"Stopped":t("home.statusRunning")), cls:d=>(d.running===false?"err":"ok")}
+  ],
+  "alarm-nose":[
+    {key:"level", label:homeMeta("当前等级","Level"), fmt:d=>(d.level==null?"--":"L"+d.level), cls:d=>(d.level>=4?"err":(d.level>=2?"warn":"ok"))},
+    {key:"alert_count", label:homeMeta("累计告警","Alerts"), fmt:d=>(d.alert_count==null?"--":d.alert_count)},
+    {key:"ack_required", label:homeMeta("需人工确认","Ack Required"), fmt:d=>(d.ack_required==null?"--":(d.ack_required?"YES":"No")), cls:d=>(d.ack_required?"warn":"ok")},
+    {key:"countdown", label:homeMeta("熔断倒计时","Countdown"), fmt:d=>(d.countdown_remaining_secs==null?"--":d.countdown_remaining_secs+"s"), cls:d=>(d.countdown_remaining_secs>0?"err":"ok")}
+  ],
+  "memory":[
+    {key:"hot_size", label:homeMeta("热库大小","Hot Store Size"), fmt:d=>(d.hot_store&&d.hot_store.size!=null?d.hot_store.size:"--")},
+    {key:"hot_hit", label:homeMeta("热库命中率","Hot Hit Rate"), fmt:d=>(d.hot_store&&d.hot_store.hit_rate!=null?(d.hot_store.hit_rate*100).toFixed(1)+"%":"--")},
+    {key:"cold_hit", label:homeMeta("冷库命中率","Cold Hit Rate"), fmt:d=>(d.cold_store&&d.cold_store.hit_rate!=null?(d.cold_store.hit_rate*100).toFixed(1)+"%":"--")},
+    {key:"status", label:homeMeta("运行状态","Status"), fmt:d=>(d.running===false?"Stopped":t("home.statusRunning")), cls:d=>(d.running===false?"err":"ok")}
+  ],
+  "whitelist":[
+    {key:"protected", label:homeMeta("受保护地址","Protected IPs"), fmt:d=>(Array.isArray(d.protected_ips)?d.protected_ips.length:"--")},
+    {key:"status", label:homeMeta("运行状态","Status"), fmt:d=>(d.running===false?"Stopped":t("home.statusRunning")), cls:d=>(d.running===false?"err":"ok")},
+    {key:"mode", label:homeMeta("模式","Mode"), fmt:d=>(d.mode==null?"--":String(d.mode))},
+    {key:"hits", label:homeMeta("命中次数","Hits"), fmt:d=>(d.hit_count==null?"--":d.hit_count)}
+  ],
+  "skill-box":[
+    {key:"total_tools", label:homeMeta("技能总数","Total Tools"), fmt:d=>(d.total_tools==null?"--":d.total_tools)},
+    {key:"enabled", label:homeMeta("已启用","Enabled"), fmt:d=>(d.enabled==null?"--":d.enabled)},
+    {key:"total_calls", label:homeMeta("调用总数","Total Calls"), fmt:d=>(d.total_calls==null?"--":d.total_calls)},
+    {key:"status", label:homeMeta("运行状态","Status"), fmt:d=>(d.running===false?"Stopped":t("home.statusRunning")), cls:d=>(d.running===false?"err":"ok")}
+  ]
+};
+/* monster 本体聚合指标：遍历 12 器官统计 */
+function homeMonsterMetrics(posture){
+  const post = (posture && posture.posture) ? posture.posture : (posture || {});
+  let normal=0, abnormal=0, total=0;
+  Object.keys(HOME_PK).forEach(k=>{
+    if(k==="monster") return;
+    const d = post[HOME_PK[k]] || post[k];
+    if(!d) return;
+    total++;
+    const bad = d.running===false || d.meltdown || (d.degraded_count>0) || d.status==="fault";
+    if(bad) abnormal++; else normal++;
+  });
+  return [
+    {key:"normal", label:homeMeta("正常器官","Healthy Organs"), fmt:()=>normal, cls:()=>"ok"},
+    {key:"abnormal", label:homeMeta("异常器官","Abnormal Organs"), fmt:()=>abnormal, cls:()=>(abnormal?"err":"ok")},
+    {key:"total", label:homeMeta("器官总数","Total Organs"), fmt:()=>total||"12"},
+    {key:"overall", label:homeMeta("整体状态","Overall"), fmt:()=>(abnormal?t("home.statusDegraded"):t("home.statusRunning")), cls:()=>(abnormal?"warn":"ok")}
+  ];
+}
+function homeKvHtml(items){
+  return '<div class="hp-kv">'+items.map(i=>'<div class="kv-item"><span class="kv-k">'+esc(i[0])+'</span><span class="kv-v">'+esc(i[1])+'</span></div>').join("")+'</div>';
+}
+function homeChipsHtml(items, cls){
+  return '<div class="hp-chip-list">'+items.map(x=>'<span class="hp-chip'+(cls?" "+cls:"")+'">'+esc(x)+'</span>').join("")+'</div>';
+}
+function homeEmptyHtml(){
+  // 引擎未运行（dfuStatus.running=false 或 posture 为空）：黄色提示条；否则显示原"无数据"空态
+  const postureEmpty = !window.monsterPostureCache || !Object.keys(window.monsterPostureCache).length;
+  if(!dfuStatus.running || postureEmpty){
+    return '<div class="hp-engine-stopped"><span class="hes-icon">!</span><div><div class="hes-title">'+t("home.engineStopped")+'</div><div class="hes-desc">'+t("home.engineStoppedHint")+'</div></div></div>';
+  }
+  return '<div class="hp-empty">'+t("home.emptyDetail")+'</div>';
+}
+/* 详细数据区（按器官类型渲染） */
+function renderHomeDetail(partId, pd){
+  if(!pd || !Object.keys(pd).length) return homeEmptyHtml();
+  switch(partId){
+    case "prefrontal":
+      return homeKvHtml([
+        ["Status", pd.running===false?"Stopped":t("home.statusRunning")],
+        ["Uptime", fmtDur(pd.uptime_sec)],
+        ["LLM Mode", pd.llm_mode||"--"],
+        ["Monster Mode", pd.monster_mode||"--"],
+        ["Kill-Switch", pd.meltdown?"ON - CRITICAL":"OFF"]
+      ]);
+    case "left-brain": {
+      const sev = pd.alerts_by_severity||{};
+      return homeKvHtml([
+        ["Alerts Low", sev.low||0],["Alerts Medium", sev.medium||0],
+        ["Alerts High", sev.high||0],["Alerts Severe", sev.severe||0],
+        ["Schema Blocks", pd.schema_blocks||0],["Schema Passes", pd.schema_passes||0],
+        ["Gate Denies", pd.gate_denies||0],["Gate Reviews", pd.gate_reviews||0],
+        ["LLM Calls", pd.llm_count||0],["Fallback Calls", pd.fallback_count||0]
+      ]);
+    }
+    case "right-brain": {
+      const cat = pd.analyses_by_category||{};
+      return homeKvHtml([
+        ["DDoS", cat.ddos||0],["PortScan", cat.port_scan||0],
+        ["BruteForce", cat.brute_force||0],["Vuln", cat.vuln||0],
+        ["Schema Blocks", pd.schema_blocks||0],["Schema Passes", pd.schema_passes||0],
+        ["Avg Confidence", pd.avg_confidence!=null?Number(pd.avg_confidence).toFixed(2):"--"]
+      ]);
+    }
+    case "left-hand": {
+      const ips = Array.isArray(pd.blocked_ips)?pd.blocked_ips:[];
+      if(!ips.length) return homeEmptyHtml();
+      return homeChipsHtml(ips.slice(0,40));
+    }
+    case "right-hand": {
+      const ips = Array.isArray(pd.blocked_ips)?pd.blocked_ips:[];
+      if(!ips.length) return homeEmptyHtml();
+      return homeChipsHtml(ips.slice(0,40));
+    }
+    case "repair-hand": {
+      const agents = pd.agents||{};
+      const names = Object.keys(agents);
+      let html = '';
+      if(names.length){
+        html += '<div class="hp-table"><table><thead><tr><th>Agent</th><th>Status</th></tr></thead><tbody>'+
+          names.map(n=>'<tr><td>'+esc(n)+'</td><td><span class="tag '+((agents[n]==="healthy"||agents[n]==="ok")?"ok":(agents[n]==="degraded"?"warn":"err"))+'">'+esc(agents[n]||"--")+'</span></td></tr>').join("")+
+          '</tbody></table></div>';
+      }
+      html += homeKvHtml([
+        ["Breaker", pd.breaker&&pd.breaker.is_open?("OPEN: "+(pd.breaker.reason||"")):"Closed"],
+        ["Medic Logs", (pd.medic_log_count||0)+" entries"]
+      ]);
+      return html;
+    }
+    case "self-heal": {
+      const dl = Array.isArray(pd.degraded)?pd.degraded:[];
+      if(!dl.length) return homeKvHtml([["Degraded", 0],["State", t("home.statusRunning")]]);
+      return homeChipsHtml(dl.slice(0,40), "warn");
+    }
+    case "report-mouth":
+      return homeKvHtml([
+        ["Channel", pd.channel||"--"],["Status", pd.status||"--"],
+        ["Events", pd.events_count==null?"--":pd.events_count]
+      ]);
+    case "alarm-nose": {
+      const rows = [
+        ["Level", pd.level!=null?"L"+pd.level:"--"],
+        ["Trigger", pd.trigger||"--"],
+        ["Ack Required", pd.ack_required?"YES":"No"],
+        ["Countdown", pd.countdown_remaining_secs!=null?pd.countdown_remaining_secs+"s":"--"],
+        ["Last Action", pd.last_action_summary||"--"]
+      ];
+      if(pd.fsm_l4_ips && pd.fsm_l4_ips.length) rows.push(["L4 IPs", pd.fsm_l4_ips.join(", ")]);
+      return homeKvHtml(rows);
+    }
+    case "memory":
+      return homeKvHtml([
+        ["Hot Store Size", pd.hot_store&&pd.hot_store.size!=null?pd.hot_store.size:"--"],
+        ["Hot Hit Rate", pd.hot_store&&pd.hot_store.hit_rate!=null?(pd.hot_store.hit_rate*100).toFixed(1)+"%":"--"],
+        ["Cold Hit Rate", pd.cold_store&&pd.cold_store.hit_rate!=null?(pd.cold_store.hit_rate*100).toFixed(1)+"%":"--"]
+      ]);
+    case "whitelist": {
+      const ips = Array.isArray(pd.protected_ips)?pd.protected_ips:[];
+      if(!ips.length) return homeEmptyHtml();
+      return homeChipsHtml(ips.slice(0,40));
+    }
+    case "skill-box":
+      return homeKvHtml([
+        ["Total Tools", pd.total_tools==null?"--":pd.total_tools],
+        ["Enabled", pd.enabled==null?"--":pd.enabled],
+        ["Total Calls", pd.total_calls==null?"--":pd.total_calls]
+      ]);
+    case "monster": {
+      const post = (pd.posture && pd.posture.posture) ? pd.posture.posture : pd.posture || {};
+      const rows = [];
+      Object.keys(HOME_PK).forEach(k=>{
+        if(k==="monster") return;
+        const d = post[HOME_PK[k]] || post[k];
+        const bad = !d || d.running===false || d.meltdown || (d.degraded_count>0) || d.status==="fault";
+        rows.push([k, bad?"--":(d.meltdown?"meltdown":(d.degraded_count>0?"degraded":"ok"))]);
+      });
+      return '<div class="hp-table"><table><thead><tr><th>Organ</th><th>Status</th></tr></thead><tbody>'+
+        rows.map(r=>'<tr><td>'+esc(r[0])+'</td><td><span class="tag '+((r[1]==="ok")?"ok":(r[1]==="degraded"?"warn":"err"))+'">'+esc(r[1])+'</span></td></tr>').join("")+
+        '</tbody></table></div>';
+    }
+    default: return homeEmptyHtml();
+  }
+}
+/* 插件过滤：monster 显示全部，其余按 category 归属 */
+function homeSkillsForPart(partId, skills){
+  if(!skills || !skills.length) return [];
+  if(partId === "monster") return skills;
+  const cats = HOME_SKILL_CATS[partId] || [];
+  return skills.filter(s=>cats.indexOf(s.category) >= 0);
+}
+function homePluginHtml(s){
+  const risk = HOME_RISK_LABEL[s.risk_level] || s.risk_level || "--";
+  const riskCls = (s.risk_level==="high"?"err":(s.risk_level==="medium"?"warn":"ok"));
+  return '<div class="plugin-card" data-tool="'+esc(s.id)+'">'
+    + '<div class="pc-top"><span class="pc-name" title="'+esc(s.description||"")+'">'+esc(s.name_zh||s.id)+'</span><span class="tag '+riskCls+'">'+esc(risk)+'</span><button class="pc-toggle'+(s.enabled?' on':'')+'" title="'+(s.enabled?t("home.disable"):t("home.enable"))+'" onclick="toggleHomeSkill(\''+esc(s.id)+'\','+(s.enabled?'false':'true')+')"></button></div>'
+    + '<div class="pc-row"><span>'+esc(s.category||"--")+'</span><span class="pc-stat">'+tf("home.callCount",{n:(s.call_count==null?"--":s.call_count)})+'</span></div>'
+    + '<div class="pc-row"><span class="pc-stat">'+tf("home.lastCall",{t:fmtLastCalled(s.last_called)})+'</span></div>'
+    + '</div>';
+}
+function homeCallsHtml(calls){
+  if(!calls || !calls.length) return '<div class="hp-empty">'+t("home.callsEmpty")+'</div>';
+  return '<div class="hp-table"><table><thead><tr><th>Time</th><th>Tool</th><th>Caller</th><th>Result</th></tr></thead><tbody>'+
+    calls.map(c=>'<tr><td>'+esc(c.ts||"--")+'</td><td>'+esc(c.tool||"--")+'</td><td>'+esc(c.caller||"--")+'</td><td><span class="tag '+(c.success?"ok":"err")+'">'+(c.success?"ok":"fail")+'</span>'+(c.latency_ms!=null?' <span class="hint-text">'+c.latency_ms+'ms</span>':"")+'</td></tr>').join("")+
+    '</tbody></table></div>';
+}
+/* 切换技能启用（POST /api/monster/skills/toggle，成功后刷新） */
+async function toggleHomeSkill(toolId, enabled){
+  try{
+    await ensureApiToken();
+    const resp = await fetch(MONSTER_API_BASE + "/api/monster/skills/toggle", {
+      method:"POST",
+      headers: apiHeaders({"Content-Type":"application/json"}),
+      body: JSON.stringify({tool_id: toolId, enabled: !!enabled})
+    });
+    if(!resp.ok){
+      const d = await resp.json().catch(()=>({}));
+      throw new Error(d.detail || ("HTTP "+resp.status));
+    }
+    homeSkillsCache = null; homeSkillsTs = 0;
+    toast(enabled?t("home.enabled"):t("home.disabled"), "ok");
+    loadHomeMonitor(true, true);
+  }catch(e){
+    toast(e.message||"toggle failed", "err");
+  }
+}
+/* 跳转器官页深链：URL 参数与 ?organ= 一致，滚动到对应器官页视图 */
+function goOrganPage(organId){
+  navigate("organ:"+organId);
+  if(history.replaceState) history.replaceState(null, "", "?organ="+encodeURIComponent(organId));
+  const sec = document.getElementById("page-organ-"+organId);
+  if(sec) setTimeout(()=>sec.scrollIntoView({behavior:"smooth", block:"start"}), 50);
+}
+/* 渲染右侧数据面板 */
+async function renderHomePanel(partId, posture, skills){
+  const box = document.getElementById("home-panel-content");
+  if(!box) return;
+  const post = (posture && posture.posture) ? posture.posture : (posture || {});
+  const pk = HOME_PK[partId] || partId;
+  const pd = post[pk] || post[partId] || {};
+  const metrics = (partId==="monster") ? homeMonsterMetrics(posture) : (HOME_METRICS[partId]||[]);
+  const st = (partId==="monster") ? (homeMonsterMetrics(posture)[1].fmt()>0 ? "warn" : "ok") : homeStatusFor(partId, pd);
+  const organDef = (ORGANS||[]).find(o=>o.id===partId);
+  const nameZh = partId==="monster" ? t("home.monsterBody") : (organDef ? organDef.name : partId);
+  const nameEn = partId==="monster" ? "Monster DFU" : (organDef ? organDef.name_en || organDef.id : partId);
+  const refreshAt = new Date().toLocaleTimeString();
+  const metricHtml = '<div class="hp-metrics">'+metrics.map(m=>{
+    const val = m.fmt(pd);
+    const cls = m.cls ? m.cls(pd) : "";
+    return '<div class="hp-metric"><span class="hp-m-label">'+esc(homeLabel(m.label))+'</span><span class="hp-m-value '+(cls||(val==null||val==="--"?"na":""))+'">'+esc(val)+'</span></div>';
+  }).join("")+'</div>';
+  const detailHtml = (partId==="monster") ? renderHomeDetail(partId, {posture: posture}) : renderHomeDetail(partId, pd);
+  const plist = homeSkillsForPart(partId, skills);
+  let pluginsHtml;
+  if(plist.length){
+    pluginsHtml = '<div class="hp-section-title">'+t("home.plugins")+' <span class="hint-text">('+plist.length+')</span></div><div class="plugin-grid">'+plist.map(homePluginHtml).join("")+'</div>';
+  }else{
+    pluginsHtml = '<div class="hp-section-title">'+t("home.plugins")+'</div><div class="hp-empty">'+t("home.pluginsEmpty")+'</div>';
+  }
+  let extraHtml = "";
+  if(partId==="monster"){
+    extraHtml = '<div class="hp-section-title">'+t("home.calls")+'</div><div id="home-calls-wrap"><div class="hp-empty">Loading…</div></div>';
+  }
+  box.innerHTML =
+    '<div class="hp-head">'
+    + '<div><div class="hp-name">'+esc(nameZh)+' <span class="hp-sub">'+esc(nameEn)+'</span></div></div>'
+    + '<div class="hp-right">'
+    +   '<span class="hp-status '+st+'"><span class="ml-dot"></span>'+esc(homeStatusText(st))+'</span>'
+    +   '<span class="hp-refresh-at">'+tf("home.refreshAt",{t:refreshAt})+'</span>'
+    +   (partId!=="monster" ? '<button class="btn btn-ghost btn-sm" onclick="goOrganPage(\''+partId+'\')">'+t("home.viewOrganPage")+' →</button>' : "")
+    +   '<button class="btn btn-ghost btn-sm" onclick="loadHomeMonitor(true)" data-i18n="home.refresh">'+t("home.refresh")+'</button>'
+    + '</div></div>'
+    + metricHtml
+    + '<div class="hp-section-title">'+t("home.detailTitle")+'</div>'
+    + '<div class="hp-detail">'+detailHtml+'</div>'
+    + pluginsHtml
+    + extraHtml;
+  // 刷新后同步更新按钮文案（避免 data-i18n 与动态内容冲突）
+  if(extraHtml && partId==="monster"){
+    fetchHomeCalls().then(calls=>{
+      const wrap = document.getElementById("home-calls-wrap");
+      if(wrap) wrap.innerHTML = homeCallsHtml(calls);
+    });
+  }
+}
+function toggleMonsterChat(){
+  const d = document.getElementById("monster-chat-drawer");
+  if(!d) return;
+  d.classList.toggle("open");
+  const arrow = document.getElementById("chat-toggle-arrow");
+  if(arrow) arrow.style.transform = d.classList.contains("open") ? "rotate(90deg)" : "";
+}
+
 function init(){
   // Load lang from settings first
   const s = loadSettings();
@@ -2044,6 +4150,7 @@ function init(){
   renderOrganNav();
   renderOrganPages();
   renderHome();
+  renderMonsterCanvas();
   renderWhitelist();
   initThemeButtons();
   initChat();
@@ -2051,8 +4158,10 @@ function init(){
   initMonsterUpload();
   initDfuControl();
   initMonsterPosture();
+  initSSEStream();
   initSettings();
-  navigate("overview");
+  const deepOrgan = new URLSearchParams(location.search).get("organ");
+  navigate(deepOrgan ? "organ:"+deepOrgan : "overview");
 }
 document.addEventListener("DOMContentLoaded", init);
 </script>

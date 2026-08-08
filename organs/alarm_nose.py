@@ -14,6 +14,7 @@
 """
 
 import asyncio
+import functools
 import time
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
@@ -21,6 +22,15 @@ from typing import Any, Callable, Dict, List, Optional
 from utils.logger import get_logger
 
 logger = get_logger("AlarmNose")
+
+
+def _locked(method):
+    """串行化 AlarmNose 状态变更方法，防止并发告警/确认/倒计时竞态。"""
+    @functools.wraps(method)
+    async def wrapper(self, *args, **kwargs):
+        async with self._state_lock:
+            return await method(self, *args, **kwargs)
+    return wrapper
 
 
 class AlarmNose:
@@ -86,6 +96,9 @@ class AlarmNose:
         self._loop_task: Optional[asyncio.Task] = None
         self._running: bool = False
 
+        # 状态变更串行化锁（assess/assess_fsm/assess_health/manual_*/倒计时共用）
+        self._state_lock = asyncio.Lock()
+
     # ── 生命周期 ──
 
     def start(self) -> None:
@@ -125,6 +138,7 @@ class AlarmNose:
 
     # ── 事件桥接入口 ──
 
+    @_locked
     async def assess(self, alert: Dict[str, Any]) -> str:
         """
         评估威胁告警（threat_alert 事件 → assess）。
@@ -187,6 +201,7 @@ class AlarmNose:
 
         return self._level
 
+    @_locked
     async def assess_fsm(self, fsm_levels: Dict[str, str]) -> str:
         """
         评估 FSM 等级快照（isolation_action 事件 → assess_fsm）。
@@ -205,6 +220,7 @@ class AlarmNose:
             )
         return self._level
 
+    @_locked
     async def assess_health(self, health: Dict[str, Any]) -> str:
         """
         评估器官健康状态（MedicAgent 心跳回调变化 → assess_health）。
@@ -291,6 +307,7 @@ class AlarmNose:
         except asyncio.CancelledError:
             pass
 
+    @_locked
     async def _on_countdown_expire(self, force: bool = False) -> None:
         """
         倒计时到期统一处理。
@@ -385,6 +402,7 @@ class AlarmNose:
 
     # ── 人工确认 / 解除 ──
 
+    @_locked
     async def manual_ack(self, level: Optional[str] = None) -> Dict[str, Any]:
         """
         人工确认当前警报：停止倒计时，确认已处置，等级回到 L1（记录态）。
@@ -400,6 +418,7 @@ class AlarmNose:
         self._trigger = f"已确认处置（原 {confirmed_level}）"
         return {"success": True, "confirmed_level": confirmed_level, "level": self._level}
 
+    @_locked
     async def manual_cancel(self, level: Optional[str] = None) -> Dict[str, Any]:
         """
         人工取消当前警报：停止倒计时，取消升级，回到 L1（记录态）。
@@ -415,6 +434,7 @@ class AlarmNose:
         self._trigger = f"已人工取消（原 {cancelled_level}）"
         return {"success": True, "cancelled_level": cancelled_level, "level": self._level}
 
+    @_locked
     async def confirm_l4(self) -> Dict[str, Any]:
         """人工确认执行 L4：立即强制执行软隔离信号（复用 FSM 机制）。"""
         if self._level != self.L4:
@@ -451,6 +471,7 @@ class AlarmNose:
 
     # ── L1 自然衰减 ──
 
+    @_locked
     async def _decay(self) -> None:
         """L1 记录态自然衰减：超过 l1_decay_secs 无新告警则回到 L0。"""
         if self._level == self.L1 and self._last_alert_ts > 0:

@@ -20,10 +20,12 @@ logger = logging.getLogger("MonsterAgent")
 class MonsterAgent:
     """小怪兽：全局 Agent 中枢。"""
 
-    # 12 器官 ID（前额叶/左脑/右脑/左手/右手/修复手/自愈/汇报嘴/报警鼻/记忆/白名单/技能箱）
+    # 13 器官 ID（前额叶/左脑/右脑/左手/右手/修复手/自愈/汇报嘴/报警鼻/记忆/白名单/技能箱/报告嘴）
+    # 注：web_server 实际注册 13 个 posture provider（本清单 + report_mouth）
     ORGAN_IDS = [
         "prefrontal", "left_brain", "right_brain", "left_hand", "right_hand",
         "medic", "self_heal", "notifier", "alarm", "memory", "whitelist", "skillbox",
+        "report_mouth",
     ]
 
     def __init__(self, config, llm_client, skill_toolbox: SkillToolbox,
@@ -57,25 +59,32 @@ class MonsterAgent:
     def register_posture_provider(self, name: str,
                                   provider: Callable[[], Any],
                                   ttl: float = 5.0) -> None:
-        """注册器官态势 provider（同步函数，返回可 JSON 序列化数据）。"""
-        self._posture_providers[name] = provider
+        """注册器官态势 provider（同步函数，返回可 JSON 序列化数据）。
+
+        保存各 provider 的独立 ttl（P2-10），供 gather_global_posture 按各自 TTL 缓存。
+        """
+        self._posture_providers[name] = (provider, ttl)
 
     def gather_global_posture(self, force_refresh: bool = False) -> Dict[str, Any]:
-        """汇总全部器官态势（带 TTL 缓存）。"""
+        """汇总全部器官态势（按各 provider 独立 TTL 缓存）。"""
         now = time.time()
         posture: Dict[str, Any] = {}
 
-        for name, provider in self._posture_providers.items():
+        for name, item in self._posture_providers.items():
+            provider, ttl = item if isinstance(item, tuple) else (item, self._posture_ttl)
             # 缓存命中
             if not force_refresh:
                 cached = self._posture_cache.get(name)
                 ts = self._posture_cache_ts.get(name, 0)
-                if cached is not None and (now - ts) < self._posture_ttl:
+                if cached is not None and (now - ts) < ttl:
                     posture[name] = cached
                     continue
             # 刷新
             try:
                 value = provider()
+                # P2-11：非 dict 返回值防御（统一包一层，保证调用方 v.get 安全）
+                if not isinstance(value, dict):
+                    value = {"value": value, "_wrapped": True}
                 posture[name] = value
                 self._posture_cache[name] = value
                 self._posture_cache_ts[name] = now
@@ -218,12 +227,16 @@ class MonsterAgent:
         tool_events: List[Dict[str, Any]] = []
         final_content = ""
         iterations = 0
+        degraded = False  # 本次会话是否发生真实 LLM 调用失败降级
 
         while iterations < self.max_iterations:
             iterations += 1
             resp = await self.llm_client.chat_with_tools(
                 messages=messages, tools=tools, temperature=0.3,
             )
+
+            if resp.get("degraded"):
+                degraded = True
 
             tool_calls = resp.get("tool_calls")
             if tool_calls:
@@ -260,7 +273,8 @@ class MonsterAgent:
 
         return {
             "reply": final_content,
-            "mode": "real",
+            "mode": "degraded" if degraded else "real",
+            "degraded": degraded,
             "iterations": iterations,
             "tool_events": tool_events,
             "posture_snapshot": {k: v for k, v in list(posture.items())[:6]},

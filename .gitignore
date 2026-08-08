@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .env
+config/llm_user.json
 logs/
 data/
 temp/
@@ -12,6 +13,12 @@ build/
 .pytest_cache/
 *.db
 .DS_Store
+
+# 敏感备份文件（可能含真实密钥，一律不入库）
+*.bak
+config/*.bak
+*.key
+config/*.key
 
 # build/runtime artifacts & secrets
 podman-machine/

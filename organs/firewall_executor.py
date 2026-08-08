@@ -279,7 +279,11 @@ class IptablesBackend(BaseFirewallBackend):
         args: list[str],
         check_only: bool = False,
     ) -> subprocess.CompletedProcess:
-        """异步执行 iptables 命令"""
+        """异步执行 iptables 命令，返回标准 CompletedProcess（供调用方访问 returncode/stderr）。
+
+        参考 _run_netsh 的写法：等待子进程结束后按行解码 stdout/stderr，
+        构造 subprocess.CompletedProcess 返回，避免调用方把 tuple 当对象用。
+        """
         cmd = ["sudo", "iptables-legacy"] + args if os.geteuid() != 0 else ["iptables-legacy"] + args
         if check_only:
             cmd = ["iptables-legacy"] + args  # check 不需要 sudo
@@ -289,7 +293,24 @@ class IptablesBackend(BaseFirewallBackend):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        return await proc.communicate()
+        stdout_bytes, stderr_bytes = await proc.communicate()
+        # 尝试多种编码（Linux 默认 utf-8；兼容部分系统 locale 为非 utf-8 的情况）
+        for enc in ["utf-8", "gbk"]:
+            try:
+                return subprocess.CompletedProcess(
+                    args=cmd,
+                    returncode=proc.returncode,
+                    stdout=stdout_bytes.decode(enc),
+                    stderr=stderr_bytes.decode(enc),
+                )
+            except UnicodeDecodeError:
+                continue
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=proc.returncode,
+            stdout=stdout_bytes.decode("utf-8", errors="replace"),
+            stderr=stderr_bytes.decode("utf-8", errors="replace"),
+        )
 
 
 # ── Windows Firewall 后端 ──

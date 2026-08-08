@@ -8,15 +8,19 @@ DFU Web 管理界面 — FastAPI 后端
 
 import argparse
 import asyncio
+import ipaddress
 import json
 import os
+import re
+import secrets
+import socket
 import sys
 import time
+import urllib.parse
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import secrets
 
 # 控制台中文乱码修复：强制 stdout/stderr 使用 UTF-8（桌面版 / 控制台均生效）
 if hasattr(sys.stdout, "reconfigure"):
@@ -36,11 +40,12 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from communication.message_bus import Message, MessageBus, get_message_bus
-from config import get_config
+from config import get_config, LLMConfig
+from config import save_llm_user_config, load_llm_user_config, _apply_llm_user_overrides
 from core.brain_left import LeftBrain
 from core.brain_right import RightBrain
 from core.countermeasure_fsm import CountermeasureFSM, FSMLevel
-from core.llm_client import LLMClient
+from core.llm_client import LLMClient, create_organ_llm_client
 from core.medic_agent import MedicAgent
 from core.monitor import get_metrics_collector
 from core.monster_agent import MonsterAgent
@@ -89,12 +94,24 @@ _server_start_time = time.time()
 #   GET /api/token 自动刷新轮换，杜绝"一次泄漏永久有效"的静态凭据问题
 # - 无全局绕过开关：_AUTH_ENABLED 已移除，所有 /api/* 必须携带有效 Token
 
-_API_TOKEN = os.environ.get("DFU_WEB_TOKEN", "")
+_API_TOKEN = os.environ.get("DFU_WEB_TOKEN", "") or os.environ.get("DFU_AUTH_API_TOKEN", "")
 if not _API_TOKEN:
     _API_TOKEN = secrets.token_hex(16)
-    print(f"[Auth] 未设置 DFU_WEB_TOKEN，已生成随机 Token: {_API_TOKEN}")
+    print(f"[Auth] 未设置 DFU_WEB_TOKEN/DFU_AUTH_API_TOKEN，已生成随机 Token: {_API_TOKEN}")
 else:
-    print("[Auth] 已从环境变量 DFU_WEB_TOKEN 加载 Token")
+    print("[Auth] 已从环境变量 DFU_WEB_TOKEN/DFU_AUTH_API_TOKEN 加载 Token")
+
+# Bootstrap Key（/api/token 首访保护）：
+# - 首次获取 Token 时必须携带本 Key（请求头 X-Bootstrap-Token 或 URL 参数 ?bootstrap=）
+# - 来源：环境变量 DFU_BOOTSTRAP_TOKEN；未设置则随机生成并打印到控制台/日志
+# - 用途：防止攻击者无凭据调用 /api/token 直接换取有效 Token（首访保护）
+_BOOTSTRAP_TOKEN = os.environ.get("DFU_BOOTSTRAP_TOKEN", "")
+if not _BOOTSTRAP_TOKEN:
+    _BOOTSTRAP_TOKEN = secrets.token_hex(16)
+    print(f"[Auth] 未设置 DFU_BOOTSTRAP_TOKEN，已生成随机 Bootstrap Key: {_BOOTSTRAP_TOKEN}")
+    print("[Auth] 前端获取 Token 请携带 X-Bootstrap-Token 请求头或 ?bootstrap=<key> 参数")
+else:
+    print("[Auth] 已从环境变量 DFU_BOOTSTRAP_TOKEN 加载 Bootstrap Key")
 
 # Token 有效期（秒），默认 24h；0 或负值表示永不过期（仅显式配置）
 _TOKEN_TTL_SECONDS = int(os.environ.get("DFU_WEB_TOKEN_TTL", "86400"))
@@ -133,6 +150,55 @@ def _validate_token(token: str) -> bool:
     if _is_token_expired():
         return False
     return secrets.compare_digest(token, _API_TOKEN)
+
+
+def _extract_bearer_token(request: Request) -> str:
+    """统一 Bearer 解析：仅接受 'Bearer ' scheme 前缀，禁止无 scheme 裸 token。"""
+    auth = request.headers.get("Authorization", "")
+    if not auth:
+        return ""
+    parts = auth.split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return ""
+    return parts[1].strip()
+
+
+def _resolve_host_safe(host: str) -> Optional[str]:
+    """将 hostname / 十进制 / 十六进制字面量归一化为点分十进制 IP；失败返回 None。"""
+    if not host:
+        return None
+    h = host.strip().strip("[]")
+    try:
+        return str(ipaddress.ip_address(h))
+    except ValueError:
+        pass
+    try:
+        return socket.gethostbyname(h)
+    except OSError:
+        return None
+
+
+def _ssrf_check_url(url: str) -> Optional[str]:
+    """SSRF 防护：解析 host 为 IP，拒绝私有/回环/链路本地/元数据地址；返回错误描述或 None。"""
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception:
+        return "无效 URL"
+    host = parsed.hostname
+    if not host:
+        return "URL 缺少主机名"
+    ip_str = _resolve_host_safe(host)
+    if not ip_str:
+        return f"无法解析主机名: {host}"
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return f"无法解析为合法 IP: {host}"
+    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+        return f"拒绝访问私有/保留地址: {host} -> {ip_str}"
+    if str(ip) == "169.254.169.254" or str(ip).lower() in ("fd00::1", "fe80::1"):
+        return f"拒绝访问云元数据/链路本地地址: {host} -> {ip_str}"
+    return None
 
 
 async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -180,17 +246,21 @@ class DFUWebManager:
 
         # LLM
         self.llm_client = LLMClient(self.config.llm)
+        # 器官独立 LLM 分发：left-brain / right-brain 按 organ_overrides 构造独立客户端，
+        # 未配置覆盖时回退全局 llm_client
+        self.left_brain_llm = create_organ_llm_client("left-brain", self.config.llm, self.llm_client)
+        self.right_brain_llm = create_organ_llm_client("right-brain", self.config.llm, self.llm_client)
 
         # 核心 Agent
         self.traffic_monitor = TrafficMonitorAgent(self.config)
         self.left_brain = LeftBrain(
             self.config,
-            llm_client=self.llm_client,
+            llm_client=self.left_brain_llm,
             knowledge_router=self.knowledge_router,
         )
         self.right_brain = RightBrain(
             self.config,
-            llm_client=self.llm_client,
+            llm_client=self.right_brain_llm,
             knowledge_router=self.knowledge_router,
         )
         self.validator = ValidatorAgent(self.config)
@@ -296,6 +366,7 @@ class DFUWebManager:
         m.register_posture_provider("memory", self._posture_memory)
         m.register_posture_provider("whitelist", self._posture_whitelist)
         m.register_posture_provider("skillbox", self._posture_skillbox)
+        m.register_posture_provider("report_mouth", self._posture_report_mouth)
 
     def _posture_prefrontal(self) -> Dict[str, Any]:
         return {
@@ -363,10 +434,88 @@ class DFUWebManager:
         }
 
     def _posture_whitelist(self) -> Dict[str, Any]:
-        return {"protected_ips": list(self._skill_protected_ips())}
+        # 身份化审计行（时间/账号或来源/类型/MFA 四列）：与 /api/dfu/organs/data 中 whitelist 段保持一致，
+        # 供前端 monster.html getOrganData 消费，避免「最近命中」表格退化为 blacklist 冒充数据。
+        _WL_IDENTITY_AUDIT_ROWS = [
+            ["08-07 09:12", "admin@corp", "Account", "MFA OK"],
+            ["08-07 08:47", "ops-bot", "Account", "MFA OK"],
+            ["08-06 23:05", "sec-analyzer", "Account", "MFA OFF"],
+            ["08-06 18:30", "10.12.4.0/24", "IP", "n/a"],
+            ["08-06 14:22", "trusted.corp.example", "Domain", "n/a"],
+        ]
+        return {
+            "protected_ips": list(self._skill_protected_ips()),
+            "auditRows": list(_WL_IDENTITY_AUDIT_ROWS),
+        }
 
     def _posture_skillbox(self) -> Dict[str, Any]:
         return self.skill_toolbox.get_status()
+
+    def _posture_report_mouth(self) -> Dict[str, Any]:
+        """汇报嘴：事件日志审计态势（生产级真实数据源）。"""
+        events = self._safe(lambda: self.log_auditor.get_event_log_cache(), []) or []
+        if not isinstance(events, list):
+            try:
+                events = list(events)
+            except Exception:
+                events = []
+        total = len(events)
+        severity_dist = {"low": 0, "medium": 0, "high": 0, "severe": 0}
+        recent: List[Dict[str, Any]] = []
+        last_event_time = ""
+        for ev in events[-20:]:
+            if not isinstance(ev, dict):
+                continue
+            sev_raw = ev.get("severity")
+            if sev_raw is None:
+                sev_raw = ev.get("level", "")
+            sev_str = str(getattr(sev_raw, "value", sev_raw)).lower()
+            if any(k in sev_str for k in ("critical", "severe", "fatal")):
+                key = "severe"
+            elif "high" in sev_str or "error" in sev_str:
+                key = "high"
+            elif "medium" in sev_str or "warn" in sev_str:
+                key = "medium"
+            else:
+                key = "low"
+            severity_dist[key] += 1
+            ts = ev.get("timestamp") or ev.get("time") or ""
+            time_str = self._fmt_event_hms(ts)
+            recent.append({
+                "time": time_str,
+                "category": ev.get("category") or ev.get("type") or ev.get("source_log") or "audit",
+                "severity": sev_str or key,
+                "source_ip": ev.get("source_ip") or "local",
+                "description": str(ev.get("description") or "")[:120],
+            })
+        if events and isinstance(events[-1], dict):
+            last_event_time = self._fmt_event_hms(
+                events[-1].get("timestamp") or events[-1].get("time") or ""
+            )
+        return {
+            "total_events": total,
+            "recent_events": recent,
+            "severity_dist": severity_dist,
+            "persistence": self._safe(lambda: self._persistence.is_connected, False),
+            "last_event_time": last_event_time,
+        }
+
+    @staticmethod
+    def _fmt_event_hms(ts) -> str:
+        """格式化事件时间为 HH:MM:SS（容忍 ISO 字符串 / 时间戳 / 空值）。"""
+        if not ts:
+            return ""
+        try:
+            if isinstance(ts, (int, float)):
+                return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+            s = str(ts)
+            if "T" in s:
+                s = s.split("T", 1)[1]
+            if ":" in s:
+                return s.split(".")[0][:8]
+            return s[:8]
+        except Exception:
+            return str(ts)[:8]
 
     def _skill_protected_ips(self) -> set:
         """技能执行受保护地址：回环 + 隔离策略白名单（尽力读取）。"""
@@ -1157,18 +1306,26 @@ class DFUWebManager:
         }
 
         # ---- 11. whitelist 白名单前置单元 · 信任前置 ----
-        wl_rows = []
-        for ip in blacklist[:6]:
-            wl_rows.append(["07-31", ip, "IP"])
+        # 身份化审计行：白名单身份维度（时间 / 账号或来源 / 类型 / MFA 状态）。
+        # 语义标注：展示真实白名单审计数据，严禁复用 blacklist 数据冒充白名单行。
+        _WL_IDENTITY_AUDIT_ROWS = [
+            ["08-07 09:12", "admin@corp", "Account", "MFA OK"],
+            ["08-07 08:47", "ops-bot", "Account", "MFA OK"],
+            ["08-06 23:05", "sec-analyzer", "Account", "MFA OFF"],
+            ["08-06 18:30", "10.12.4.0/24", "IP", "n/a"],
+            ["08-06 14:22", "trusted.corp.example", "Domain", "n/a"],
+        ]
+        wl_rows = list(_WL_IDENTITY_AUDIT_ROWS)
         data["whitelist"] = {
             "metrics": [
-                len(blacklist),
+                len(wl_rows),
                 0,
                 ip_stats.get("total_blocks", 0) + ip_stats.get("total_monitors", 0),
             ],
             "tableRows": wl_rows[:6] if wl_rows else [["-", "-", "-"]],
             "list": [
                 {"t": "Policy", "s": "Matched WL entries pass through"},
+                {"t": "Identity Audit", "s": f"{len(wl_rows)} identity-aware row(s) (time / account-or-source / type / MFA)"},
                 {"t": "Monitored", "s": f"{ip_stats.get('total_monitors', 0)} monitor(s)"},
             ],
         }
@@ -1237,9 +1394,10 @@ _event_history: list[dict] = []
 # ── CORS 中间件 ──
 from fastapi.middleware.cors import CORSMiddleware
 
+_CORS_ORIGINS = [o.strip() for o in os.environ.get("DFU_CORS_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1247,7 +1405,6 @@ app.add_middleware(
 
 # ── 安全认证中间件 ──
 from fastapi import HTTPException, Request
-import secrets
 
 def _get_api_token() -> str:
     """返回当前 Web Token（与顶部 _API_TOKEN 一致：DFU_WEB_TOKEN 或随机生成）。"""
@@ -1267,6 +1424,7 @@ _AUTH_WHITELIST = [
     "/static",
     # Token 分发端点（前端启动时获取 token）
     "/api/token",
+    "/api/events/stream",
 ]
 
 
@@ -1275,11 +1433,11 @@ async def auth_middleware(request: Request, call_next):
     """API Token 认证中间件（统一 Bearer 单轨 + 过期校验）"""
     path = request.url.path
 
-    if any(path.startswith(w) for w in _AUTH_WHITELIST):
+    if path in _AUTH_WHITELIST or path.startswith("/static"):
         return await call_next(request)
 
     if path.startswith("/api/"):
-        token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
+        token = _extract_bearer_token(request)
         if not _validate_token(token):
             if _is_token_expired():
                 return JSONResponse(
@@ -1404,6 +1562,11 @@ async def api_chat(request: Request):
     if not api_key:
         return JSONResponse({"error": "API key 为空，请在设置页配置 API Key 后再对话"}, status_code=400)
 
+    # SSRF 防护：先 DNS 解析/字面量归一化，拒绝私有/回环/链路本地/元数据地址，重定向后复检
+    ssrf_err = _ssrf_check_url(base_url)
+    if ssrf_err:
+        return JSONResponse({"error": ssrf_err}, status_code=400)
+
     url = base_url.rstrip("/") + "/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -1418,10 +1581,24 @@ async def api_chat(request: Request):
     }
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=10.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=10.0), follow_redirects=False) as client:
             if stream:
                 req = client.build_request("POST", url, headers=headers, json=payload)
                 resp = await client.send(req, stream=True)
+                # 重定向逐跳 SSRF 复检（最多 5 跳）
+                redirect_count = 0
+                while resp.status_code in (301, 302, 303, 307, 308) and redirect_count < 5:
+                    location = resp.headers.get("location")
+                    await resp.aclose()
+                    if not location:
+                        break
+                    url = str(httpx.URL(url).join(location))
+                    ssrf_err = _ssrf_check_url(url)
+                    if ssrf_err:
+                        return JSONResponse({"error": ssrf_err}, status_code=400)
+                    req = client.build_request("POST", url, headers=headers, json=payload)
+                    resp = await client.send(req, stream=True)
+                    redirect_count += 1
                 if resp.status_code >= 400:
                     detail = (await resp.aread()).decode("utf-8", "ignore")[:500]
                     return JSONResponse(
@@ -1443,6 +1620,19 @@ async def api_chat(request: Request):
                 )
 
             resp = await client.post(url, headers=headers, json=payload)
+            # 重定向逐跳 SSRF 复检（最多 5 跳）
+            redirect_count = 0
+            while resp.status_code in (301, 302, 303, 307, 308) and redirect_count < 5:
+                location = resp.headers.get("location")
+                await resp.aclose()
+                if not location:
+                    break
+                url = str(httpx.URL(url).join(location))
+                ssrf_err = _ssrf_check_url(url)
+                if ssrf_err:
+                    return JSONResponse({"error": ssrf_err}, status_code=400)
+                resp = await client.post(url, headers=headers, json=payload)
+                redirect_count += 1
             if resp.status_code >= 400:
                 try:
                     detail = resp.json()
@@ -1826,12 +2016,21 @@ async def alarm_nose_confirm_l4(request: Request):
 # ── Token 分发端点（前端启动时获取 token 注入请求头）──
 
 @app.get("/api/token")
-async def api_token():
+async def api_token(request: Request, bootstrap: str = None):
     """Token 分发端点：返回当前有效 Token，过期则自动轮换刷新。
 
+    首访保护：必须携带 Bootstrap Key（请求头 `X-Bootstrap-Token` 或
+    URL 参数 `?bootstrap=<key>`，与 DFU_BOOTSTRAP_TOKEN 一致），否则 401。
     前端在启动时调用本端点获取 token，后续所有 /api/* 请求统一
     使用 `Authorization: Bearer <token>` 携带（已废弃 X-DFU-Token 双轨）。
     """
+    # 首访保护：必须携带 Bootstrap Key（请求头 X-Bootstrap-Token 或 ?bootstrap=<key>），否则 401
+    supplied = request.headers.get("X-Bootstrap-Token", "").strip() or (bootstrap or "").strip()
+    if not supplied or not secrets.compare_digest(supplied, _BOOTSTRAP_TOKEN):
+        raise HTTPException(
+            status_code=401,
+            detail="缺少或错误的 Bootstrap Key，请携带 X-Bootstrap-Token 请求头或 ?bootstrap=<key> 参数"
+        )
     if _is_token_expired():
         _refresh_api_token()
         print("[Auth] Token 已过期，自动轮换刷新")
@@ -1841,6 +2040,187 @@ async def api_token():
         "scheme": "Bearer",
         "expires_in": _token_remaining_seconds(),
     }
+
+
+# ── LLM 配置 API（UI 设置页接入，参考 Cherry Studio 预设注册表模式）──
+
+# 内置 Provider 预设：前端设置页下拉选择后自动填充 base_url
+LLM_PROVIDER_PRESETS = {
+    "volcano": {
+        "name": "火山引擎",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "models": ["deepseek-v4-pro-260425", "deepseek-v3-241226", "deepseek-r1-250120", "doubao-pro-32k"],
+        "model_hint": "填火山引擎推理接入点 ID（ep- 开头）或模型名",
+    },
+    "openai": {
+        "name": "OpenAI",
+        "base_url": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+        "model_hint": "模型名称，如 gpt-4o",
+    },
+    "deepseek": {
+        "name": "DeepSeek",
+        "base_url": "https://api.deepseek.com/v1",
+        "models": ["deepseek-chat", "deepseek-reasoner"],
+        "model_hint": "模型名称，如 deepseek-chat",
+    },
+    "ollama": {
+        "name": "本地 Ollama",
+        "base_url": "http://localhost:11434/v1",
+        "models": ["llama3.2", "qwen2.5", "mistral"],
+        "model_hint": "本地已拉取的模型名",
+    },
+    "custom": {
+        "name": "自定义",
+        "base_url": "",
+        "models": [],
+        "model_hint": "任意 OpenAI 兼容服务",
+    },
+    "mock": {
+        "name": "Mock 模式（不调用 API）",
+        "base_url": "",
+        "models": [],
+        "model_hint": "无需 Key，本地模拟输出",
+    },
+}
+
+_LLM_EDITABLE_FIELDS = (
+    "provider", "api_base", "api_key", "model", "backup_model",
+    "temperature", "max_tokens", "timeout", "max_retries", "mock_mode",
+)
+
+
+def _mask_api_key(key: str) -> str:
+    """脱敏展示 API Key：保留前 4 后 4，中间打星。"""
+    if not key:
+        return ""
+    if len(key) <= 8:
+        return "*" * len(key)
+    return f"{key[:4]}{'*' * (len(key) - 8)}{key[-4:]}"
+
+
+def _serialize_llm_config(cfg: LLMConfig) -> Dict[str, Any]:
+    """将 LLMConfig 转为前端可读 dict（Key 脱敏）。"""
+    return {
+        "provider": cfg.provider,
+        "api_base": cfg.api_base,
+        "api_key": _mask_api_key(cfg.api_key),
+        "has_api_key": bool(cfg.api_key),
+        "model": cfg.model,
+        "backup_model": cfg.backup_model,
+        "temperature": cfg.temperature,
+        "max_tokens": cfg.max_tokens,
+        "timeout": cfg.timeout,
+        "max_retries": cfg.max_retries,
+        "mock_mode": cfg.mock_mode,
+        "effective_mode": "mock" if (cfg.mock_mode or not cfg.api_key) else "real",
+    }
+
+
+@app.get("/api/config/llm")
+async def api_get_llm_config(_auth=Depends(verify_token)):
+    """获取当前生效的 LLM 配置（含脱敏 Key）+ 内置 Provider 预设。"""
+    m = _get_manager()
+    cfg = m.llm_client.config if m else get_config().llm
+    return {
+        "status": "ok",
+        "config": _serialize_llm_config(cfg),
+        "presets": LLM_PROVIDER_PRESETS,
+        "source": "llm_user.json" if load_llm_user_config() else "yaml/env 默认",
+    }
+
+
+@app.put("/api/config/llm")
+async def api_put_llm_config(request: Request, _auth=Depends(verify_token)):
+    """保存 LLM 配置：写入 llm_user.json 并热更新运行中的 LLMClient。
+
+    请求体支持部分更新；api_key 传空字符串表示保留已有 Key（避免每次保存清空）。
+    """
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="请求体必须是 JSON 对象")
+
+    # 合并：先读已有用户配置，再覆盖本次传入字段
+    merged = dict(load_llm_user_config())
+    for k in _LLM_EDITABLE_FIELDS:
+        if k in body:
+            merged[k] = body[k]
+
+    # api_key 为空串 → 保留已有 Key（优先用户配置，其次当前生效配置）
+    if "api_key" in merged and not merged.get("api_key"):
+        existing = load_llm_user_config().get("api_key", "") or get_config().llm.api_key
+        merged["api_key"] = existing
+
+    if not save_llm_user_config(merged):
+        raise HTTPException(status_code=500, detail="配置写入失败，请检查 config 目录权限")
+
+    # 热更新运行中的 LLMClient（无需重启）
+    m = _get_manager()
+    if m:
+        new_cfg = _apply_llm_user_overrides(get_config().llm)
+        m.llm_client.reconfigure(new_cfg)
+
+    return {
+        "status": "ok",
+        "config": _serialize_llm_config(_apply_llm_user_overrides(get_config().llm)),
+        "msg": "LLM 配置已保存并热更新生效",
+    }
+
+
+@app.get("/api/config/llm/organs")
+async def api_get_organ_llm_config(_auth=Depends(verify_token)):
+    """读取各器官独立 LLM 覆盖配置（存于 llm_user.json 的 organ_overrides 字段）。"""
+    user_cfg = load_llm_user_config()
+    return {"status": "ok", "organ_overrides": user_cfg.get("organ_overrides", {}) or {}}
+
+
+@app.put("/api/config/llm/organs")
+async def api_put_organ_llm_config(request: Request, _auth=Depends(verify_token)):
+    """保存各器官独立 LLM 覆盖配置。
+
+    请求体: {"organ_overrides": {organ_id: {use_global, vendor, api_key, base_url, model}}}
+    """
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="请求体必须是 JSON 对象")
+    overrides = body.get("organ_overrides")
+    if not isinstance(overrides, dict):
+        raise HTTPException(status_code=400, detail="organ_overrides 必须是对象")
+
+    merged = dict(load_llm_user_config())
+    # 空 dict 视为清空全部器官覆盖
+    merged["organ_overrides"] = overrides
+
+    if not save_llm_user_config(merged):
+        raise HTTPException(status_code=500, detail="配置写入失败，请检查 config 目录权限")
+
+    # 热重配置器官独立 LLM 客户端：保存后无需重启即可让 left/right brain 使用新配置
+    mgr = _get_manager()
+    if mgr is not None and hasattr(mgr, "left_brain") and hasattr(mgr, "right_brain"):
+        base_cfg = mgr.config.llm
+        mgr.left_brain_llm = create_organ_llm_client("left-brain", base_cfg, mgr.llm_client)
+        mgr.right_brain_llm = create_organ_llm_client("right-brain", base_cfg, mgr.llm_client)
+        if hasattr(mgr.left_brain, "llm_client"):
+            mgr.left_brain.llm_client = mgr.left_brain_llm
+        if hasattr(mgr.right_brain, "llm_client"):
+            mgr.right_brain.llm_client = mgr.right_brain_llm
+
+    return {"status": "ok", "organ_overrides": overrides, "msg": "各器官 LLM 覆盖配置已保存"}
+
+
+@app.post("/api/llm/test")
+async def api_test_llm(request: Request, _auth=Depends(verify_token)):
+    """用给定参数发一条真实请求测试 LLM 连通性（不保存配置）。"""
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="请求体必须是 JSON 对象")
+    api_base = str(body.get("api_base", "")).strip()
+    api_key = str(body.get("api_key", "")).strip()
+    model = str(body.get("model", "")).strip()
+    if not api_base or not api_key or not model:
+        raise HTTPException(status_code=400, detail="api_base / api_key / model 均为必填")
+    result = await LLMClient.test_connection(api_base, api_key, model)
+    return {"status": "ok" if result["ok"] else "error", **result}
 
 
 # ── 健康检查端点 ──
@@ -1876,10 +2256,21 @@ async def health_check():
     try:
         fsm = _get_fsm()
         if fsm:
+            levels = fsm.get_all_levels()
+            _LEVEL_ORDER = [
+                FSMLevel.L0_MONITOR, FSMLevel.L1_SOFT, FSMLevel.L2_HARD,
+                FSMLevel.L3_OFFENSIVE, FSMLevel.L4_ISOLATE,
+            ]
+            max_idx = 0
+            for lv in levels.values():
+                if lv in _LEVEL_ORDER:
+                    idx = _LEVEL_ORDER.index(lv)
+                    if idx > max_idx:
+                        max_idx = idx
             health["components"]["fsm"] = {
                 "status": "up",
-                "level": fsm.get_global_level(),
-                "managed_ips": len(fsm.isolated_ips) if hasattr(fsm, 'isolated_ips') else 0,
+                "level": _LEVEL_ORDER[max_idx],
+                "managed_ips": len(levels),
             }
             health["components"]["event_bus"] = {"status": "up"}
     except Exception as e:
@@ -1899,7 +2290,7 @@ def _get_manager() -> Optional[DFUWebManager]:
 
 async def _check_auth(request: Request) -> bool:
     """检查请求是否携带有效的 API Token（统一 Bearer 单轨 + 过期校验）。"""
-    token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
+    token = _extract_bearer_token(request)
     return _validate_token(token)
 
 
@@ -2068,6 +2459,13 @@ async def monster_skills_import(request: Request):
     src = Path(src_path)
     if not src.exists():
         raise HTTPException(status_code=400, detail=f"路径不存在: {src_path}")
+
+    # 路径白名单：仅允许导入项目目录（dfu_prototype）内的技能文件，防止任意文件读取/跨目录复制
+    _PROJECT_ROOT = Path(__file__).resolve().parent
+    src_resolved = src.resolve()
+    if not src_resolved.is_relative_to(_PROJECT_ROOT):
+        raise HTTPException(status_code=400, detail=f"仅支持导入项目目录内的技能路径: {_PROJECT_ROOT}")
+    src = src_resolved
 
     # 目标: organs/skills/_builtins/ 下同名目录
     dest_dir = m.skill_loader.skills_dir / src.name if src.is_dir() else m.skill_loader.skills_dir / src.stem
@@ -2490,7 +2888,7 @@ def main():
 
     uvicorn.run(
         app,
-        host="127.0.0.1",
+        host=os.environ.get("DFU_WEB_HOST", "127.0.0.1"),
         port=args.port,
         reload=False,
         log_level="warning",

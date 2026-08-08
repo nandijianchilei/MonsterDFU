@@ -8,3 +8,5 @@ aiohappyeyeballs>=2.3
 pyyaml>=6.0
 scapy>=2.5
 sentence-transformers>=2.2
+httpx>=0.27
+# aio_pika 已弃用：RabbitMQ 消息总线未真正接入（rabbitmq_bus.py 仅被已废弃 worker 引用），当前为单机多进程本地编排

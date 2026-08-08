@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from communication.rabbitmq_bus import RabbitMQBus, Message
 from config import get_config
-from core.llm_client import LLMClient
+from core.llm_client import LLMClient, create_organ_llm_client
 from utils.logger import get_logger
 
 logger = get_logger("LeftBrainWorker")
@@ -27,7 +27,8 @@ class LeftBrainWorker:
     def __init__(self):
         self.bus = RabbitMQBus()
         self.config = get_config()
-        self.llm = LLMClient(self.config.llm)
+        # 按器官独立覆盖配置创建客户端；未配置覆盖时回退全局配置客户端
+        self.llm = create_organ_llm_client("left-brain", self.config.llm) or LLMClient(self.config.llm)
         self.decision_count = 0
         self._semaphore = asyncio.Semaphore(5)
 

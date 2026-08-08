@@ -91,6 +91,43 @@ html, body {
   color: var(--warn); letter-spacing: 1px;
   display: flex; align-items: center; gap: 6px;
 }
+/* ===== 离线演示标注（P0：本页为纯前端动画 mock，无任何网络请求） ===== */
+.demo-badge {
+  padding: 3px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 1px dashed var(--warn);
+  color: var(--warn);
+  background: rgba(255, 82, 82, 0.08);
+  animation: demoBlink 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+@keyframes demoBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.demo-notice {
+  position: fixed;
+  bottom: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 24px;
+  background: rgba(10, 14, 23, 0.82);
+  border: 1px dashed var(--warn);
+  color: var(--text-secondary);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  box-shadow: 0 0 18px rgba(255, 82, 82, 0.15);
+  pointer-events: none;
+}
+.demo-notice b { color: var(--warn); }
 .attack-count {
   font-size: 18px; font-weight: 700;
   color: var(--accent); font-variant-numeric: tabular-nums;
@@ -396,6 +433,7 @@ html, body {
     <span class="dfu-title">DFU Defense System</span>
   </div>
   <div class="topbar-center">
+    <span class="demo-badge">离线演示（未连接后端）</span>
     <span class="level-badge level-L4" id="levelBadge">L4 隔离</span>
   </div>
   <div class="topbar-right">
@@ -466,6 +504,9 @@ html, body {
     </div>
   </div>
 </div>
+
+<!-- ===== 离线演示提示（P0：本页为纯前端动画 mock，未连接后端） ===== -->
+<div class="demo-notice"><span>⚠</span><span>当前为<b>离线演示（未连接后端）</b>：下方攻击、分析与防护动画均为本地模拟数据，非真实网络流量。</span></div>
 
 <!-- ===== Bottom Bar ===== -->
 <div class="bottombar">

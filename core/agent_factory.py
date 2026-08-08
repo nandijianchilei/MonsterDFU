@@ -49,8 +49,11 @@ class AgentFactory:
 
         # ===== 阶段1核心Agent（始终初始化）=====
         runner.traffic_monitor = TrafficMonitorAgent(cfg)
-        runner.left_brain = LeftBrain(cfg, llm_client=runner.llm_client)
-        runner.right_brain = RightBrain(cfg, llm_client=runner.llm_client)
+        from core.llm_client import create_organ_llm_client
+        runner.left_brain_llm = create_organ_llm_client("left-brain", cfg.llm, runner.llm_client)
+        runner.right_brain_llm = create_organ_llm_client("right-brain", cfg.llm, runner.llm_client)
+        runner.left_brain = LeftBrain(cfg, llm_client=runner.left_brain_llm)
+        runner.right_brain = RightBrain(cfg, llm_client=runner.right_brain_llm)
         runner.validator = ValidatorAgent(cfg)
         runner.ip_isolation = IPIsolationAgent(cfg)
         runner.event_aggregator = EventAggregator(cfg.event_aggregator)
