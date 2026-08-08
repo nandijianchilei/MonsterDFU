@@ -45,6 +45,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from config import get_config
+from dfuconfig import config
 
 try:
     from fastapi import FastAPI, Request
@@ -246,7 +247,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": "Internal Server Error",
-            "message": str(exc) if (__import__('dfuconfig').config.get("logging", "level") == "DEBUG") else "An unexpected error occurred"
+            "message": str(exc) if (config.get("logging", "level") == "DEBUG") else "An unexpected error occurred"
         }
     )
 
