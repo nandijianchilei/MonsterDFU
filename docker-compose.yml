@@ -1,38 +1,15 @@
 version: "3.8"
 
 services:
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: dfu-rabbitmq
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - dfu-net
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   dfu-core:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: dfu-core
     restart: unless-stopped
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
-      - DFU_RABBITMQ_HOST=rabbitmq
       - DFU_WEB_HOST=0.0.0.0
       - DFU_SERVER_PORT=8000
       - DFU_AUTH_API_TOKEN=${DFU_AUTH_API_TOKEN:-dfu-default-token-change-me}
@@ -77,12 +54,7 @@ services:
     restart: unless-stopped
     # host 网络模式：scapy 需要原生 AF_PACKET / AF_INET 套接字访问宿主网络接口
     network_mode: "host"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     environment:
-      - DFU_RABBITMQ_HOST=localhost
-      - DFU_RABBITMQ_PORT=5672
       - DFU_LOGGING_LEVEL=${DFU_LOGGING_LEVEL:-INFO}
       - DFU_LLM_MOCK_MODE=true
       - DFU_AUTH_API_TOKEN=${DFU_AUTH_API_TOKEN:-dfu-default-token-change-me}
@@ -114,8 +86,6 @@ networks:
     driver: bridge
 
 volumes:
-  rabbitmq_data:
-    driver: local
   dfu_data:
     driver: local
   dfu_logs:

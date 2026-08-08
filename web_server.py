@@ -66,7 +66,7 @@ from organs.scheduler_resource import ResourceSchedulerAgent
 from organs.skill_box import SkillToolbox, SkillLoader, set_skill_env
 from organs.tracker_forensic import ForensicTrackerAgent
 from persistence import get_persistence, PersistenceStore
-from tests.simulate_attack import AttackSimulator
+from core.simulate_attack import AttackSimulator
 from utils.logger import init_global_logger, get_logger
 
 try:

@@ -37,7 +37,7 @@ class AgentFactory:
         from organs.scheduler_resource import ResourceSchedulerAgent
         from organs.tracker_forensic import ForensicTrackerAgent
         from organs.capturer import PacketCapture
-        from tests.simulate_attack import AttackSimulator
+        from core.simulate_attack import AttackSimulator
         from organs.scanner_vuln import VulnSimulator
         from organs.auditor_log import LogAnomalySimulator
         from organs.observer_realtime import RealtimeTrafficAgent
