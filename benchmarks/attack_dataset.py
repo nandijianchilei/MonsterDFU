@@ -4,11 +4,10 @@
 提供可重复使用的预设攻击测试序列，用于基准评测和回归测试。
 每个场景包含 15-30 条告警事件，附描述和期望检测结果。
 
-依赖：仅标准库 + time
+依赖：仅标准库
 """
 
 import random
-import time as time_module
 from typing import Any, Dict, List
 
 
@@ -132,6 +131,9 @@ class AttackDataset:
 
     RNG = random.Random(42)  # 固定种子保证可复现
 
+    # 固定时间基准：保证同一进程内多次生成的事件序列完全一致（可复现测试依赖）
+    _BASE_TS: float = 1700000000.0
+
     def get_scenario(self, name: str) -> Dict[str, Any]:
         """
         获取指定场景的攻击事件列表。
@@ -232,7 +234,7 @@ class AttackDataset:
         - 大小: 128/64/256/128/64/128 字节
         - 间隔: 3.2/4.1/3.8/4.5/3.5 秒
         """
-        base = time_module.time()
+        base = self._BASE_TS
         intervals = [3.2, 4.1, 3.8, 4.5, 3.5]
         ports = [4444, 4444, 8443, 31337, 8443, 4444]
         sizes = [128, 64, 256, 128, 64, 128]
@@ -261,7 +263,7 @@ class AttackDataset:
         数据外泄：2 次单包大流量 + 8 次窗口累计（6MB/3MB 交替）。
         目标 IP: 203.0.113.200:443
         """
-        base = time_module.time()
+        base = self._BASE_TS
         events = []
 
         # 2 次单包大流量
@@ -299,7 +301,7 @@ class AttackDataset:
         """
         端口扫描：20 次不同端口，同一源 IP（10.0.1.100），2 秒内分两批。
         """
-        base = time_module.time()
+        base = self._BASE_TS
         scan_ports = [
             22, 23, 25, 53, 80, 110, 135, 139, 143, 443,
             445, 993, 995, 1433, 1521, 1723, 3306, 3389, 5432, 8080,
@@ -322,7 +324,7 @@ class AttackDataset:
         暴力破解：15 次 SSH 登录失败（10.0.1.200 → 192.168.1.10:22），
         间隔 0.5-2s（固定种子 RNG 保证可复现）。
         """
-        base = time_module.time()
+        base = self._BASE_TS
         events = []
         ts = base
         for i in range(15):
@@ -361,7 +363,7 @@ class AttackDataset:
             span = last_ts - first_ts
             if span > 0:
                 scale = 120.0 / span
-                base = time_module.time()
+                base = self._BASE_TS
                 for e in all_events:
                     e["timestamp"] = base + (e["timestamp"] - first_ts) * scale
 
@@ -374,7 +376,7 @@ class AttackDataset:
         正常流量：10 条 HTTPS/API 调用，使用白名单域名和标准端口。
         不应触发任何告警。
         """
-        base = time_module.time()
+        base = self._BASE_TS
         normal_ports = [443, 443, 80, 443, 8443, 443, 443, 80, 443, 443]
         sizes = [800, 1200, 400, 2000, 600, 1500, 900, 300, 1800, 700]
         domains = [
@@ -411,7 +413,7 @@ class AttackDataset:
         欺骗层蜜罐触发：8 条侦察类攻击（端口扫描 3 / 暴力破解 3 / 漏洞探测 2），
         类别均命中蜜罐触发规则（TRAP_TRIGGER_CATEGORIES），模拟 honeypot_trap 诱捕。
         """
-        base = time_module.time()
+        base = self._BASE_TS
         events = []
 
         # 3 条端口扫描（10.0.1.100 → 192.168.1.1 常见端口）
@@ -455,7 +457,7 @@ class AttackDataset:
         - 10.0.1.220：command_injection（带 api_path → puppeteer API 诱饵）
         事件携带 authorized=True，模拟授权环境（DFU_INTERFERENCE=on）。
         """
-        base = time_module.time()
+        base = self._BASE_TS
         events = []
 
         # 源1：exploit，无 api_path → blindfold

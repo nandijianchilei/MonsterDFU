@@ -13,8 +13,15 @@
 import os
 import json
 from typing import Any, Dict, List, Tuple
-from chromadb import PersistentClient
-from chromadb.config import Settings
+
+try:
+    from chromadb import PersistentClient
+    from chromadb.config import Settings
+    CHROMADB_AVAILABLE = True
+except ImportError:  # chromadb 为可选依赖（pip install .[ml]）
+    PersistentClient = None
+    Settings = None
+    CHROMADB_AVAILABLE = False
 
 
 class VectorKnowledgeStore:
@@ -37,7 +44,15 @@ class VectorKnowledgeStore:
 
         Args:
             persist_dir: ChromaDB 持久化目录路径
+
+        Raises:
+            ImportError: 未安装 chromadb（可选依赖）时初始化会失败
         """
+        if not CHROMADB_AVAILABLE:
+            raise ImportError(
+                "chromadb 未安装，无法使用 VectorKnowledgeStore。"
+                "请执行 `pip install .[ml]` 或 `pip install chromadb` 安装可选 ML 依赖。"
+            )
         os.makedirs(persist_dir, exist_ok=True)
 
         self._persist_dir = persist_dir

@@ -11,9 +11,13 @@ knowledge/ - 冷热分层知识库模块
 
 from knowledge.hot_store import HotKnowledgeStore
 from knowledge.cold_store import ColdKnowledgeStore
-from knowledge.vector_store import VectorKnowledgeStore
+from knowledge.vector_store import VectorKnowledgeStore, CHROMADB_AVAILABLE
 from knowledge.router import KnowledgeRouter
 from knowledge.sync_manager import SyncManager
+
+# chromadb 为可选依赖（pip install .[ml]）；vector_store 模块内部已做降级，
+# 此处基于其 CHROMADB_AVAILABLE 暴露可用性标志，未安装时仅无法实例化，不影响导入。
+VECTOR_STORE_AVAILABLE = CHROMADB_AVAILABLE
 
 __all__ = [
     "HotKnowledgeStore",
@@ -21,4 +25,5 @@ __all__ = [
     "VectorKnowledgeStore",
     "KnowledgeRouter",
     "SyncManager",
+    "VECTOR_STORE_AVAILABLE",
 ]
