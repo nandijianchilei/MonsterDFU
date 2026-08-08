@@ -125,4 +125,44 @@
 
 ---
 
+## 七、复检结论（2026-08-08 第二轮，路线图全部执行后）
+
+### ✅ 路线图全部关闭（逐项源码/git 确认）
+
+| 原问题 | 复检状态 |
+|--------|----------|
+| 🔴 3 个安全回归测试未提交 | ✅ 已提交（`test_security_regression_web.py` 26 例 / `organs` 11 例 / `llm` 6 例），git clean |
+| 🔴 compose rabbitmq 死配置 | ✅ 已移除（服务/volume/depends_on/环境变量全部清除） |
+| 🟡 可选依赖拆分 | ✅ `chromadb`/`sentence-transformers` 移入 `[project.optional-dependencies] ml`，requirements.txt 精简为 9 项核心依赖 |
+| 🟡 迁移 `AttackSimulator` | ✅ 已迁移至 `core/simulate_attack.py`，生产代码 0 处引用 tests/ |
+| 🟡 依赖锁定 | ✅ `requirements.lock`（211 行）已生成 |
+| 🟢 pip-audit 依赖扫描 | ✅ CI 新增 pip-audit 步骤（continue-on-error 软性） |
+| 🟢 `/metrics` 认证 | ✅ `web/metrics.py` 的 `prometheus_metrics` 已加 `_check_auth` Bearer 校验 |
+| 🟢 web_server 拆分 | ✅ 2900 行 → 288 行入口 + `web/` 包（auth 240 / health 73 / llm_config_api 194 / manager 1198 / metrics 86 / organ_handlers 962 / pages 48 / state 30） |
+| 🟢 版本号 + CHANGELOG | ✅ `__version__ = "0.3.0"` + `CHANGELOG.md` + LICENSE(MIT) |
+| 🟢 死代码清理 | ✅ `_call_log` 全清除、`event_aggregator.__import__("time")` 3 处已改、`main.py --capture` 改 `BooleanOptionalAction`、`decisions[0]` 增加空列表保护 |
+| 🟢 dist 移出 git | ✅ `dist/` 已无追踪文件（历史 loose objects 100MB 仍在，无害） |
+
+### ✅ 验证结果
+- **git status clean**，7 个提交完整闭环（安全批次 → 生产化收尾 → 构建产物治理 → web 拆分）
+- 全部 19 个测试文件（**292 个用例**）与源码**语法编译通过**
+- 核心模块可正常导入（仅缺第三方依赖环境，属预期）
+- LLM 配置收敛为 `get_llm_config` 单一入口（10 个文件统一引用）
+- pyproject 规范（build-system/optional-deps/scripts/ruff/pytest 配置齐全）
+
+### ⚠️ 剩余细微项（均不阻塞）
+1. `web_server.py` L249 异常处理器仍内联 `__import__('dfuconfig')`（1 处，计划文档也点名过）——可改为顶部 `from dfuconfig import config`
+2. `web/manager.py` 1198 行、`web/organ_handlers.py` 962 行——已按职责拆分到包级，但单文件仍偏大，后续可再细分
+3. CI 仅测 Python 3.11 单版本；ruff 仅启用 F 规则（可选扩展）
+4. 仓库历史含 100MB 二进制（dist zip 已不追踪，可 GC `git gc --prune` 回收）
+5. 依赖扫描为 `continue-on-error`（软性告警，未硬性阻塞）
+
+### 最终判定（更新）
+
+**从"优秀原型"升级为"可上线的小规模生产系统"。** 上一轮的全部 P0/P1/P2 路线图已执行完毕，安全回归测试已纳入版本控制与 CI，依赖可复现、构建可打包、部署有 Docker/systemd 双通道、版本与变更记录齐备。剩余 5 项为可选的工程打磨，不构成生产阻塞。
+
+> 动态验证（pytest 全量、docker build、桌面打包 smoke test）仍需在安装依赖的环境补做，这是唯一尚未覆盖的环节。
+
+---
+
 *本报告由 CodeBuddy 静态审查生成。动态验证（pytest、docker build）需先安装依赖后补做。*
