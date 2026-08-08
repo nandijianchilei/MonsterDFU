@@ -7,5 +7,5 @@ aiohappyeyeballs>=2.3
 pyyaml>=6.0
 scapy>=2.5
 httpx>=0.27
-# 安装可选 ML 功能（向量库/Embedding，非核心链路）请执行：pip install .[ml] 或 pip install chromadb sentence-transformers
-# aio_pika 已弃用：RabbitMQ 消息总线未真正接入（rabbitmq_bus.py 仅被已废弃 worker 引用），当前为单机多进程本地编排
+# Optional ML features (vector store / embeddings, non-core): run `pip install .[ml]` or `pip install chromadb sentence-transformers`
+# NOTE: aio_pika is deprecated - the RabbitMQ message bus is not wired in (rabbitmq_bus.py is only referenced by the obsolete worker). Current runtime uses single-host multi-process local orchestration.

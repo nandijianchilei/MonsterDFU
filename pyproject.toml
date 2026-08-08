@@ -28,6 +28,7 @@ dependencies = [
     "sse-starlette>=1.8",
     "pyyaml>=6.0",
     "scapy>=2.5",
+    "httpx>=0.27",
     "aiohappyeyeballs>=2.3",
 ]
 
