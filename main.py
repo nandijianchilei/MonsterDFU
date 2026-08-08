@@ -250,9 +250,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--capture",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="启用在线抓包模式（默认开启），通过 scapy 实时捕获网络数据包。需安装 Npcap",
+        help="启用在线抓包模式（默认开启），通过 scapy 实时捕获网络数据包。需安装 Npcap；使用 --no-capture 关闭",
     )
     args = parser.parse_args()
 

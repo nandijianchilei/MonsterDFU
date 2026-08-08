@@ -37,3 +37,9 @@ jobs:
         run: |
           python -c "import dfuconfig; print('dfuconfig OK')"
           python -c "from utils.logging_config import get_logger; print('logging_config OK')"
+
+      - name: Dependency audit (pip-audit)
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.lock || echo "::warning::pip-audit found vulnerabilities in requirements.lock"

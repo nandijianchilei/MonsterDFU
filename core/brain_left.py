@@ -541,7 +541,10 @@ class LeftBrain:
             decisions = self._fallback_process(threats)
             self._stats["fallback_count"] += 1
 
-        # ---- 阶段2: 取第一条决策 ----
+        # ---- 阶段2: 取第一条决策（空保护，避免 decisions[0] 截断崩溃） ----
+        if not decisions:
+            decisions = self._fallback_process(threats)
+            self._stats["fallback_count"] += 1
         decision = decisions[0]
         confirmed_severity_value = decision["severity"]
         action = decision["action"]

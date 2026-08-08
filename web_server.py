@@ -2786,8 +2786,11 @@ async def api_metrics():
 
 
 @app.get("/metrics")
-async def prometheus_metrics():
+async def prometheus_metrics(request: Request):
     """Prometheus 标准 /metrics 端点。"""
+    token_ok = await _check_auth(request)
+    if not token_ok:
+        raise HTTPException(status_code=401, detail="未授权")
     from prometheus_client import generate_latest, CollectorRegistry, Gauge
 
     if not manager:

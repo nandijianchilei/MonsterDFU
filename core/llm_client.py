@@ -53,7 +53,6 @@ class LLMClient:
         self._call_count = 0
         self._fail_count = 0
         self._degraded = False  # 最近一次真实调用失败降级标记（返回体带 degraded: true）
-        self._call_log: List[Dict[str, Any]] = []
         self._current_model = config.model  # 跟踪当前使用的模型
         self._backup_used = False
         self._last_latency_ms: float = 0.0  # 最近一次真实调用的延迟（被外部消费后置零）
@@ -869,10 +868,6 @@ class LLMClient:
         }, ensure_ascii=False)
 
     # ---- 工具方法 ----
-
-    def get_call_log(self) -> List[Dict]:
-        """获取调用日志。"""
-        return self._call_log
 
     def get_status_line(self) -> str:
         """获取状态摘要行。"""

@@ -16,6 +16,7 @@
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
@@ -33,7 +34,7 @@ class AggregationWindow:
     source_ip: str
     category: str
     config: EventAggregatorConfig
-    created_at: float = field(default_factory=lambda: __import__("time").monotonic())
+    created_at: float = field(default_factory=lambda: time.monotonic())
 
     # 聚合数据
     _alerts: List[Dict[str, Any]] = field(default_factory=list)
@@ -222,7 +223,7 @@ class EventAggregator:
                 category=payload.get("category", "unknown"),
                 config=self.config,
             )
-            self._window_started[key] = __import__("time").monotonic()
+            self._window_started[key] = time.monotonic()
 
         window = self._windows[key]
         window.add(payload)
@@ -238,7 +239,7 @@ class EventAggregator:
             await self._flush(oldest_key, reason="overflow")
 
         # 防无限等待：idle_timeout 超时强制 flush
-        now = __import__("time").monotonic()
+        now = time.monotonic()
         for k in list(self._window_started.keys()):
             if k in self._windows and (now - self._window_started[k]) > (
                 self.config.idle_timeout_ms / 1000
