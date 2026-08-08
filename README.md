@@ -26,7 +26,7 @@
 
 # DFU — Distributed AI Defense
 
-> Teaching prototype / Demo prototype — simulates distributed defense behavior inside a single process. Not a production-ready system.
+> **Version 0.3.0** · Teaching prototype / Demo prototype — simulates distributed defense behavior inside a single process. Not a production-ready system.
 
 ---
 
@@ -154,7 +154,7 @@ python web_server.py
 
 ## API Reference
 
-All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth** require an API token — obtain it from `GET /api/token` (with the `X-Bootstrap-Token` header or `?bootstrap=<key>` for first-access protection) and send it as the `Authorization: Bearer <token>` header.
+All endpoints are served by FastAPI (`web_server.py` — a thin app-assembly entry; handlers are split into the `web/` package: `auth` / `manager` / `pages` / `health` / `metrics` / `llm_config_api` / `organ_handlers` / `state`). Endpoints marked **Auth** require an API token — obtain it from `GET /api/token` (with the `X-Bootstrap-Token` header or `?bootstrap=<key>` for first-access protection) and send it as the `Authorization: Bearer <token>` header.
 
 ### Web UI (HTML)
 
@@ -259,6 +259,16 @@ All endpoints are served by FastAPI (`web_server.py`). Endpoints marked **Auth**
 dfu-defense/
 ├── main.py                    # Entry point
 ├── cli.py                     # CLI tool (dfu start/demo/bench/status)
+├── web_server.py              # FastAPI 装配入口（app 创建 / 路由注册 / 启动）
+├── web/
+│ ├── auth.py             # 认证与 Token 分发（Bearer 单轨 / Bootstrap 首访保护 / SSRF 防护）
+│ ├── manager.py          # DFUWebManager 系统管理器
+│ ├── pages.py            # 静态页面路由
+│ ├── health.py           # 健康检查端点 /healthz /readyz /health
+│ ├── metrics.py          # Prometheus /metrics 与 SSE 指标流
+│ ├── llm_config_api.py   # LLM 配置 API（统一走 config.get_llm_config）
+│ ├── organ_handlers.py   # 器官/怪兽/HITL/kill-switch/L4/攻击/对话/演示 API
+│ └── state.py            # 共享运行时状态
 ├── config/
 │ ├── default_config.yaml # 默认配置
 ├── utils/

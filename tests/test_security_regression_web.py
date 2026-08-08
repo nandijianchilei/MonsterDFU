@@ -128,8 +128,12 @@ class TestSSRFProtection(unittest.TestCase):
         self.assertIsNotNone(self._err("not-a-url"))
 
     def test_redirect_recheck_contract_in_source(self):
-        """重定向逐跳 SSRF 复检契约（最多 5 跳）：不跟随重定向 + 逐跳复检。"""
-        with open(os.path.join(PROJECT_ROOT, "web_server.py"), encoding="utf-8") as f:
+        """重定向逐跳 SSRF 复检契约（最多 5 跳）：不跟随重定向 + 逐跳复检。
+
+        api_chat 已随 web_server 拆分迁移至 web/organ_handlers.py，
+        契约源码检查同步指向该模块。
+        """
+        with open(os.path.join(PROJECT_ROOT, "web", "organ_handlers.py"), encoding="utf-8") as f:
             content = f.read()
         self.assertIn("follow_redirects=False", content)
         self.assertIn("301, 302, 303, 307, 308", content)
