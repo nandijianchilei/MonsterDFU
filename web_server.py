@@ -41,7 +41,7 @@ if PROJECT_ROOT not in sys.path:
 
 from communication.message_bus import Message, MessageBus, get_message_bus
 from config import get_config, LLMConfig
-from config import save_llm_user_config, load_llm_user_config, _apply_llm_user_overrides
+from config import save_llm_user_config, load_llm_user_config, get_llm_config
 from core.brain_left import LeftBrain
 from core.brain_right import RightBrain
 from core.countermeasure_fsm import CountermeasureFSM, FSMLevel
@@ -245,11 +245,11 @@ class DFUWebManager:
         )
 
         # LLM
-        self.llm_client = LLMClient(self.config.llm)
+        self.llm_client = LLMClient(get_llm_config())
         # 器官独立 LLM 分发：left-brain / right-brain 按 organ_overrides 构造独立客户端，
         # 未配置覆盖时回退全局 llm_client
-        self.left_brain_llm = create_organ_llm_client("left-brain", self.config.llm, self.llm_client)
-        self.right_brain_llm = create_organ_llm_client("right-brain", self.config.llm, self.llm_client)
+        self.left_brain_llm = create_organ_llm_client("left-brain", get_llm_config(), self.llm_client)
+        self.right_brain_llm = create_organ_llm_client("right-brain", get_llm_config(), self.llm_client)
 
         # 核心 Agent
         self.traffic_monitor = TrafficMonitorAgent(self.config)
@@ -2121,7 +2121,7 @@ def _serialize_llm_config(cfg: LLMConfig) -> Dict[str, Any]:
 async def api_get_llm_config(_auth=Depends(verify_token)):
     """获取当前生效的 LLM 配置（含脱敏 Key）+ 内置 Provider 预设。"""
     m = _get_manager()
-    cfg = m.llm_client.config if m else get_config().llm
+    cfg = m.llm_client.config if m else get_llm_config()
     return {
         "status": "ok",
         "config": _serialize_llm_config(cfg),
@@ -2157,12 +2157,12 @@ async def api_put_llm_config(request: Request, _auth=Depends(verify_token)):
     # 热更新运行中的 LLMClient（无需重启）
     m = _get_manager()
     if m:
-        new_cfg = _apply_llm_user_overrides(get_config().llm)
+        new_cfg = get_llm_config()
         m.llm_client.reconfigure(new_cfg)
 
     return {
         "status": "ok",
-        "config": _serialize_llm_config(_apply_llm_user_overrides(get_config().llm)),
+        "config": _serialize_llm_config(get_llm_config()),
         "msg": "LLM 配置已保存并热更新生效",
     }
 
@@ -2197,7 +2197,7 @@ async def api_put_organ_llm_config(request: Request, _auth=Depends(verify_token)
     # 热重配置器官独立 LLM 客户端：保存后无需重启即可让 left/right brain 使用新配置
     mgr = _get_manager()
     if mgr is not None and hasattr(mgr, "left_brain") and hasattr(mgr, "right_brain"):
-        base_cfg = mgr.config.llm
+        base_cfg = get_llm_config()
         mgr.left_brain_llm = create_organ_llm_client("left-brain", base_cfg, mgr.llm_client)
         mgr.right_brain_llm = create_organ_llm_client("right-brain", base_cfg, mgr.llm_client)
         if hasattr(mgr.left_brain, "llm_client"):

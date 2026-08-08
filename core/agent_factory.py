@@ -49,9 +49,10 @@ class AgentFactory:
 
         # ===== 阶段1核心Agent（始终初始化）=====
         runner.traffic_monitor = TrafficMonitorAgent(cfg)
+        from config import get_llm_config
         from core.llm_client import create_organ_llm_client
-        runner.left_brain_llm = create_organ_llm_client("left-brain", cfg.llm, runner.llm_client)
-        runner.right_brain_llm = create_organ_llm_client("right-brain", cfg.llm, runner.llm_client)
+        runner.left_brain_llm = create_organ_llm_client("left-brain", get_llm_config(), runner.llm_client)
+        runner.right_brain_llm = create_organ_llm_client("right-brain", get_llm_config(), runner.llm_client)
         runner.left_brain = LeftBrain(cfg, llm_client=runner.left_brain_llm)
         runner.right_brain = RightBrain(cfg, llm_client=runner.right_brain_llm)
         runner.validator = ValidatorAgent(cfg)

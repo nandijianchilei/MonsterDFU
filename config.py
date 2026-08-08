@@ -172,8 +172,17 @@ def build_config() -> "Config":
         max_retries=int(_get_cfg(yaml_data, "llm", "max_retries", LLMConfig.max_retries)),
         mock_mode=bool(_get_cfg(yaml_data, "llm", "mock_mode", LLMConfig.mock_mode)),
     )
-    # 用户 UI 配置覆盖层（llm_user.json 优先级最高，避免手改 .env/YAML）
+    # 密钥环境变量注入（优先级最高）：DFU_VOLC_KEY > VOLC_API_KEY > DFU_LLM__API_KEY
+    for env_key in ("DFU_VOLC_KEY", "VOLC_API_KEY"):
+        env_val = os.environ.get(env_key, "").strip()
+        if env_val:
+            llm.api_key = env_val
+            break
+    # 用户 UI 配置覆盖层（llm_user.json；字段存在显式环境变量时跳过，环境变量优先）
     llm = _apply_llm_user_overrides(llm)
+    # 缺失 Key 时给出明确错误提示，而非静默降级
+    if not llm.api_key and not llm.mock_mode:
+        print("[config] 错误：未配置 LLM API Key，已降级为 mock 模式。请设置环境变量 DFU_VOLC_KEY 或 VOLC_API_KEY，或在 UI / config/llm_user.json 中配置")
     # 启动时输出 LLM 配置状态（与 core/llm_client 的 mock 判定保持一致）
     llm_mode = "mock" if (llm.mock_mode or not llm.api_key) else "real"
     print(f"LLM 配置状态: {llm_mode}，模型: {llm.model or '(未设置)'}")
@@ -527,11 +536,33 @@ def save_llm_user_config(data: Dict[str, Any]) -> bool:
         return False
 
 
+# 每个 LLM 字段对应的显式环境变量（优先级高于 llm_user.json）
+_LLM_FIELD_ENV_VARS = {
+    "api_key": ("DFU_VOLC_KEY", "VOLC_API_KEY", "DFU_LLM__API_KEY"),
+    "provider": ("DFU_LLM__PROVIDER",),
+    "api_base": ("DFU_LLM__API_BASE",),
+    "model": ("DFU_LLM__MODEL",),
+    "backup_model": ("DFU_LLM__BACKUP_MODEL",),
+    "temperature": ("DFU_LLM__TEMPERATURE",),
+    "max_tokens": ("DFU_LLM__MAX_TOKENS",),
+    "timeout": ("DFU_LLM__TIMEOUT",),
+    "max_retries": ("DFU_LLM__MAX_RETRIES",),
+    "mock_mode": ("DFU_LLM__MOCK_MODE",),
+}
+
+
 def _apply_llm_user_overrides(llm: "LLMConfig") -> "LLMConfig":
-    """用 llm_user.json 覆盖 LLMConfig 字段（优先级最高，UI 设置页写入）。"""
+    """用 llm_user.json 覆盖 LLMConfig 字段；显式环境变量优先于 llm_user.json。
+
+    优先级：显式环境变量 > llm_user.json > YAML/默认值。
+    """
     user_cfg = load_llm_user_config()
     if not user_cfg:
         return llm
+    # 安全提示：llm_user.json 存在明文 API Key 且未配置环境变量注入时打印警告
+    if str(user_cfg.get("api_key") or "").strip():
+        if not any(os.environ.get(e, "").strip() for e in _LLM_FIELD_ENV_VARS["api_key"]):
+            print("[config] 警告：config/llm_user.json 存在明文 API Key，建议改用环境变量 DFU_VOLC_KEY / VOLC_API_KEY 注入，避免密钥入库")
     # 仅覆盖合法字段，避免脏数据污染
     for key in ("provider", "api_base", "api_key", "model", "backup_model",
                 "temperature", "max_tokens", "timeout", "max_retries", "mock_mode"):
@@ -539,6 +570,9 @@ def _apply_llm_user_overrides(llm: "LLMConfig") -> "LLMConfig":
             continue
         # 空 api_key 不覆盖：保留 YAML/.env 原始值，防止 UI 清空误伤
         if key == "api_key" and not str(user_cfg[key]).strip():
+            continue
+        # 显式环境变量优先于 llm_user.json：存在对应环境变量时跳过该字段覆盖
+        if any(os.environ.get(e, "").strip() for e in _LLM_FIELD_ENV_VARS[key]):
             continue
         try:
             if isinstance(getattr(LLMConfig, key), bool):
@@ -549,6 +583,32 @@ def _apply_llm_user_overrides(llm: "LLMConfig") -> "LLMConfig":
                 setattr(llm, key, str(user_cfg[key]))
         except (TypeError, ValueError):
             continue
+    return llm
+
+
+def get_llm_config() -> "LLMConfig":
+    """统一 LLM 配置读取函数：所有 LLM 配置读取方（llm_client / agent_factory /
+    双脑 worker / web_server 配置接口）的唯一入口。
+
+    优先级：显式环境变量（DFU_VOLC_KEY / VOLC_API_KEY / DFU_LLM__*）> llm_user.json > YAML/默认值。
+    """
+    llm = _apply_llm_user_overrides(get_config().llm)
+    # 显式环境变量为最高优先级：每次读取时注入，保证运行中设置 env 也能即时生效
+    for key, env_keys in _LLM_FIELD_ENV_VARS.items():
+        for env_key in env_keys:
+            val = os.environ.get(env_key, "").strip()
+            if not val:
+                continue
+            try:
+                if isinstance(getattr(LLMConfig, key), bool):
+                    setattr(llm, key, val.lower() in ("1", "true", "yes", "on"))
+                elif isinstance(getattr(LLMConfig, key), (int, float)):
+                    setattr(llm, key, type(getattr(LLMConfig, key))(val))
+                else:
+                    setattr(llm, key, val)
+            except (TypeError, ValueError):
+                pass
+            break
     return llm
 
 

@@ -8,7 +8,7 @@ temp/
 output/
 config/custom.yaml
 *.egg-info/
-dist/*
+dist/
 build/
 .pytest_cache/
 *.db
@@ -30,9 +30,6 @@ podman-machine/
 *.pcap
 *.pcapng
 stress_test_*.py
-
-# keep latest one-click deploy package
-!dist/dfu_prototype_desktop.zip
 
 # third-party Suricata rules (not needed in repo)
 rules/

@@ -10,7 +10,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from communication.message_bus import get_message_bus
-from config import get_config
+from config import get_config, get_llm_config
 from core.event_recorder import EventChainRecorder
 from core.llm_client import LLMClient
 from core.runner import DFUPrototypeRunner
@@ -105,7 +105,7 @@ async def async_main(
     _validate_api_token()
 
     # 初始化 LLM 客户端
-    llm_config = config.llm
+    llm_config = get_llm_config()
     if model:
         llm_config.model = model
     if mock:
